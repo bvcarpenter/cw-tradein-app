@@ -1,267 +1,1377 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>Sign In — Camera West Trade-In</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Trade // Sell — Camera West</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap');
 
-    :root {
-      --bg:      #0e0e0e;
-      --white:   #f5f5f0;
-      --accent:  #d95e00;
-      --dim:     rgba(245,245,240,0.45);
-      --border:  rgba(245,245,240,0.1);
-    }
+:root {
+  --bg: #0e0e0e;
+  --bg2: #141414;
+  --bg3: #1a1a1a;
+  --bg4: #222;
+  --border: #2a2a2a;
+  --border-l: #333;
+  --white: #f5f5f0;
+  --dim: rgba(245,245,240,0.55);
+  --faint: rgba(245,245,240,0.1);
+  --accent: #d95e00;
+  --acc-dim: rgba(217,94,0,0.12);
+  --acc-mid: rgba(217,94,0,0.5);
+  --red-soft: #3a1414;
+  --green-soft: #143a24;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: 'Jost', sans-serif;
+  background: var(--bg);
+  color: var(--white);
+  font-size: 14px;
+  font-weight: 300;
+  letter-spacing: 0.025em;
+  -webkit-font-smoothing: antialiased;
+}
 
-    body {
-      background: var(--bg);
-      color: var(--white);
-      font-family: 'Jost', sans-serif;
-      font-weight: 300;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-    }
+/* HEADER */
+.hdr {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  height: 56px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+.hdr-r { display: flex; align-items: center; gap: 14px; }
+.badge {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--acc-mid);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+.btn-hdr {
+  font-family: 'Jost', sans-serif;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: var(--white);
+  color: var(--bg);
+  border: none;
+  padding: 9px 18px;
+  cursor: pointer;
+  transition: opacity .2s;
+}
+.btn-hdr:hover { opacity: .82; }
 
-    .box {
-      width: 100%;
-      max-width: 400px;
-      text-align: center;
-    }
+/* LAYOUT */
+.wrap { display: flex; height: calc(100vh - 56px); }
 
-    .logo {
-      margin-bottom: 48px;
-    }
+/* SIDEBAR */
+.sb {
+  width: 310px;
+  flex-shrink: 0;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sb-head {
+  padding: 22px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.sb-head .lbl { font-size: 9px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); margin-bottom: 3px; }
+.sb-head h2 { font-family: 'Cormorant Garamond', serif; font-size: 19px; font-weight: 300; }
+.cart { flex: 1; overflow-y: auto; padding: 12px; }
+.cart-empty { color: var(--dim); font-size: 11px; text-align: center; padding: 36px 14px; line-height: 2.1; letter-spacing: 0.05em; }
+.ci { background: var(--bg3); border: 1px solid var(--border); padding: 11px 13px; margin-bottom: 7px; position: relative; transition: border-color .15s; }
+.ci:hover { border-color: var(--border-l); }
+.ci-name { font-size: 11px; font-weight: 400; line-height: 1.4; padding-right: 18px; margin-bottom: 4px; }
+.ci-sub { font-size: 9px; color: var(--dim); letter-spacing: 0.05em; margin-bottom: 5px; }
+.ci-row { display: flex; align-items: center; gap: 6px; }
+.gpill { font-size: 9px; font-weight: 500; letter-spacing: 0.08em; padding: 2px 7px; background: var(--acc-dim); border: 1px solid var(--acc-mid); color: var(--accent); }
+.ci-price { font-size: 11px; color: var(--accent); margin-left: auto; }
+.ci-rm { position: absolute; top: 9px; right: 9px; background: none; border: none; color: var(--border-l); cursor: pointer; font-size: 14px; transition: color .15s; }
+.ci-rm:hover { color: var(--white); }
+.sb-tot { border-top: 1px solid var(--border); padding: 14px 20px; }
+.tr { display: flex; justify-content: space-between; font-size: 10px; color: var(--dim); margin-bottom: 4px; letter-spacing: 0.03em; }
+.tr.main { font-size: 12px; font-weight: 400; color: var(--white); border-top: 1px solid var(--border); padding-top: 7px; margin-top: 3px; margin-bottom: 0; }
+.tr.main span:last-child { color: var(--accent); }
 
-    .divider {
-      font-family: 'Jost', sans-serif;
-      font-size: 10px;
-      font-weight: 500;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: var(--dim);
-      margin-bottom: 10px;
-    }
+/* MAIN */
+.main { flex: 1; overflow-y: auto; padding: 32px 34px; }
 
-    h1 {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 32px;
-      font-weight: 300;
-      letter-spacing: 0.04em;
-      margin-bottom: 10px;
-    }
+.pg-title { margin-bottom: 34px; }
+.pg-title h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 32px;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+}
+.pg-title p { font-size: 11px; color: var(--dim); margin-top: 7px; letter-spacing: 0.08em; }
 
-    .sub {
-      font-size: 12px;
-      color: var(--dim);
-      letter-spacing: 0.06em;
-      line-height: 1.8;
-      margin-bottom: 40px;
-    }
+/* SECTION */
+.sec { border-top: 1px solid var(--border); padding: 26px 0; }
+.sec:last-child { border-bottom: 1px solid var(--border); }
+.sec-hd { display: flex; align-items: baseline; gap: 13px; margin-bottom: 20px; }
+.sec-n { font-family: 'Cormorant Garamond', serif; font-size: 13px; font-style: italic; color: var(--dim); letter-spacing: 0.07em; min-width: 18px; }
+.sec-hd h3 { font-size: 9px; font-weight: 500; letter-spacing: 0.24em; text-transform: uppercase; color: var(--white); }
 
-    .form-group {
-      margin-bottom: 16px;
-      text-align: left;
-    }
+/* FIELD */
+.fg { display: grid; gap: 13px; grid-template-columns: 1fr 1fr; }
+.fg.t3 { grid-template-columns: 1fr 1fr 1fr; }
+.fg.t1 { grid-template-columns: 1fr; }
+.ff { grid-column: 1/-1; }
+.fld { display: flex; flex-direction: column; gap: 5px; }
+.fld label { font-size: 9px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); }
+.fld input, .fld select, .fld textarea {
+  background: var(--bg3);
+  border: 1px solid var(--border-l);
+  color: var(--white);
+  font-family: 'Jost', sans-serif;
+  font-size: 13px;
+  font-weight: 300;
+  letter-spacing: 0.03em;
+  padding: 10px 12px;
+  outline: none;
+  width: 100%;
+  border-radius: 0;
+  transition: border-color .15s;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.fld input::placeholder, .fld textarea::placeholder { color: rgba(245,245,240,0.2); }
+.fld input:focus, .fld select:focus, .fld textarea:focus { border-color: var(--acc-mid); }
+.fld textarea { resize: vertical; min-height: 68px; }
+.fld select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(245,245,240,0.35)'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 30px;
+  cursor: pointer;
+}
+.fld select option { background: var(--bg3); }
 
-    label {
-      display: block;
-      font-size: 9px;
-      font-weight: 500;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--dim);
-      margin-bottom: 8px;
-    }
+/* SUBLABEL */
+.sl { font-size: 9px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); display: block; margin-bottom: 9px; }
 
-    input[type="email"] {
-      width: 100%;
-      background: #141414;
-      border: 1px solid var(--border);
-      color: var(--white);
-      font-family: 'Jost', sans-serif;
-      font-size: 14px;
-      font-weight: 300;
-      padding: 13px 16px;
-      outline: none;
-      transition: border-color .15s;
-      -webkit-appearance: none;
-      border-radius: 0;
-    }
+/* LOCATION CHIPS */
+.loc-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
+.loc { font-family: 'Jost', sans-serif; font-size: 10px; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; padding: 9px 15px; border: 1px solid var(--border-l); cursor: pointer; background: transparent; color: var(--dim); transition: all .15s; }
+.loc:hover { border-color: var(--dim); color: var(--white); }
+.loc.on { border-color: var(--acc-mid); color: var(--accent); background: var(--acc-dim); }
 
-    input[type="email"]:focus {
-      border-color: var(--accent);
-    }
+.ship-box { display: none; margin-top: 13px; padding: 14px; border: 1px solid var(--border); background: var(--bg3); }
+.ship-box.vis { display: block; }
+.ship-lbl { font-size: 9px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin-bottom: 11px; }
 
-    input[type="email"]::placeholder {
-      color: rgba(245,245,240,0.25);
-    }
+/* SEARCH */
+.srch-wrap { position: relative; }
+.srch-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--dim); font-size: 14px; pointer-events: none; }
+.srch-input {
+  background: var(--bg3) !important;
+  border: 1px solid var(--border-l) !important;
+  color: var(--white) !important;
+  font-family: 'Jost', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 300 !important;
+  padding: 10px 12px 10px 36px !important;
+  width: 100%;
+  outline: none;
+  border-radius: 0;
+  transition: border-color .15s;
+  letter-spacing: 0.03em;
+}
+.srch-input::placeholder { color: rgba(245,245,240,0.2) !important; }
+.srch-input:focus { border-color: var(--acc-mid) !important; }
+.srch-res { position: absolute; top: calc(100% + 2px); left: 0; right: 0; background: var(--bg3); border: 1px solid var(--acc-mid); max-height: 260px; overflow-y: auto; z-index: 300; }
+.ri { padding: 10px 13px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; transition: background .1s; }
+.ri:last-child { border-bottom: none; }
+.ri:hover { background: var(--bg4); }
+.ri-n { font-size: 12px; font-weight: 400; color: var(--white); }
+.ri-m { font-size: 9px; color: var(--dim); margin-top: 2px; letter-spacing: 0.04em; }
+.ri-p { font-size: 11px; color: var(--accent); flex-shrink: 0; }
+.no-res { padding: 16px; font-size: 11px; color: var(--dim); text-align: center; letter-spacing: 0.05em; }
 
-    .btn {
-      width: 100%;
-      background: var(--white);
-      color: var(--bg);
-      border: none;
-      font-family: 'Jost', sans-serif;
-      font-size: 10px;
-      font-weight: 500;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      padding: 15px 24px;
-      cursor: pointer;
-      transition: opacity .15s;
-      margin-top: 8px;
-    }
+/* TABS */
+.tab-nav { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.tnav { font-family: 'Jost', sans-serif; font-size: 9px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; background: none; border: none; color: var(--dim); padding: 9px 16px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s; }
+.tnav:hover { color: var(--white); }
+.tnav.on { color: var(--white); border-bottom-color: var(--accent); }
+.tpane { display: none; }
+.tpane.on { display: block; }
 
-    .btn:hover { opacity: 0.85; }
-    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+/* SELECTED BAR */
+.sel-bar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 13px 15px; border: 1px solid var(--acc-mid); background: var(--acc-dim); margin-bottom: 18px; }
+.sel-bar h4 { font-size: 13px; font-weight: 400; line-height: 1.35; margin-bottom: 3px; }
+.sel-bar p { font-size: 9px; color: var(--dim); letter-spacing: 0.05em; }
+.btn-chg { font-family: 'Jost', sans-serif; font-size: 9px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; background: none; border: 1px solid var(--border-l); color: var(--dim); padding: 7px 13px; cursor: pointer; white-space: nowrap; transition: all .15s; }
+.btn-chg:hover { border-color: var(--dim); color: var(--white); }
 
-    .msg {
-      margin-top: 24px;
-      padding: 14px 18px;
-      font-size: 12px;
-      line-height: 1.7;
-      letter-spacing: 0.04em;
-      display: none;
-    }
+/* GRADES */
+.grade-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 18px; }
+.gbtn { font-family: 'Jost', sans-serif; font-size: 11px; font-weight: 400; letter-spacing: 0.05em; padding: 8px 14px; border: 1px solid var(--border-l); background: transparent; color: var(--dim); cursor: pointer; transition: all .15s; }
+.gbtn:hover { border-color: var(--dim); color: var(--white); }
+.gbtn.on { border-color: var(--acc-mid); color: var(--accent); background: var(--acc-dim); }
 
-    .msg.success {
-      background: rgba(217,94,0,0.08);
-      border: 1px solid rgba(217,94,0,0.25);
-      color: var(--white);
-      display: block;
-    }
+/* ACCESSORIES */
+.acc-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 18px; }
+.achip { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--border-l); cursor: pointer; background: transparent; color: var(--dim); font-family: 'Jost', sans-serif; font-size: 11px; font-weight: 300; letter-spacing: 0.03em; transition: all .15s; user-select: none; }
+.achip:hover { border-color: var(--dim); color: var(--white); }
+.achip.on { border-color: var(--acc-mid); color: var(--accent); background: var(--acc-dim); }
+.achk { width: 12px; height: 12px; border: 1px solid currentColor; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 8px; }
 
-    .msg.error {
-      background: rgba(180,60,60,0.1);
-      border: 1px solid rgba(180,60,60,0.3);
-      color: #e08080;
-      display: block;
-    }
+/* DIVIDER */
+.div { height: 1px; background: var(--border); margin: 18px 0; }
 
-    .footer {
-      margin-top: 48px;
-      font-size: 10px;
-      color: rgba(245,245,240,0.2);
-      letter-spacing: 0.08em;
-    }
+/* PRICE TYPE TOGGLE */
+.pt-row { display: flex; gap: 5px; margin-bottom: 14px; }
+.ptbtn { font-family: 'Jost', sans-serif; font-size: 9px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; padding: 9px 17px; border: 1px solid var(--border-l); background: transparent; color: var(--dim); cursor: pointer; transition: all .15s; }
+.ptbtn:hover { border-color: var(--dim); color: var(--white); }
+.ptbtn.on { background: var(--white); border-color: var(--white); color: var(--bg); }
 
-    /* Error states from redirect */
-    .url-error {
-      margin-bottom: 24px;
-      padding: 12px 16px;
-      background: rgba(180,60,60,0.1);
-      border: 1px solid rgba(180,60,60,0.3);
-      color: #e08080;
-      font-size: 11px;
-      letter-spacing: 0.04em;
-      display: none;
-    }
-  </style>
+/* PRICE GRID */
+.pgrid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: var(--border); margin-bottom: 14px; }
+.pbox { background: var(--bg3); padding: 13px 14px; text-align: center; }
+.pbox-l { font-size: 8px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); margin-bottom: 5px; }
+.pbox-v { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 400; color: var(--white); }
+.pbox-p { font-size: 9px; color: var(--dim); margin-top: 2px; }
+
+/* NET BAR */
+.net-bar { background: var(--acc-dim); border: 1px solid var(--acc-mid); padding: 13px 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.net-lbl { font-size: 8px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin-bottom: 3px; }
+.net-v { font-family: 'Cormorant Garamond', serif; font-size: 27px; font-weight: 400; color: var(--accent); }
+.net-r { font-size: 9px; color: var(--dim); text-align: right; line-height: 1.7; }
+
+/* RETAIL OVERRIDE */
+.or-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.or-row label { font-size: 9px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+.or-row input { background: var(--bg3); border: 1px solid var(--border-l); color: var(--white); font-family: 'Jost', sans-serif; font-size: 13px; font-weight: 300; padding: 9px 12px; outline: none; width: 130px; border-radius: 0; transition: border-color .15s; }
+.or-row input:focus { border-color: var(--acc-mid); }
+.or-row input::placeholder { color: rgba(245,245,240,0.2); }
+
+/* DETAIL SECTION */
+.det { display: none; }
+.det.vis { display: block; }
+
+/* EXPORT */
+.exp { display: none; }
+.exp.vis { display: block; }
+.exp-acts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; margin-top: 14px; }
+
+/* BUTTONS */
+.btn { font-family: 'Jost', sans-serif; font-size: 10px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; padding: 13px 20px; border: none; cursor: pointer; transition: opacity .15s; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.btn:hover { opacity: .83; }
+.btn:disabled { opacity: .28; cursor: not-allowed; }
+.btn-w { background: var(--white); color: var(--bg); }
+.btn-ol { background: transparent; border: 1px solid var(--border-l); color: var(--dim); }
+.btn-ol:hover { border-color: var(--dim); color: var(--white); opacity: 1; }
+.btn-g { background: var(--green-soft); border: 1px solid #2a5a3a; color: #70d090; }
+.btn-r { background: var(--red-soft); border: 1px solid #5a2a2a; color: #e07070; }
+.btn-a { background: var(--accent); color: var(--bg); }
+.btn-full { width: 100%; }
+
+/* MODAL */
+.mo { position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 500; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(3px); }
+.mo.open { display: flex; }
+.mod { background: var(--bg2); border: 1px solid var(--border-l); max-width: 680px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; }
+.mod-h { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.mod-h h3 { font-family: 'Cormorant Garamond', serif; font-size: 19px; font-weight: 300; }
+.mod-x { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 20px; line-height: 1; transition: color .15s; }
+.mod-x:hover { color: var(--white); }
+.mod-b { padding: 0; overflow-y: auto; flex: 1; }
+.mod-f { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 7px; }
+.print-prev { background: #fff; color: #111; padding: 22px 26px; font-family: 'Jost', sans-serif; font-size: 12px; }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-l); border-radius: 2px; }
+
+/* RESPONSIVE */
+@media (max-width: 840px) {
+  .wrap { flex-direction: column; height: auto; }
+  .sb { width: 100%; max-height: 240px; border-right: none; border-bottom: 1px solid var(--border); }
+  .main { padding: 20px 16px; }
+  .pg-title h1 { font-size: 26px; }
+  .fg.t3 { grid-template-columns: 1fr 1fr; }
+  .pgrid { grid-template-columns: 1fr 1fr; }
+  .exp-acts { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .fg, .fg.t3 { grid-template-columns: 1fr; }
+  .pgrid { grid-template-columns: 1fr; }
+}
+</style>
 </head>
 <body>
-  <div class="box">
 
-    <div class="logo">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 75" height="24" style="display:block;margin:0 auto;">
-        <path fill="#fff" d="M27.4,43c-.2,3.6-1.2,6.3-3.1,8.2s-4.5,2.8-7.9,2.8-6.3-1.2-8.3-3.5c-1.9-2.4-2.9-5.7-2.9-10.1v-5.3c0-4.4,1-7.7,3-10.1,2-2.4,4.7-3.5,8.2-3.5s6.1,1,7.9,2.9,2.8,4.7,3.1,8.3h-6.4c0-2.2-.4-3.8-1-4.6-.6-.8-1.8-1.3-3.5-1.3s-2.9.6-3.6,1.8c-.7,1.2-1.1,3.2-1.1,5.9v6c0,3.2.4,5.3,1.1,6.5.7,1.2,1.9,1.8,3.6,1.8s2.8-.4,3.5-1.2c.6-.8,1-2.3,1.1-4.5h6.4-.1Z"/>
-        <path fill="#fff" d="M49.8,47.1h-8.7l-1.7,6.5h-6.8l9.9-31.7h5.9l10,31.7h-6.8l-1.7-6.5h0ZM42.5,41.8h5.9l-3-11.3-3,11.3h0Z"/>
-        <path fill="#fff" d="M73,21.9l6,22.9,6-22.9h8.4v31.7h-6.4v-8.6l.6-13.2-6.3,21.8h-4.4l-6.3-21.8.6,13.2v8.6h-6.4v-31.7h8.4-.2Z"/>
-        <path fill="#fff" d="M118.2,39.9h-10v8.4h11.8v5.3h-18.2v-31.7h18.2v5.3h-11.8v7.5h10v5.2Z"/>
-        <path fill="#fff" d="M136.6,42h-3.2v11.6h-6.4v-31.7h10.2c3.2,0,5.7.8,7.4,2.5,1.8,1.7,2.6,4,2.6,7.1s-1.5,7.2-4.6,8.9l5.5,13v.3h-6.9l-4.8-11.6h.2ZM133.4,36.7h3.6c1.3,0,2.2-.4,2.9-1.3.6-.8,1-2,1-3.4,0-3.2-1.2-4.8-3.7-4.8h-3.7v9.4h-.1Z"/>
-        <path fill="#fff" d="M170.2,47.1h-8.7l-1.7,6.5h-6.8l9.9-31.7h5.9l10,31.7h-6.8l-1.7-6.5h0ZM162.8,41.8h5.9l-3-11.3-3,11.3h.1Z"/>
-        <path fill="#fff" d="M205.6,41.8l3-19.9h6.3l-5.6,31.7h-6.4l-3.7-18.7-3.7,18.7h-6.4l-5.7-31.7h6.4l3,19.9,3.7-19.9h5.4s3.7,19.9,3.7,19.9Z"/>
-        <path fill="#fff" d="M238.1,39.9h-10v8.4h11.8v5.3h-18.2v-31.7h18.2v5.3h-11.8v7.5h10v5.2Z"/>
-        <path fill="#fff" d="M260.3,45.3c0-1.3-.3-2.3-1-2.9-.7-.7-1.9-1.4-3.6-2.1-3.2-1.2-5.5-2.6-6.9-4.2s-2.1-3.5-2.1-5.8.9-4.8,2.8-6.4c1.9-1.6,4.3-2.4,7.2-2.4s3.7.4,5.2,1.2,2.7,2,3.5,3.5,1.2,3.2,1.2,5.1h-6.4c0-1.5-.3-2.6-1-3.4-.6-.8-1.5-1.2-2.7-1.2s-2,.3-2.6,1-.9,1.5-.9,2.6.3,1.7,1,2.4c.7.7,1.9,1.4,3.7,2.2,3.1,1.1,5.3,2.5,6.7,4.1,1.4,1.6,2.1,3.7,2.1,6.2s-.9,4.9-2.6,6.5c-1.8,1.6-4.1,2.3-7.1,2.3s-3.9-.4-5.6-1.3c-1.7-.8-3-2.1-4-3.6-.9-1.6-1.4-3.4-1.4-5.6h6.4c0,1.8.4,3.2,1.1,4,.7.8,1.9,1.2,3.5,1.2s3.4-1.2,3.4-3.5h0Z"/>
-        <path fill="#fff" d="M294.9,27.2h-7.9v26.4h-6.4v-26.4h-7.7v-5.3h22v5.3Z"/>
-      </svg>
+<header class="hdr">
+  <a href="#" style="display:flex;align-items:center;text-decoration:none;">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 75" height="26" style="display:block;">
+      <path fill="#fff" d="M27.4,43c-.2,3.6-1.2,6.3-3.1,8.2s-4.5,2.8-7.9,2.8-6.3-1.2-8.3-3.5c-1.9-2.4-2.9-5.7-2.9-10.1v-5.3c0-4.4,1-7.7,3-10.1,2-2.4,4.7-3.5,8.2-3.5s6.1,1,7.9,2.9,2.8,4.7,3.1,8.3h-6.4c0-2.2-.4-3.8-1-4.6-.6-.8-1.8-1.3-3.5-1.3s-2.9.6-3.6,1.8c-.7,1.2-1.1,3.2-1.1,5.9v6c0,3.2.4,5.3,1.1,6.5.7,1.2,1.9,1.8,3.6,1.8s2.8-.4,3.5-1.2c.6-.8,1-2.3,1.1-4.5h6.4-.1Z"></path>
+      <path fill="#fff" d="M49.8,47.1h-8.7l-1.7,6.5h-6.8l9.9-31.7h5.9l10,31.7h-6.8l-1.7-6.5h0ZM42.5,41.8h5.9l-3-11.3-3,11.3h0Z"></path>
+      <path fill="#fff" d="M73,21.9l6,22.9,6-22.9h8.4v31.7h-6.4v-8.6l.6-13.2-6.3,21.8h-4.4l-6.3-21.8.6,13.2v8.6h-6.4v-31.7h8.4-.2Z"></path>
+      <path fill="#fff" d="M118.2,39.9h-10v8.4h11.8v5.3h-18.2v-31.7h18.2v5.3h-11.8v7.5h10v5.2Z"></path>
+      <path fill="#fff" d="M136.6,42h-3.2v11.6h-6.4v-31.7h10.2c3.2,0,5.7.8,7.4,2.5,1.8,1.7,2.6,4,2.6,7.1s-1.5,7.2-4.6,8.9l5.5,13v.3h-6.9l-4.8-11.6h.2ZM133.4,36.7h3.6c1.3,0,2.2-.4,2.9-1.3.6-.8,1-2,1-3.4,0-3.2-1.2-4.8-3.7-4.8h-3.7v9.4h-.1Z"></path>
+      <path fill="#fff" d="M170.2,47.1h-8.7l-1.7,6.5h-6.8l9.9-31.7h5.9l10,31.7h-6.8l-1.7-6.5h0ZM162.8,41.8h5.9l-3-11.3-3,11.3h.1Z"></path>
+      <path fill="#fff" d="M205.6,41.8l3-19.9h6.3l-5.6,31.7h-6.4l-3.7-18.7-3.7,18.7h-6.4l-5.7-31.7h6.4l3,19.9,3.7-19.9h5.4s3.7,19.9,3.7,19.9Z"></path>
+      <path fill="#fff" d="M238.1,39.9h-10v8.4h11.8v5.3h-18.2v-31.7h18.2v5.3h-11.8v7.5h10v5.2Z"></path>
+      <path fill="#fff" d="M260.3,45.3c0-1.3-.3-2.3-1-2.9-.7-.7-1.9-1.4-3.6-2.1-3.2-1.2-5.5-2.6-6.9-4.2s-2.1-3.5-2.1-5.8.9-4.8,2.8-6.4c1.9-1.6,4.3-2.4,7.2-2.4s3.7.4,5.2,1.2,2.7,2,3.5,3.5,1.2,3.2,1.2,5.1h-6.4c0-1.5-.3-2.6-1-3.4-.6-.8-1.5-1.2-2.7-1.2s-2,.3-2.6,1-.9,1.5-.9,2.6.3,1.7,1,2.4c.7.7,1.9,1.4,3.7,2.2,3.1,1.1,5.3,2.5,6.7,4.1,1.4,1.6,2.1,3.7,2.1,6.2s-.9,4.9-2.6,6.5c-1.8,1.6-4.1,2.3-7.1,2.3s-3.9-.4-5.6-1.3c-1.7-.8-3-2.1-4-3.6-.9-1.6-1.4-3.4-1.4-5.6h6.4c0,1.8.4,3.2,1.1,4,.7.8,1.9,1.2,3.5,1.2s3.4-1.2,3.4-3.5h0Z"></path>
+      <path fill="#fff" d="M294.9,27.2h-7.9v26.4h-6.4v-26.4h-7.7v-5.3h22v5.3Z"></path>
+    </svg>
+  </a>
+  <div class="hdr-r">
+    <span class="badge" id="badge">0 Items</span>
+    <button class="btn-hdr" onclick="goExport()">Export Session</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- SIDEBAR -->
+  <aside class="sb">
+    <div class="sb-head">
+      <div class="lbl">Session</div>
+      <h2>Trade-In Items</h2>
+    </div>
+    <div class="cart" id="cart">
+      <div class="cart-empty">No items added yet.<br>Complete the form to begin.</div>
+    </div>
+    <div class="sb-tot" id="sb-tot" style="display:none;">
+      <div class="tr"><span>Total Retail</span><span id="t-ret">—</span></div>
+      <div class="tr"><span>Trade-In Value</span><span id="t-ti">—</span></div>
+      <div class="tr"><span>Outright Value</span><span id="t-or">—</span></div>
+      <div class="tr main"><span>Net to Customer</span><span id="t-net">—</span></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <div class="pg-title">
+      <h1>Trade <em style="font-style:italic;color:var(--accent)">//</em> Sell<br>Your Gear</h1>
+      <p>Internal Trade-In Manager — Rancho Mirage</p>
     </div>
 
-    <div class="divider">Staff Access</div>
-    <h1>Trade-In Manager</h1>
-    <p class="sub">Enter your Camera West email address.<br>We'll send you a sign-in link.</p>
+    <!-- i. Customer Details -->
+    <section class="sec">
+      <div class="sec-hd">
+        <span class="sec-n">i.</span>
+        <h3>Customer Details</h3>
+      </div>
 
-    <div class="url-error" id="url-error"></div>
+      <div class="fg t3" style="margin-bottom:16px;">
+        <div class="fld"><label>First Name *</label><input type="text" id="c-first" placeholder="Jane"></div>
+        <div class="fld"><label>Last Name *</label><input type="text" id="c-last" placeholder="Smith"></div>
+        <div class="fld"><label>Phone</label><input type="tel" id="c-phone" placeholder="(760) 555-0100"></div>
+        <div class="fld ff"><label>Email</label><input type="email" id="c-email" placeholder="jane@email.com"></div>
+      </div>
 
-    <div class="form-group">
-      <label for="email">Email Address</label>
-      <input type="email" id="email" placeholder="you@camerawest.com" autocomplete="email" autofocus>
+      <span class="sl">Preferred Location *</span>
+      <div class="loc-row">
+        <button class="loc" onclick="setLoc(this,'Palm Springs')">Palm Springs</button>
+        <button class="loc" onclick="setLoc(this,'San Francisco')">San Francisco</button>
+        <button class="loc" onclick="setLoc(this,'SoHo — New York')">SoHo — New York</button>
+        <button class="loc" onclick="setLoc(this,'shipping')">Requires Shipping</button>
+      </div>
+
+      <div class="ship-box" id="ship-box">
+        <div class="ship-lbl">Shipping Address</div>
+        <div class="fg" style="margin-bottom:0;">
+          <div class="fld ff"><label>Street Address</label><input type="text" id="s-str" placeholder="123 Main Street"></div>
+          <div class="fld"><label>City</label><input type="text" id="s-city" placeholder="Palm Springs"></div>
+          <div class="fld"><label>State</label><input type="text" id="s-st" placeholder="CA" maxlength="2"></div>
+          <div class="fld"><label>ZIP</label><input type="text" id="s-zip" placeholder="92262" maxlength="10"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ii. What Are You Trading In -->
+    <section class="sec">
+      <div class="sec-hd">
+        <span class="sec-n">ii.</span>
+        <h3>What Are You Trading In?</h3>
+      </div>
+
+      <div class="tab-nav">
+        <button class="tnav on" onclick="tab('search',this)">Search Catalog</button>
+        <button class="tnav" onclick="tab('manual',this)">Manual Entry</button>
+      </div>
+
+      <div class="tpane on" id="tab-search">
+        <div class="srch-wrap">
+          <span class="srch-icon">⌕</span>
+          <input class="srch-input" id="item-search" type="text" placeholder="Configure WORKER_URL in script to enable live search…" oninput="dSearch(this.value)" autocomplete="off" disabled="">
+          <div class="srch-res" id="srch-res" style="display:none;"></div>
+        </div>
+      </div>
+
+      <div class="tpane" id="tab-manual">
+        <div class="fg">
+          <div class="fld ff"><label>Item Name *</label><input type="text" id="m-name" placeholder="e.g. Leica M11, Black Chrome" oninput="autoBrand(this.value)"></div>
+          <div class="fld"><label>Brand</label><input type="text" id="m-vendor" placeholder="Leica" oninput="this.dataset.userEdited='true'" onfocus="if(!this.value)this.dataset.userEdited='false'"></div>
+          <div class="fld"><label>System ID</label><select id="m-sys">
+              <option value="">— Select —</option>
+              <option value="0.95 Edition">0.95 Edition</option>
+              <option value="Alpa 35mm">Alpa 35mm</option>
+              <option value="Alpa Technical">Alpa Technical</option>
+              <option value="Bronica ETR">Bronica ETR</option>
+              <option value="Bronica GS">Bronica GS</option>
+              <option value="Bronica RF">Bronica RF</option>
+              <option value="Bronica SQ">Bronica SQ</option>
+              <option value="Canon Cine">Canon Cine</option>
+              <option value="Canon EF">Canon EF</option>
+              <option value="Canon FD">Canon FD</option>
+              <option value="Canon M">Canon M</option>
+              <option value="Canon Powershot">Canon Powershot</option>
+              <option value="Canon R">Canon R</option>
+              <option value="Canon RF">Canon RF</option>
+              <option value="Contax 645">Contax 645</option>
+              <option value="Contax Compact">Contax Compact</option>
+              <option value="Contax G">Contax G</option>
+              <option value="Contax RF">Contax RF</option>
+              <option value="Contax SLR">Contax SLR</option>
+              <option value="Contax YC">Contax YC</option>
+              <option value="Exakta 35mm">Exakta 35mm</option>
+              <option value="Exakta Medium Format">Exakta Medium Format</option>
+              <option value="Fujifilm GFX">Fujifilm GFX</option>
+              <option value="Fujifilm Medium Format">Fujifilm Medium Format</option>
+              <option value="Fujifilm X">Fujifilm X</option>
+              <option value="Gopro">Gopro</option>
+              <option value="Hasselblad Flextight">Hasselblad Flextight</option>
+              <option value="Hasselblad H">Hasselblad H</option>
+              <option value="Hasselblad V">Hasselblad V</option>
+              <option value="Hasselblad X-Pan">Hasselblad X-Pan</option>
+              <option value="Hasselblad XCD">Hasselblad XCD</option>
+              <option value="Kodak 35mm">Kodak 35mm</option>
+              <option value="Kodak Medium Format">Kodak Medium Format</option>
+              <option value="Large Format">Large Format</option>
+              <option value="Large Format Cine">Large Format Cine</option>
+              <option value="Leica APS-C">Leica APS-C</option>
+              <option value="Leica Cine">Leica Cine</option>
+              <option value="Leica CL">Leica CL</option>
+              <option value="Leica Compacts">Leica Compacts</option>
+              <option value="Leica M">Leica M</option>
+              <option value="Leica M10">Leica M10</option>
+              <option value="Leica Q">Leica Q</option>
+              <option value="Leica R">Leica R</option>
+              <option value="Leica S">Leica S</option>
+              <option value="Leica SL">Leica SL</option>
+              <option value="Leica SM">Leica SM</option>
+              <option value="Leica Sofort">Leica Sofort</option>
+              <option value="Leica Sport Optics">Leica Sport Optics</option>
+              <option value="Leica TL">Leica TL</option>
+              <option value="Leica X">Leica X</option>
+              <option value="M42">M42</option>
+              <option value="Mamiya 645">Mamiya 645</option>
+              <option value="Mamiya 7">Mamiya 7</option>
+              <option value="Mamiya Press">Mamiya Press</option>
+              <option value="Mamiya RB">Mamiya RB</option>
+              <option value="Mamiya RZ">Mamiya RZ</option>
+              <option value="Mamiya TLR">Mamiya TLR</option>
+              <option value="Minox 35mm">Minox 35mm</option>
+              <option value="Minox Subminiature">Minox Subminiature</option>
+              <option value="Misc 35mm">Misc 35mm</option>
+              <option value="Misc Compact">Misc Compact</option>
+              <option value="Misc Medium">Misc Medium</option>
+              <option value="Nikon 1">Nikon 1</option>
+              <option value="Nikon AF">Nikon AF</option>
+              <option value="Nikon AI">Nikon AI</option>
+              <option value="Nikon AI-S">Nikon AI-S</option>
+              <option value="Nikon Coolpix">Nikon Coolpix</option>
+              <option value="Nikon Keymission">Nikon Keymission</option>
+              <option value="Nikon Non AI">Nikon Non AI</option>
+              <option value="Nikon RF">Nikon RF</option>
+              <option value="Nikon Z">Nikon Z</option>
+              <option value="Nikonos">Nikonos</option>
+              <option value="Olympus 35mm">Olympus 35mm</option>
+              <option value="Olympus 43rds">Olympus 43rds</option>
+              <option value="Olympus Compacts">Olympus Compacts</option>
+              <option value="Olympus M 4/3">Olympus M 4/3</option>
+              <option value="Panasonic Compacts">Panasonic Compacts</option>
+              <option value="Panasonic Lumix G">Panasonic Lumix G</option>
+              <option value="Panasonic Lumix S">Panasonic Lumix S</option>
+              <option value="Panasonic Video">Panasonic Video</option>
+              <option value="Panoramic">Panoramic</option>
+              <option value="Pentax 645">Pentax 645</option>
+              <option value="Pentax 67">Pentax 67</option>
+              <option value="Pentax SLR">Pentax SLR</option>
+              <option value="Pentax SM">Pentax SM</option>
+              <option value="Phase One">Phase One</option>
+              <option value="profoto">profoto</option>
+              <option value="Ricoh GR">Ricoh GR</option>
+              <option value="Rollei 35mm">Rollei 35mm</option>
+              <option value="Rollei 6000">Rollei 6000</option>
+              <option value="Rollei SLR">Rollei SLR</option>
+              <option value="Rollieflex TLR">Rollieflex TLR</option>
+              <option value="Sony A">Sony A</option>
+              <option value="Sony E">Sony E</option>
+              <option value="Sony RX">Sony RX</option>
+              <option value="Super 16mm">Super 16mm</option>
+              <option value="Super 35mm">Super 35mm</option>
+              <option value="Super 8mm">Super 8mm</option>
+              <option value="Tessina Subminiature">Tessina Subminiature</option>
+              <option value="TLR">TLR</option>
+              <option value="Watches">Watches</option>
+              <option value="Workshops">Workshops</option>
+              <option value="Zeiss Ikon">Zeiss Ikon</option>
+              <option value="Zeiss Ikon Contaflex">Zeiss Ikon Contaflex</option>
+              <option value="Zeiss Ikon Contarex">Zeiss Ikon Contarex</option>
+              <option value="Zeiss Ikon Folding">Zeiss Ikon Folding</option>
+              <option value="Zeiss Ikon TCR">Zeiss Ikon TCR</option>
+            </select></div>
+          <div class="fld">
+            <label>Item Type</label>
+            <select id="m-type">
+              <option value="">— Select —</option>
+              <option value="120">120</option>
+              <option value="35mm">35mm</option>
+              <option value="Accessories">Accessories</option>
+              <option value="Backpacks">Backpacks</option>
+              <option value="Backs">Backs</option>
+              <option value="Backup">Backup</option>
+              <option value="Batteries">Batteries</option>
+              <option value="Bodies">Bodies</option>
+              <option value="Books">Books</option>
+              <option value="C Fast Cards">C Fast Cards</option>
+              <option value="C-Pol Filters">C-Pol Filters</option>
+              <option value="Canvas">Canvas</option>
+              <option value="Cases">Cases</option>
+              <option value="CF Cards">CF Cards</option>
+              <option value="CFast 2.0 Cards">CFast 2.0 Cards</option>
+              <option value="Chargers">Chargers</option>
+              <option value="Chemistry">Chemistry</option>
+              <option value="Close Up">Close Up</option>
+              <option value="Color Calibration">Color Calibration</option>
+              <option value="Color Filters">Color Filters</option>
+              <option value="Continous">Continous</option>
+              <option value="DVD">DVD</option>
+              <option value="External Recorders">External Recorders</option>
+              <option value="Filters">Filters</option>
+              <option value="Finders">Finders</option>
+              <option value="Flash">Flash</option>
+              <option value="Flashlight">Flashlight</option>
+              <option value="Gallery Prints">Gallery Prints</option>
+              <option value="Hand Grip">Hand Grip</option>
+              <option value="Heads">Heads</option>
+              <option value="Ink">Ink</option>
+              <option value="Instant">Instant</option>
+              <option value="IR Filters">IR Filters</option>
+              <option value="Legs">Legs</option>
+              <option value="Lens Mount Adapters">Lens Mount Adapters</option>
+              <option value="Lenses">Lenses</option>
+              <option value="Magazines">Magazines</option>
+              <option value="Manuals">Manuals</option>
+              <option value="Messenger Bags">Messenger Bags</option>
+              <option value="Meters">Meters</option>
+              <option value="Microphones">Microphones</option>
+              <option value="Modifiers">Modifiers</option>
+              <option value="Monitors">Monitors</option>
+              <option value="Muslin">Muslin</option>
+              <option value="ND Filters">ND Filters</option>
+              <option value="Neck Straps">Neck Straps</option>
+              <option value="Paper">Paper</option>
+              <option value="Parts">Parts</option>
+              <option value="Printer">Printer</option>
+              <option value="Prints">Prints</option>
+              <option value="Readers">Readers</option>
+              <option value="Rolling Cases">Rolling Cases</option>
+              <option value="Scanners">Scanners</option>
+              <option value="Screen Protectors">Screen Protectors</option>
+              <option value="SD Cards">SD Cards</option>
+              <option value="Seminars">Seminars</option>
+              <option value="Sheet">Sheet</option>
+              <option value="Shirts">Shirts</option>
+              <option value="Sliders">Sliders</option>
+              <option value="Sling">Sling</option>
+              <option value="Soft Release">Soft Release</option>
+              <option value="Square Filters">Square Filters</option>
+              <option value="Stabilzers">Stabilzers</option>
+              <option value="Stands">Stands</option>
+              <option value="Stepping Rings">Stepping Rings</option>
+              <option value="Strobe">Strobe</option>
+              <option value="T-Shirt">T-Shirt</option>
+              <option value="Teleconverters">Teleconverters</option>
+              <option value="Tents">Tents</option>
+              <option value="Thumbs Up">Thumbs Up</option>
+              <option value="Triggers">Triggers</option>
+              <option value="Tripod Plates">Tripod Plates</option>
+              <option value="UV Filters">UV Filters</option>
+              <option value="Video">Video</option>
+              <option value="Vinyl">Vinyl</option>
+              <option value="Wearables">Wearables</option>
+              <option value="Wrist Straps">Wrist Straps</option>
+              <option value="XQD Cards">XQD Cards</option>
+            </select>
+          </div>
+          <div class="fld">
+            <label>Medium</label>
+            <select id="m-med">
+              <option value="">— Select —</option>
+              <option value="Digital">Digital</option>
+              <option value="Film">Film</option>
+              <option value="Other">Other</option>
+              <option value="Sport Optics">Sport Optics</option>
+              <option value="Watches">Watches</option>
+            </select>
+          </div>
+          <div class="fld">
+            <label>Format</label>
+            <select id="m-format">
+              <option value="">— Select —</option>
+              <option value="35mm">35mm</option>
+              <option value="Action Cam">Action Cam</option>
+              <option value="Backdrops">Backdrops</option>
+              <option value="Bags">Bags</option>
+              <option value="Binoculars">Binoculars</option>
+              <option value="Compact">Compact</option>
+              <option value="Darkroom">Darkroom</option>
+              <option value="Film">Film</option>
+              <option value="Filters">Filters</option>
+              <option value="Fixed Lens">Fixed Lens</option>
+              <option value="Gallery">Gallery</option>
+              <option value="Large Format">Large Format</option>
+              <option value="Lighting">Lighting</option>
+              <option value="Medium Format">Medium Format</option>
+              <option value="Memory">Memory</option>
+              <option value="Mirrorless">Mirrorless</option>
+              <option value="Monocular">Monocular</option>
+              <option value="Printing">Printing</option>
+              <option value="Rangefinder">Rangefinder</option>
+              <option value="Rifle Scopes">Rifle Scopes</option>
+              <option value="SLR">SLR</option>
+              <option value="Spotting">Spotting</option>
+              <option value="Straps">Straps</option>
+              <option value="Subminiature">Subminiature</option>
+              <option value="Tripod">Tripod</option>
+              <option value="Video">Video</option>
+              <option value="Wearables">Wearables</option>
+            </select>
+          </div>
+                    <div class="fld"><label>Retail Price</label><input type="number" id="m-ret" placeholder="0.00" min="0" step="0.01"></div>
+        </div>
+        <div style="margin-top:13px;"><button class="btn btn-ol" onclick="useManual()">Use This Item</button></div>
+      </div>
+    </section>
+
+    <!-- iii. Item Details -->
+    <section class="sec det" id="det-sec">
+      <div class="sec-hd">
+        <span class="sec-n">iii.</span>
+        <h3>Item Details</h3>
+      </div>
+
+      <div class="sel-bar">
+        <div><h4 id="sel-name">—</h4><p id="sel-meta">—</p></div>
+        <button class="btn-chg" onclick="clrItem()">Change Item</button>
+      </div>
+
+      <div class="fg" style="margin-bottom:18px;">
+        <div class="fld"><label>Serial Number</label><input type="text" id="serial" placeholder="Optional"></div>
+        <div class="fld"><label>Catalog Number (MPN)</label><input type="text" id="catalog" placeholder="Optional"></div>
+      </div>
+
+      <span class="sl">Cosmetic Grade *</span>
+      <div class="grade-row" id="grade-row"><button class="gbtn" onclick="pickGrade('10-',this)">10-</button><button class="gbtn" onclick="pickGrade('9+',this)">9+</button><button class="gbtn" onclick="pickGrade('9',this)">9</button><button class="gbtn" onclick="pickGrade('8+',this)">8+</button><button class="gbtn" onclick="pickGrade('8',this)">8</button><button class="gbtn" onclick="pickGrade('7+',this)">7+</button><button class="gbtn" onclick="pickGrade('7',this)">7</button><button class="gbtn" onclick="pickGrade('6+',this)">6+</button><button class="gbtn" onclick="pickGrade('6',this)">6</button><button class="gbtn" onclick="pickGrade('AS-IS',this)">AS-IS</button></div>
+
+      <span class="sl">Comes With</span>
+      <div class="acc-row" id="acc-row"></div>
+
+      <div class="fld" style="margin-bottom:18px;"><label>Trade-In Notes</label><textarea id="notes" placeholder="Condition observations, cosmetic details, functional notes…"></textarea></div>
+
+      <div class="div"></div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;flex-wrap:wrap;gap:6px;">
+        <span class="sl" style="margin-bottom:0;">Pricing</span>
+        <span id="p-src" style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim);">From catalog</span>
+      </div>
+
+      <div class="or-row">
+        <label>Retail Override</label>
+        <input type="number" id="r-override" placeholder="Auto-populated" min="0" step="0.01" oninput="updPricing()">
+      </div>
+
+      <div class="pt-row">
+        <button class="ptbtn on" id="pt-ti" onclick="setPT('tradein')">Trade In</button>
+        <button class="ptbtn" id="pt-or" onclick="setPT('outright')">Sell Outright</button>
+      </div>
+
+      <div class="pgrid">
+        <div class="pbox"><div class="pbox-l">Retail Value</div><div class="pbox-v" id="p-ret">—</div></div>
+        <div class="pbox"><div class="pbox-l">Trade-In Credit</div><div class="pbox-v" id="p-ti">—</div><div class="pbox-p">70% of retail</div></div>
+        <div class="pbox"><div class="pbox-l">Sell Outright</div><div class="pbox-v" id="p-or">—</div><div class="pbox-p">50% of retail</div></div>
+      </div>
+
+      <div class="net-bar">
+        <div><div class="net-lbl">Net to Customer — NetSuite</div><div class="net-v" id="p-net">—</div></div>
+        <div class="net-r" id="net-r">Trade-In<br>selected</div>
+      </div>
+
+      <button class="btn btn-w btn-full" id="add-btn" onclick="addItem()" disabled="">Add to Session</button>
+    </section>
+
+    <!-- iv. Export -->
+    <section class="sec exp" id="exp-sec">
+      <div class="sec-hd">
+        <span class="sec-n">iv.</span>
+        <h3>Export <em style="font-style:italic;color:var(--accent)">//</em> Print</h3>
+      </div>
+
+      <div class="fg t3" style="margin-bottom:0;">
+        <div class="fld"><label>Credit Memo # (from ERP)</label><input type="text" id="cm-num" placeholder="CM00000"></div>
+        <div class="fld"><label>Associate</label><input type="text" id="assoc" placeholder="Your name"></div>
+        <div class="fld"><label>Date</label><input type="date" id="txn-date"></div>
+      </div>
+
+      <div class="exp-acts">
+        <button class="btn btn-g" onclick="exportXLSX()">Export NetSuite XLSX</button>
+        <button class="btn btn-a" onclick="openPrint()">Print Credit Memo</button>
+        <button class="btn btn-r" onclick="clrSession()">Clear Session</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- PRINT MODAL -->
+<div class="mo" id="mo">
+  <div class="mod">
+    <div class="mod-h">
+      <h3>Credit Memo — Preview</h3>
+      <button class="mod-x" onclick="closeMo()">×</button>
     </div>
+    <div class="mod-b"><div id="prev"></div></div>
+    <div class="mod-f">
+      <button class="btn btn-ol" onclick="closeMo()">Cancel</button>
+      <button class="btn btn-w" onclick="doPrint()">Print</button>
+    </div>
+  </div>
+</div>
 
-    <button class="btn" id="submit-btn" onclick="requestLink()">Send Sign-In Link</button>
+<script>
+// ─── DATA ───
+// ── CONFIG — set this to your deployed Cloudflare Worker URL ──────────────
+const WORKER_URL = 'https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev';
+// ─────────────────────────────────────────────────────────────────────────
 
-    <div class="msg" id="msg"></div>
+const PRODUCTS = []; // not used in live mode — search calls the worker
+let selItem = null, selGrade = null, selPT = 'tradein';
+let sessionItems = [];
+let srchT = null, selLoc = '';
+const GRADES = ['10-','9+','9','8+','8','7+','7','6+','6','AS-IS'];
+const ACC_MAP = {
+  camera:    ['Box','Charger','Battery','Battery Grip','Strap','Body Cap','Manual','Accessories'],
+  lens:      ['Front Cap','Rear Cap','Case / Pouch','Box','Hood','Filters','Manual','Accessories'],
+  accessory: ['Box','Original Packaging','Manual','Accessories'],
+  default:   ['Box','Original Packaging','Accessories']
+};
+const CAM_T = new Set(['Bodies','Instant','Cine','Video','Scanners']);
+const LEN_T = new Set(['Lenses','Close Up','Teleconverters','Filters','UV Filters',
+                       'ND Filters','C-Pol Filters','IR Filters','Color Filters','Square Filters']);
 
-    <div class="footer">Camera West &mdash; Internal Use Only</div>
+// ─── INIT ───
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
+  buildGrades();
+  // Validate worker URL on load
+  if (WORKER_URL.includes('YOUR_WORKER')) {
+    const el = document.getElementById('srch-res');
+    document.getElementById('item-search').placeholder =
+      'Configure WORKER_URL in script to enable live search…';
+    document.getElementById('item-search').disabled = true;
+  }
+});
+
+// ─── LOCATION ───
+function setLoc(btn, loc) {
+  document.querySelectorAll('.loc').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  selLoc = loc;
+  const sb = document.getElementById('ship-box');
+  if (loc === 'shipping') sb.classList.add('vis');
+  else {
+    sb.classList.remove('vis');
+    ['s-str','s-city','s-st','s-zip'].forEach(id => document.getElementById(id).value = '');
+  }
+}
+
+// ─── SEARCH ───
+let searchResultsCache = [];
+let activeSearch = null; // track in-flight request
+
+function dSearch(v) {
+  clearTimeout(srchT);
+  const el = document.getElementById('srch-res');
+  if (v.length < 2) { closeRes(); return; }
+  // Show loading state immediately
+  el.innerHTML = '<div class="no-res" id="srch-loading">Searching…</div>';
+  el.style.display = 'block';
+  srchT = setTimeout(() => runSearch(v), 280);
+}
+
+async function runSearch(q) {
+  const el = document.getElementById('srch-res');
+
+  // Cancel any previous in-flight request
+  if (activeSearch) activeSearch.abort();
+  activeSearch = new AbortController();
+
+  try {
+    const url = `${WORKER_URL}?q=${encodeURIComponent(q)}&limit=20`;
+    const res = await fetch(url, { signal: activeSearch.signal });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const products = data.products || [];
+
+    searchResultsCache = products;
+
+    if (!products.length) {
+      el.innerHTML = '<div class="no-res">No results — try Manual Entry</div>';
+    } else {
+      el.innerHTML = products.map((p, i) => {
+        const pr = p.p ? '$'+p.p.toLocaleString('en-US',{minimumFractionDigits:0}) : '';
+        const meta = [p.si, p.it, p.m].filter(Boolean).join(' · ');
+        const name = p.n.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return `<div class="ri" onclick="pickResult(${i})">
+          <div><div class="ri-n">${name}</div><div class="ri-m">${meta}</div></div>
+          ${pr ? `<div class="ri-p">${pr}</div>` : ''}
+        </div>`;
+      }).join('');
+    }
+    el.style.display = 'block';
+
+  } catch (err) {
+    if (err.name === 'AbortError') return; // cancelled, ignore
+    el.innerHTML = `<div class="no-res" style="color:#e07070;">
+      Search unavailable — check Worker URL config or use Manual Entry.<br>
+      <span style="font-size:9px;opacity:.6;">${err.message}</span>
+    </div>`;
+    el.style.display = 'block';
+  }
+}
+
+function pickResult(i) {
+  const p = searchResultsCache[i];
+  if (p) selProduct(p);
+}
+function closeRes() { document.getElementById('srch-res').style.display = 'none'; }
+document.addEventListener('click', e => { if (!e.target.closest('.srch-wrap')) closeRes(); });
+
+// ─── SELECT PRODUCT ───
+function selProduct(p) {
+  closeRes();
+  document.getElementById('item-search').value = '';
+  let cat = 'accessory';
+  if (CAM_T.has(p.it)) cat = 'camera';
+  else if (LEN_T.has(p.it)) cat = 'lens';
+  const fmt = inferFormat(p.si||'', p.it||'');
+  selItem = {name:p.n, vendor:p.v||'', systemId:p.si||'', itemType:p.it||'', medium:p.m||'', price:p.p||0, sku:p.sku||'', format:fmt, category:cat};
+  // Populate manual entry fields too (for reference / NetSuite)
+  const vendorEl = document.getElementById('m-vendor');
+  vendorEl.value = p.v||'';
+  vendorEl.dataset.userEdited = 'false';
+  setSelectVal('m-sys', p.si||'');
+  setSelectVal('m-type', p.it||'');
+  setSelectVal('m-med', p.m||'');
+  setSelectVal('m-format', fmt);
+  showDet();
+}
+function useManual() {
+  const name = document.getElementById('m-name').value.trim();
+  if (!name) { alert('Enter an item name.'); return; }
+  const it = document.getElementById('m-type').value;
+  let cat = 'accessory';
+  if (CAM_T.has(it)) cat = 'camera';
+  else if (LEN_T.has(it)) cat = 'lens';
+  const sysVal = document.getElementById('m-sys').value;
+  const fmtVal = document.getElementById('m-format').value || inferFormat(sysVal, it);
+  if (!document.getElementById('m-format').value && fmtVal) setSelectVal('m-format', fmtVal);
+  selItem = {name, vendor:document.getElementById('m-vendor').value.trim(),
+    systemId:sysVal,
+    itemType:it, medium:document.getElementById('m-med').value,
+    price: parseFloat(document.getElementById('m-ret').value)||0,
+    format: fmtVal,
+    sku:'', category:cat};
+  showDet();
+}
+function showDet() {
+  document.getElementById('sel-name').textContent = selItem.name;
+  document.getElementById('sel-meta').textContent =
+    [selItem.systemId, selItem.itemType, selItem.medium, selItem.format, selItem.vendor].filter(Boolean).join(' · ');
+  document.getElementById('p-src').textContent = selItem.price > 0 ? 'From catalog' : 'Enter retail price';
+  // Accessories
+  const accs = ACC_MAP[selItem.category] || ACC_MAP.default;
+  document.getElementById('acc-row').innerHTML = accs.map(a =>
+    `<div class="achip" onclick="this.classList.toggle('on')"><div class="achk"></div><span>${a}</span></div>`).join('');
+  selGrade = null;
+  document.querySelectorAll('.gbtn').forEach(b => b.classList.remove('on'));
+  document.getElementById('r-override').value = '';
+  document.getElementById('serial').value = '';
+  document.getElementById('catalog').value = '';
+  document.getElementById('notes').value = '';
+  updPricing();
+  document.getElementById('det-sec').classList.add('vis');
+  document.getElementById('det-sec').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function clrItem() {
+  selItem = null; selGrade = null;
+  document.getElementById('det-sec').classList.remove('vis');
+}
+
+// ─── GRADES ───
+function buildGrades() {
+  document.getElementById('grade-row').innerHTML = GRADES.map(g =>
+    `<button class="gbtn" onclick="pickGrade('${g}',this)">${g}</button>`).join('');
+}
+function pickGrade(g, btn) {
+  selGrade = g;
+  document.querySelectorAll('.gbtn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  valAdd();
+}
+
+// ─── PRICING ───
+function setPT(t) {
+  selPT = t;
+  document.getElementById('pt-ti').classList.toggle('on', t === 'tradein');
+  document.getElementById('pt-or').classList.toggle('on', t === 'outright');
+  document.getElementById('net-r').innerHTML = t === 'tradein' ? 'Trade-In<br>selected' : 'Sell Outright<br>selected';
+  updPricing();
+}
+function updPricing() {
+  const ov = parseFloat(document.getElementById('r-override').value);
+  const ret = ov > 0 ? ov : (selItem ? selItem.price : 0);
+  const ti = ret * 0.70, or = ret * 0.50;
+  const net = selPT === 'tradein' ? ti : or;
+  const f = v => v > 0 ? '$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+  document.getElementById('p-ret').textContent = f(ret);
+  document.getElementById('p-ti').textContent = f(ti);
+  document.getElementById('p-or').textContent = f(or);
+  document.getElementById('p-net').textContent = f(net);
+  valAdd();
+}
+function valAdd() {
+  const ret = parseFloat(document.getElementById('r-override').value) || (selItem ? selItem.price : 0);
+  document.getElementById('add-btn').disabled = !(selItem && selGrade && ret > 0);
+}
+
+// ─── ADD ITEM ───
+function addItem() {
+  if (!selItem || !selGrade) return;
+  const ov = parseFloat(document.getElementById('r-override').value);
+  const ret = ov > 0 ? ov : selItem.price;
+  const ti = ret * 0.70, or = ret * 0.50;
+  const net = selPT === 'tradein' ? ti : or;
+  const accs = [...document.querySelectorAll('.achip.on')].map(c => c.querySelector('span').textContent);
+  sessionItems.push({
+    id: Date.now(),
+    name: selItem.name, vendor: selItem.vendor, systemId: selItem.systemId,
+    itemType: selItem.itemType, medium: selItem.medium, format: selItem.format||'', category: selItem.category, sku: selItem.sku,
+    serial: document.getElementById('serial').value.trim(),
+    catalog: document.getElementById('catalog').value.trim(),
+    grade: selGrade, accessories: accs,
+    notes: document.getElementById('notes').value.trim(),
+    retail: ret, tradein: ti, outright: or, net, priceType: selPT
+  });
+  clrItem();
+  renderCart();
+  document.getElementById('exp-sec').classList.add('vis');
+  if (!document.getElementById('txn-date').value)
+    document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
+}
+
+// ─── CART ───
+const f = v => '$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+function renderCart() {
+  const cart = document.getElementById('cart');
+  const tot = document.getElementById('sb-tot');
+  document.getElementById('badge').textContent = sessionItems.length + ' Item' + (sessionItems.length!==1?'s':'');
+  if (!sessionItems.length) {
+    cart.innerHTML = '<div class="cart-empty">No items added yet.<br>Complete the form to begin.</div>';
+    tot.style.display = 'none'; return;
+  }
+  tot.style.display = 'block';
+  document.getElementById('t-ret').textContent  = f(sessionItems.reduce((s,i)=>s+i.retail,0));
+  document.getElementById('t-ti').textContent   = f(sessionItems.reduce((s,i)=>s+i.tradein,0));
+  document.getElementById('t-or').textContent   = f(sessionItems.reduce((s,i)=>s+i.outright,0));
+  document.getElementById('t-net').textContent  = f(sessionItems.reduce((s,i)=>s+i.net,0));
+  cart.innerHTML = sessionItems.map(it => `
+    <div class="ci">
+      <button class="ci-rm" onclick="rmItem(${it.id})">×</button>
+      <div class="ci-name">${it.name}</div>
+      <div class="ci-sub">${[it.systemId, it.itemType].filter(Boolean).join(' · ')}</div>
+      <div class="ci-row">
+        <span class="gpill">${it.grade}</span>
+        <span class="ci-price">${it.priceType==='tradein'?'TI':'OR'} ${f(it.net)}</span>
+      </div>
+    </div>`).join('');
+}
+function rmItem(id) {
+  sessionItems = sessionItems.filter(i => i.id !== id);
+  renderCart();
+  if (!sessionItems.length) document.getElementById('exp-sec').classList.remove('vis');
+}
+
+// ─── TABS ───
+function tab(id, btn) {
+  document.querySelectorAll('.tnav').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.tpane').forEach(p => p.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('tab-' + id).classList.add('on');
+}
+
+// ─── EXPORT XLSX ───
+function exportXLSX() {
+  if (!sessionItems.length) { alert('No items to export.'); return; }
+  const cm   = document.getElementById('cm-num').value.trim() || 'PENDING';
+  const asc  = document.getElementById('assoc').value.trim();
+  const dt   = document.getElementById('txn-date').value || new Date().toISOString().split('T')[0];
+  const cust = [document.getElementById('c-first').value.trim(),
+                document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || 'Unknown';
+  const wb = XLSX.utils.book_new();
+
+  const H1 = ['Item Name/Number','Vendor Name/Code','MPN','System Identifier','Brand',
+    'Cosmetic Condition','Main Department','Sub Department','Sublet Department',
+    'Purchase Price','Item Pricing 1 : Price (Req)','Item Vendors 1 : Vendor (Req)',
+    'Buy It Now','Auto Accept',null,'Item Name/Number',
+    'Amazon Shipping','Amazon Condition','Best offer','Best offer Minimum','Type'];
+  const H2 = ['Description','Serial Number','Catalog Number','System ID','Brand','Grade',
+    'Main','Sub','Sublet','Net','Retail','Origin Store','BIN','AA','margin',
+    'Do Not Modify','Do Not Modify','Do Not Modify','Do Not Modify','Do Not Modify',null];
+
+  const rows = [H1, H2];
+  sessionItems.forEach((it, idx) => {
+    const r = idx + 3;
+    const mainD = it.medium === 'Digital' ? 'Digital' : it.medium === 'Film' ? 'Film' : (it.medium||'Other');
+    const subD  = it.format || (it.category === 'lens' ? 'Lenses' : it.category === 'camera' ? 'Mirrorless' : 'Accessories');
+    const acStr = it.accessories.length ? `, ${it.accessories.join(', ')}` : '';
+    rows.push([
+      it.name + acStr, it.serial||null, it.catalog||null, it.systemId||null, it.vendor||null,
+      it.grade, mainD, subD, it.itemType||null,
+      it.net, it.retail, 'Camera West RM',
+      {f:`K${r}*1.1`}, {f:`K${r}*1.05`}, 0.6,
+      {f:`IF(B${r}="",A${r}&" ("&F${r}&")",A${r}&" "&B${r})`},
+      {f:`IF(M${r}>500,"Prime Nationwide","Purely Free Shipping")`},
+      {f:`IF(F${r}="10-","Used - Like New",IF(F${r}="9+","Used - Very Good",IF(F${r}="8+","Used - Good",IF(F${r}=9,"Used - Very Good","Used - Acceptable"))))`},
+      {f:`IF(N${r}<>"","Yes","No")`}, {f:`N${r}-0.01`}, {f:`G${r}&" "&H${r}`}
+    ]);
+  });
+  const ws1 = XLSX.utils.aoa_to_sheet(rows);
+  ws1['!cols'] = [{wch:50},{wch:15},{wch:15},{wch:20},{wch:15},{wch:8},{wch:10},{wch:14},{wch:16},
+    {wch:12},{wch:12},{wch:18},{wch:12},{wch:12},{wch:8},{wch:50},{wch:20},{wch:20},{wch:10},{wch:12},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Main Sheet');
+
+  const outRows = [['Item','Grade','Credit']];
+  sessionItems.forEach((_,i) => { const r=i+3; outRows.push([{f:`'Main Sheet'!A${r}`},{f:`'Main Sheet'!F${r}`},{f:`'Main Sheet'!J${r}`}]); });
+  const ws2 = XLSX.utils.aoa_to_sheet(outRows);
+  ws2['!cols'] = [{wch:50},{wch:10},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Output');
+
+  const locStr = selLoc === 'shipping' ? 'Shipping Required' : (selLoc||'—');
+  const shipTo = selLoc === 'shipping'
+    ? [document.getElementById('s-str').value, document.getElementById('s-city').value,
+       document.getElementById('s-st').value, document.getElementById('s-zip').value].filter(Boolean).join(', ')
+    : '';
+  const info = [
+    ['CAMERA WEST — TRADE-IN SESSION'],[],
+    ['Credit Memo', cm],['Date', dt],['Associate', asc],['Customer', cust],
+    ['Email', document.getElementById('c-email').value.trim()],
+    ['Phone', document.getElementById('c-phone').value.trim()],
+    ['Location', locStr],
+    ...(shipTo ? [['Ship To', shipTo]] : []),
+    [],[' SUMMARY'],
+    ['Items', sessionItems.length],
+    ['Total Retail', sessionItems.reduce((s,i)=>s+i.retail,0)],
+    ['Total Trade-In', sessionItems.reduce((s,i)=>s+i.tradein,0)],
+    ['Total Net', sessionItems.reduce((s,i)=>s+i.net,0)],
+  ];
+  const ws3 = XLSX.utils.aoa_to_sheet(info);
+  ws3['!cols'] = [{wch:20},{wch:40}];
+  XLSX.utils.book_append_sheet(wb, ws3, 'Session Info');
+
+  XLSX.writeFile(wb, `TradeIn_${cm}_${dt.replace(/-/g,'')}.xlsx`);
+}
+
+// ─── PRINT ───
+function openPrint() {
+  if (!sessionItems.length) { alert('No items to print.'); return; }
+  document.getElementById('prev').innerHTML = `<div class="print-prev">${buildPrint()}</div>`;
+  document.getElementById('mo').classList.add('open');
+}
+function closeMo() { document.getElementById('mo').classList.remove('open'); }
+function doPrint() {
+  const w = window.open('','_blank','width=820,height=720');
+  w.document.write(`<!DOCTYPE html><html><head>
+  <title>Camera West — Credit Memo</title><meta charset="UTF-8">
+  <style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap');
+  body{font-family:'Jost',sans-serif;color:#111;margin:0;padding:0;font-size:12px;font-weight:300;-webkit-font-smoothing:antialiased;}
+  @page{margin:18mm 14mm;}
+  </style></head><body>${buildPrint()}</body></html>`);
+  w.document.close(); w.focus();
+  setTimeout(() => { w.print(); w.close(); }, 750);
+}
+
+function buildPrint() {
+  const cm    = document.getElementById('cm-num').value.trim() || 'PENDING';
+  const asc   = document.getElementById('assoc').value.trim() || '—';
+  const dt    = document.getElementById('txn-date').value || new Date().toISOString().split('T')[0];
+  const fn    = document.getElementById('c-first').value.trim();
+  const ln    = document.getElementById('c-last').value.trim();
+  const cust  = [fn,ln].filter(Boolean).join(' ') || '—';
+  const email = document.getElementById('c-email').value.trim();
+  const phone = document.getElementById('c-phone').value.trim();
+  const loc   = selLoc === 'shipping' ? 'Requires Shipping' : (selLoc||'—');
+  const shipTo = selLoc === 'shipping'
+    ? [document.getElementById('s-str').value, document.getElementById('s-city').value,
+       document.getElementById('s-st').value, document.getElementById('s-zip').value].filter(Boolean).join(', ')
+    : '';
+
+  const rows = sessionItems.map(it => {
+    const ac  = it.accessories.length ? `<br><span style="color:#777;font-size:10px;">Includes: ${it.accessories.join(', ')}</span>` : '';
+    const nt  = it.notes ? `<br><span style="color:#999;font-size:10px;font-style:italic;">${it.notes}</span>` : '';
+    const sn  = [it.serial ? `S/N: ${it.serial}` : '', it.catalog ? `Cat: ${it.catalog}` : ''].filter(Boolean).join(' · ');
+    return `<tr>
+      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;vertical-align:top;line-height:1.45;">
+        <strong style="font-weight:500;">${it.name}</strong>${ac}${nt}
+        ${sn ? `<br><span style="color:#aaa;font-size:10px;">${sn}</span>` : ''}
+      </td>
+      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:center;white-space:nowrap;vertical-align:top;">${it.systemId||'—'}</td>
+      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:center;font-weight:500;vertical-align:top;">${it.grade}</td>
+      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:right;vertical-align:top;">${f(it.retail)}</td>
+      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:right;color:#2a7a4a;vertical-align:top;">${f(it.tradein)}</td>
+      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:right;font-weight:500;vertical-align:top;">${f(it.net)}</td>
+    </tr>`;
+  }).join('');
+
+  const totNet = sessionItems.reduce((s,i)=>s+i.net,0);
+
+  return `<div style="max-width:760px;margin:0 auto;padding:22px 18px;font-family:'Jost',sans-serif;color:#111;">
+
+  <table width="100%" style="margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #111;">
+    <tr>
+      <td style="vertical-align:top;">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;letter-spacing:0.1em;text-transform:uppercase;">Camera West</div>
+        <div style="font-size:10px;color:#666;margin-top:4px;letter-spacing:0.04em;line-height:1.8;">
+          70-177 Hwy 111 Ste 100, Rancho Mirage, CA 92270<br>
+          760-992-5422 &nbsp;·&nbsp; support@camerawest.com
+        </div>
+      </td>
+      <td style="text-align:right;vertical-align:top;">
+        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:#aaa;margin-bottom:3px;">Credit Memo</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;color:#d95e00;">${cm}</div>
+        <div style="font-size:10px;color:#666;margin-top:3px;line-height:1.8;">${dt}<br>Associate: ${asc}</div>
+      </td>
+    </tr>
+  </table>
+
+  <table width="100%" style="margin-bottom:16px;">
+    <tr>
+      <td style="width:55%;vertical-align:top;">
+        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:#aaa;margin-bottom:4px;">Customer</div>
+        <div style="font-size:14px;font-weight:500;">${cust}</div>
+        ${email ? `<div style="font-size:10px;color:#555;margin-top:2px;">${email}</div>` : ''}
+        ${phone ? `<div style="font-size:10px;color:#555;">${phone}</div>` : ''}
+        ${loc !== '—' ? `<div style="font-size:10px;color:#777;margin-top:3px;">Location: ${loc}</div>` : ''}
+        ${shipTo ? `<div style="font-size:10px;color:#777;">Ship To: ${shipTo}</div>` : ''}
+      </td>
+      <td style="vertical-align:top;text-align:right;">
+        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:#aaa;margin-bottom:4px;">Transaction</div>
+        <div style="font-size:10px;color:#555;line-height:1.8;">Pre-Owned Trade-In<br>${sessionItems.length} item${sessionItems.length!==1?'s':''}</div>
+      </td>
+    </tr>
+  </table>
+
+  <table width="100%" style="border-collapse:collapse;margin-bottom:12px;">
+    <thead>
+      <tr style="background:#0e0e0e;color:#f5f5f0;">
+        <th style="padding:8px 7px;text-align:left;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:500;">Description</th>
+        <th style="padding:8px 7px;text-align:center;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:500;">System</th>
+        <th style="padding:8px 7px;text-align:center;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:500;">Grade</th>
+        <th style="padding:8px 7px;text-align:right;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:500;">Retail</th>
+        <th style="padding:8px 7px;text-align:right;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:500;">Trade-In</th>
+        <th style="padding:8px 7px;text-align:right;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:500;">Net Price</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+    <tfoot>
+      <tr style="background:#f5f5f0;">
+        <td colspan="3" style="padding:9px 7px;font-size:9px;color:#999;">${sessionItems.length} item${sessionItems.length!==1?'s':''}</td>
+        <td style="padding:9px 7px;text-align:right;font-size:11px;">${f(sessionItems.reduce((s,i)=>s+i.retail,0))}</td>
+        <td style="padding:9px 7px;text-align:right;font-size:11px;color:#2a7a4a;">${f(sessionItems.reduce((s,i)=>s+i.tradein,0))}</td>
+        <td style="padding:9px 7px;text-align:right;font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:300;color:#d95e00;">${f(totNet)}</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div style="border-left:2px solid #d95e00;padding:8px 13px;font-size:10px;color:#777;margin-bottom:20px;line-height:1.8;letter-spacing:0.02em;">
+    By signing below, the customer confirms the items above are accurately described, that they are the rightful owner, and authorizes Camera West to process this trade-in or purchase transaction. All values are estimates pending final inspection. All sales and trade-ins are final.
   </div>
 
-  <script>
-    // Show URL error messages (from failed verify redirects)
-    const params = new URLSearchParams(window.location.search);
-    const errorMap = {
-      invalid_or_expired: 'That sign-in link is invalid or has already been used. Request a new one.',
-      expired: 'That sign-in link has expired (links are valid for 15 minutes). Request a new one.',
-      missing_token: 'Invalid sign-in link. Please request a new one.',
-      server_error: 'Something went wrong. Please try again.',
-    };
-    const urlError = params.get('error');
-    if (urlError && errorMap[urlError]) {
-      const el = document.getElementById('url-error');
-      el.textContent = errorMap[urlError];
-      el.style.display = 'block';
-    }
+  <table width="100%">
+    <tr>
+      <td style="width:45%;vertical-align:bottom;padding-right:14px;">
+        <div style="height:32px;"></div>
+        <div style="border-top:1px solid #111;padding-top:5px;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#999;">Customer Signature</div>
+        <div style="height:20px;"></div>
+        <div style="border-top:1px solid #ddd;padding-top:5px;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#ccc;">Print Name</div>
+      </td>
+      <td style="width:10%;"></td>
+      <td style="width:45%;vertical-align:bottom;">
+        <div style="height:32px;"></div>
+        <div style="border-top:1px solid #111;padding-top:5px;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#999;">Camera West Associate</div>
+        <div style="height:20px;"></div>
+        <div style="border-top:1px solid #ddd;padding-top:5px;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#ccc;">Date</div>
+      </td>
+    </tr>
+  </table>
 
-    // If already authenticated, redirect to app
-    fetch('/api/auth/session')
-      .then(r => r.json())
-      .then(d => { if (d.authenticated) window.location.href = '/app'; })
-      .catch(() => {});
+  <div style="text-align:center;font-size:8px;color:#ccc;margin-top:18px;padding-top:10px;border-top:1px solid #eee;letter-spacing:0.14em;text-transform:uppercase;">
+    Camera West &nbsp;·&nbsp; camerawest.com
+  </div>
+</div>`;
+}
 
-    async function requestLink() {
-      const email = document.getElementById('email').value.trim();
-      const btn   = document.getElementById('submit-btn');
-      const msg   = document.getElementById('msg');
 
-      if (!email || !email.includes('@')) {
-        msg.className = 'msg error';
-        msg.textContent = 'Please enter a valid email address.';
-        return;
-      }
+// ─── AUTO-BRAND ───
+const BRANDS = ['Henri Cartier-Bresson Prints', 'University Of Texas Press', 'Breakthrough Photography', 'Fred Lyon Noir Prints', 'California Sunbounce', 'Leica Store SF Books', 'Colorado Tripod Co', 'Really Right Stuff', 'Capturing Couture', 'DAPR Distributors', 'Light Impressions', 'Artisan & Artist', 'Bright Tangerine', 'Fred Lyon Prints', 'Insight Editions', 'Light and Motion', 'Custom Brackets', 'Photo Solutions', 'White Lightning', '3 Legged Thing', 'Audio Technica', 'Creative Light', 'DAVID B STRAPS', 'Gretag Macbeth', 'Patek Philippe', 'pro media gear', 'Visual Apparel', 'Bausch & Lomb', 'Burke & James', 'CRAIG SEMETKO', 'Depaolapparel', 'Lange & Sohne', 'Maggie Steber', 'Pocket Wizard', 'Sound Devices', 'Tokyo Optical', 'Andre Debrie', 'Angelo Pelle', 'Arte Di Mano', 'Canson Paper', 'Digital Foci', 'Melles Griot', 'ProMediaGear', 'Sailor Strap', 'Tether Tools', 'Venus Optics', 'Visible Dust', 'Aliens Bees', 'Atlas Packs', 'Barber Shop', 'Bell & Ross', 'Black Label', 'Black Rapid', 'Capture One', 'Cub and Co.', 'Fourtsquare', 'Gowlandflex', 'handevision', 'Kinetronics', 'Lite Panels', 'Lock Circle', 'Meyer Optik', 'Montegrappa', 'Oak & Oscar', 'Peak Design', 'Rapid Omega', 'Rock & Roll', 'Stroboframe', 'Studio Ball', 'Voigtlander', 'Abrahamson', 'Arca Swiss', 'Billingham', 'Blackmagic', 'Blue Crane', 'Clik Elite', 'Flashpoint', 'Foursquare', 'Hahnemuhle', 'Harry Benz', 'Hasselblad', 'Impossible', 'Litepanels', 'Lomography', 'Ming Thien', 'MS Optical', 'Multiblitz', 'Nightforce', 'Parmigiani', 'Photogenic', 'Print File', 'Rodenstock', 'Sennheiser', 'Speedotron', 'Sun Sniper', 'Think Tank', 'Viewmaster', 'Wotancraft', '7Artisans', 'Angenieux', 'Berlebach', 'Breitling', 'Broncolor', 'CamRanger', 'Ciro-Flex', 'Dallmeyer', 'Datacolor', 'Deardorff', 'Edelkrone', 'Ekelkrone', 'Elinchrom', 'Energizer', 'Gary Fong', 'Gura Gear', 'Hatchette', 'Lastolite', 'Lumiquest', 'Manfrotto', 'Metabones', 'Micromega', 'Microsync', 'Mindshift', 'Misc View', 'Montblanc', 'Oberwerth', 'Panasonic', 'Paramount', 'Pentaflex', 'Phase One', 'Photoflex', 'Pictorico', 'Power2000', 'Pro Photo', 'Promaster', 'Rectaflex', 'Roadwired', 'Rotolight', 'Schneider', 'Silvestri', 'Singh-Ray', 'SmartDisk', 'Steadicam', 'Steinhart', 'Steinheil', 'Swarovski', 'Tachihara', 'Tag Heuer', 'Thumbs Up', 'Transcend', 'Watameter', 'Wimberley', 'Wollensak', 'Workshops', 'Acratech', 'agiflite', 'Arriflex', 'Beaulieu', 'BosStrap', 'Brandess', 'Chamonix', 'Cognisys', 'Computar', 'Crumpler', 'Dynalite', 'Expodisc', 'Fidelity', 'Flexaret', 'Fotodiox', 'Fujifilm', 'Gary Soo', 'Glidecam', 'Gundlach', 'Hamilton', 'Hartblei', 'Heliopan', 'Horizont', 'Horseman', 'Industar', 'Inkpress', 'Inovativ', 'Interfit', 'Kinoflow', 'Kinoptik', 'Lensbaby', 'Leonardo', 'Lordomat', 'Majestic', 'Matthews', 'Mitchell', 'Nitecore', 'Novoflex', 'Pana-Vue', 'Pentacon', 'Pictools', 'Polaroid', 'Pro Tech', 'Rotatrim', 'Sachtler', 'Saunders', 'Shanghai', 'Shen Hao', 'Smallrig', 'Strobies', 'TrekTech', 'Vacheron', 'Vanguard', 'Visconti', 'Westcott', 'woodblak', 'Ansmann', 'Aputure', 'arsenal', 'Bronica', 'Calumet', 'Cecilia', 'Chimera', 'Chiyoko', 'Citizen', 'Clayton', 'Contour', 'Cullman', 'Dunhill', 'Formatt', 'fotoman', 'Fotopro', 'GigaPan', 'Gigapan', 'Giottos', 'Graflex', 'Graphic', 'Graslon', 'Hoffman', 'Hoodman', 'Horizon', 'Jupiter', 'Kamerar', 'Kapture', 'Kilfitt', 'Liliput', 'Littman', 'Lowepro', 'Minolta', 'Mitakon', 'Netopil', 'Olympus', 'Op Tech', 'Panerai', 'Paxette', 'Pelican', 'Petzval', 'Phottix', 'Piesker', 'Plaubel', 'Polaris', 'Profoto', 'Prontor', 'Quantum', 'Questar', 'RedRock', 'Riteway', 'Rokform', 'Rokinon', 'Sachler', 'Samsung', 'Samyang', 'SanDisk', 'Schoeps', 'Sekonic', 'Shimoda', 'Soligor', 'Spectra', 'Stipula', 'Sto-Fen', 'Techart', 'Tessina', 'Viltrox', 'Vivitar', 'Vue All', 'Widelux', 'Yashica', 'Yongnuo', 'zenmuse', 'Arches', 'Artpan', 'Atomos', 'Aurora', 'Beauty', 'Belkin', 'Bowens', 'brooks', 'Canham', 'Clarus', 'Contax', 'Dayled', 'Debrie', 'Delkin', 'Delsey', 'DSPTCH', 'Elgeet', 'Ensign', 'Exakta', 'Eye-Fi', 'EZ PnP', 'Feisol', 'Filson', 'Fortis', 'Gossen', 'Hahnel', 'Hakuba', 'Harman', 'Helios', 'Helson', 'Hensel', 'Hitech', 'Ilford', 'Imacon', 'Impact', 'Induro', 'Ingram', 'Innova', 'IoSafe', 'Jill-E', 'Jos-PE', 'Kaiser', 'Komaru', 'Konica', 'Legion', 'leitax', 'leotax', 'Linhof', 'Lowell', 'Magmod', 'Mamiya', 'Mefoto', 'Meopta', 'Mikamo', 'Monaco', 'Nissin', 'Noblex', 'Norman', 'Opteka', 'Pentax', 'Pierce', 'Ridata', 'Rimowa', 'Rollei', 'Savage', 'Shanny', 'Shoten', 'stereo', 'Tamrac', 'Tamron', 'Tanack', 'Tiffen', 'Tokina', 'Topcon', 'Turner', 'Twaipo', 'Vidpro', 'Walker', 'Wisner', 'Wooden', 'X-Rite', 'Zacuto', 'Zenith', 'Zoomar', 'Aries', 'Benro', 'Boker', 'Bolex', 'Bower', 'Busch', 'Cambo', 'Canon', 'Casio', 'Cooke', 'Delta', 'Domke', 'Drobo', 'Ebony', 'Edwal', 'Epson', 'Faber', 'Gitzo', 'Godox', 'Goerz', 'GoPro', 'Haoge', 'Heuer', 'Hugen', 'Itoya', 'Kenko', 'Kipon', 'Kiron', 'Kodak', 'Kopil', 'LaCie', 'Laowa', 'Leica', 'Lexar', 'Light', 'Lisco', 'Luigi', 'Minox', 'Naneu', 'Nanuk', 'Nicca', 'Nikon', 'Nodal', 'omega', 'Orion', 'Petri', 'Pratt', 'Print', 'Rhino', 'Ricoh', 'Robot', 'Rogue', 'Rolex', 'Rosco', 'Ruige', 'Sanho', 'Seiko', 'Seitz', 'Sigma', 'Sinar', 'Sirui', 'Tenba', 'Tilta', 'Tudor', 'Varta', 'Wacom', 'Werra', 'Wista', 'Zeiss', 'Zenit', 'Zorki', '3pod', 'Agfa', 'Alpa', 'Asus', 'BRNO', 'Core', 'Eizo', 'Foba', 'Fogg', 'Gepe', 'Hoya', 'HPRC', 'Ilex', 'iPro', 'Isco', 'Jobo', 'Joby', 'Kalt', 'Kata', 'Kiev', 'Kirk', 'Kowa', 'Kupo', 'Leaf', 'Lupo', 'Mack', 'Metz', 'Misc', 'Moab', 'Mola', 'Nisi', 'Omas', 'Osco', 'Pixo', 'Ries', 'Rode', 'Seal', 'Slik', 'Sony', 'Toyo', 'U.N.', 'Used', 'Wein', 'Yard', 'Zoom', 'AKG', 'B+W', 'CTA', 'DJI', 'DLC', 'DXO', 'Fed', 'IDC', 'IWC', 'Jag', 'Lee', 'LFI', 'MOD', 'MPP', 'New', 'NKI', 'Ona', 'Red', 'STX', '4V', 'XP'];
+// Sort longest first so multi-word brands ("Shen Hao", "Phase One") match before single words
 
-      btn.disabled = true;
-      btn.textContent = 'Sending…';
-      msg.className = 'msg';
+function autoBrand(name) {
+  if (!name) return;
+  const lower = name.toLowerCase();
+  const match = BRANDS.find(b => lower.startsWith(b.toLowerCase()));
+  const vendorEl = document.getElementById('m-vendor');
+  if (match && (!vendorEl.dataset.userEdited || vendorEl.dataset.userEdited === 'false')) {
+    vendorEl.value = match;
+  }
+}
 
-      try {
-        const res  = await fetch('/api/auth/request', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ email }),
-        });
-        const data = await res.json();
 
-        msg.className   = 'msg success';
-        msg.textContent = 'Check your email — a sign-in link is on its way. You can close this tab.';
-        btn.textContent = 'Link Sent';
+// ─── FORMAT INFERENCE ───
+const FORMAT_MAP = {
+  // By System ID prefix/exact
+  'Leica M': 'Rangefinder', 'Leica M10': 'Rangefinder', 'Leica SM': 'Rangefinder',
+  'Leica CL': 'Mirrorless', 'Leica SL': 'Mirrorless', 'Leica TL': 'Mirrorless',
+  'Leica APS-C': 'Mirrorless', 'Leica R': 'SLR', 'Leica S': 'Medium Format',
+  'Leica Q': 'Fixed Lens', 'Leica Compacts': 'Compact', 'Leica X': 'Fixed Lens',
+  'Leica Sofort': 'Film', 'Leica Sport Optics': 'Binoculars', 'Leica Cine': 'Video',
+  'Fujifilm X': 'Mirrorless', 'Fujifilm GFX': 'Medium Format', 'Fujifilm Medium Format': 'Medium Format',
+  'Nikon Z': 'Mirrorless', 'Nikon AF': 'SLR', 'Nikon AI': 'SLR', 'Nikon AI-S': 'SLR',
+  'Nikon Non AI': 'SLR', 'Nikon RF': 'Rangefinder', 'Nikon 1': 'Mirrorless',
+  'Nikon Coolpix': 'Compact', 'Nikon Keymission': 'Action Cam', 'Nikonos': 'Video',
+  'Canon RF': 'Mirrorless', 'Canon EF': 'SLR', 'Canon FD': 'SLR', 'Canon M': 'Mirrorless',
+  'Canon R': 'Mirrorless', 'Canon Powershot': 'Compact', 'Canon Cine': 'Video',
+  'Sony E': 'Mirrorless', 'Sony A': 'SLR', 'Sony RX': 'Fixed Lens',
+  'Hasselblad XCD': 'Medium Format', 'Hasselblad H': 'Medium Format',
+  'Hasselblad V': 'Medium Format', 'Hasselblad X-Pan': 'Panoramic',
+  'Hasselblad Flextight': 'Printing',
+  'Panasonic Lumix S': 'Mirrorless', 'Panasonic Lumix G': 'Mirrorless',
+  'Panasonic Compacts': 'Compact', 'Panasonic Video': 'Video',
+  'Olympus M 4/3': 'Mirrorless', 'Olympus 43rds': 'SLR', 'Olympus Compacts': 'Compact',
+  'Olympus 35mm': '35mm', 'Phase One': 'Medium Format',
+  'Mamiya 645': 'Medium Format', 'Mamiya 7': 'Rangefinder', 'Mamiya RB': 'Medium Format',
+  'Mamiya RZ': 'Medium Format', 'Mamiya TLR': 'Medium Format', 'Mamiya Press': 'Medium Format',
+  'Bronica ETR': 'Medium Format', 'Bronica SQ': 'Medium Format', 'Bronica GS': 'Medium Format',
+  'Bronica RF': 'Rangefinder', 'Contax 645': 'Medium Format', 'Contax G': 'Rangefinder',
+  'Contax RF': 'Rangefinder', 'Contax SLR': 'SLR', 'Contax YC': 'SLR',
+  'Contax Compact': 'Compact', 'Rollei 35mm': '35mm', 'Rollei SLR': 'SLR',
+  'Rollei 6000': 'Medium Format', 'Rollieflex TLR': 'Medium Format',
+  'Pentax SLR': 'SLR', 'Pentax 645': 'Medium Format', 'Pentax 67': 'Medium Format',
+  'Pentax SM': 'SLR', 'Large Format': 'Large Format', 'Large Format Cine': 'Video',
+  'Gopro': 'Action Cam', 'Ricoh GR': 'Fixed Lens', 'Alpa 35mm': '35mm',
+  'Alpa Technical': 'Large Format', 'Exakta 35mm': '35mm',
+  'Exakta Medium Format': 'Medium Format', 'Misc 35mm': '35mm',
+  'Misc Compact': 'Compact', 'Misc Medium': 'Medium Format',
+  'Minox 35mm': '35mm', 'Minox Subminiature': 'Subminiature',
+  'Tessina Subminiature': 'Subminiature', 'Kodak 35mm': '35mm',
+  'Kodak Medium Format': 'Medium Format', 'Zeiss Ikon': '35mm',
+  'Zeiss Ikon Contaflex': '35mm', 'Zeiss Ikon Contarex': '35mm',
+  'Zeiss Ikon Folding': '35mm', 'Zeiss Ikon TCR': '35mm',
+  'M42': 'SLR', 'Panoramic': 'Panoramic', 'TLR': 'Medium Format',
+  'Watches': 'Wearables', 'Workshops': 'Gallery',
+  'Nikon 1': 'Mirrorless', 'Super 8mm': 'Video', 'Super 16mm': 'Video', 'Super 35mm': 'Video',
+  '0.95 Edition': 'Mirrorless',
+};
 
-      } catch (err) {
-        msg.className   = 'msg error';
-        msg.textContent = 'Could not send email. Please try again.';
-        btn.disabled    = false;
-        btn.textContent = 'Send Sign-In Link';
-      }
-    }
+// By item type fallbacks
+const FORMAT_BY_TYPE = {
+  'Lenses': 'Filters', 'Filters': 'Filters', 'UV Filters': 'Filters',
+  'ND Filters': 'Filters', 'C-Pol Filters': 'Filters', 'IR Filters': 'Filters',
+  'Color Filters': 'Filters', 'Square Filters': 'Filters',
+  'Flash': 'Lighting', 'Strobe': 'Lighting', 'Modifiers': 'Lighting',
+  'Stands': 'Lighting', 'Continous': 'Lighting',
+  'Heads': 'Tripod', 'Legs': 'Tripod', 'Tripod Plates': 'Tripod', 'Sliders': 'Tripod',
+  'Backpacks': 'Bags', 'Messenger Bags': 'Bags', 'Cases': 'Bags', 'Rolling Cases': 'Bags',
+  'Sling': 'Bags', 'Tents': 'Bags',
+  'Neck Straps': 'Straps', 'Wrist Straps': 'Straps',
+  'SD Cards': 'Memory', 'CF Cards': 'Memory', 'XQD Cards': 'Memory',
+  'C Fast Cards': 'Memory', 'CFast 2.0 Cards': 'Memory', 'Readers': 'Memory', 'Backup': 'Memory',
+  'Scanners': 'Printing', 'Printer': 'Printing', 'Paper': 'Printing', 'Ink': 'Printing',
+  'Canvas': 'Printing', 'Sheet': 'Printing', 'Muslin': 'Backdrops',
+  'Prints': 'Gallery', 'Gallery Prints': 'Gallery',
+  'Monitors': 'Video', 'External Recorders': 'Video', 'Video': 'Video',
+  'Meters': 'Lighting', 'Finders': 'Rangefinder',
+  'Microphones': 'Video', 'Stabilzers': 'Video',
+  'Shirts': 'Wearables', 'T-Shirt': 'Wearables', 'Wearables': 'Wearables', 'Vinyl': 'Wearables',
+  'Books': 'Gallery', 'Magazines': 'Gallery', 'Seminars': 'Gallery', 'Manuals': 'Gallery',
+  'DVD': 'Gallery', 'Chargers': 'Memory', 'Batteries': 'Memory',
+  'Hand Grip': 'Mirrorless', 'Thumbs Up': 'Rangefinder', 'Soft Release': 'Rangefinder',
+  'Triggers': 'Lighting', 'Close Up': 'Filters', 'Teleconverters': 'Filters',
+  'Lens Mount Adapters': 'Filters', 'Stepping Rings': 'Filters',
+  'Instant': 'Film', 'Chemistry': 'Darkroom', '120': 'Medium Format', '35mm': '35mm',
+  'Backs': 'Medium Format', 'Magazines': 'Medium Format',
+};
 
-    // Allow Enter key to submit
-    document.getElementById('email').addEventListener('keydown', e => {
-      if (e.key === 'Enter') requestLink();
-    });
-  </script>
-</body>
-</html>
+function inferFormat(systemId, itemType) {
+  if (systemId && FORMAT_MAP[systemId]) return FORMAT_MAP[systemId];
+  if (itemType && FORMAT_BY_TYPE[itemType]) return FORMAT_BY_TYPE[itemType];
+  return '';
+}
+
+function setSelectVal(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  // Try exact match first, then case-insensitive
+  for (const opt of el.options) {
+    if (opt.value === val) { el.value = val; return; }
+  }
+  const lower = (val||'').toLowerCase();
+  for (const opt of el.options) {
+    if (opt.value.toLowerCase() === lower) { el.value = opt.value; return; }
+  }
+}
+
+// ─── MISC ───
+function goExport() {
+  if (!sessionItems.length) { alert('No items in session yet.'); return; }
+  document.getElementById('exp-sec').scrollIntoView({behavior:'smooth'});
+}
+function clrSession() {
+  if (!confirm('Clear all items and start a new session?')) return;
+  sessionItems = []; selItem = null; selGrade = null;
+  renderCart(); clrItem();
+  document.getElementById('exp-sec').classList.remove('vis');
+  ['c-first','c-last','c-email','c-phone','cm-num','assoc','s-str','s-city','s-st','s-zip']
+    .forEach(id => document.getElementById(id).value = '');
+  document.querySelectorAll('.loc').forEach(b => b.classList.remove('on'));
+  selLoc = '';
+  document.getElementById('ship-box').classList.remove('vis');
+}
+</script>
+
+
+</body></html>
