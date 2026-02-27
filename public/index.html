@@ -1,10 +1,12 @@
-<html lang="en"><head>
-<meta charset="UTF-8">
+<!DOCTYPE html>
+<!-- saved from url=(0054)file:///Users/benjamincarpenter/Downloads/index_7.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Trade // Sell — Camera West</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&amp;family=Jost:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
+<script src="./index_files/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com/">
+<link href="./index_files/css2" rel="stylesheet">
 <style>
 /* ─── RESET & TOKENS ─── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -212,7 +214,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
 
 <!-- HEADER -->
 <header class="hdr">
-  <a href="#" style="display:flex;align-items:center;text-decoration:none;">
+  <a href="file:///Users/benjamincarpenter/Downloads/index_7.html#" style="display:flex;align-items:center;text-decoration:none;">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 75" height="26" style="display:block;">
       <path fill="#fff" d="M27.4,43c-.2,3.6-1.2,6.3-3.1,8.2s-4.5,2.8-7.9,2.8-6.3-1.2-8.3-3.5c-1.9-2.4-2.9-5.7-2.9-10.1v-5.3c0-4.4,1-7.7,3-10.1,2-2.4,4.7-3.5,8.2-3.5s6.1,1,7.9,2.9,2.8,4.7,3.1,8.3h-6.4c0-2.2-.4-3.8-1-4.6-.6-.8-1.8-1.3-3.5-1.3s-2.9.6-3.6,1.8c-.7,1.2-1.1,3.2-1.1,5.9v6c0,3.2.4,5.3,1.1,6.5.7,1.2,1.9,1.8,3.6,1.8s2.8-.4,3.5-1.2c.6-.8,1-2.3,1.1-4.5h6.4-.1Z"></path>
       <path fill="#fff" d="M49.8,47.1h-8.7l-1.7,6.5h-6.8l9.9-31.7h5.9l10,31.7h-6.8l-1.7-6.5h0ZM42.5,41.8h5.9l-3-11.3-3,11.3h0Z"></path>
@@ -268,10 +270,10 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
       </div>
       <span class="sl">Preferred Location *</span>
       <div class="loc-row">
-        <button class="loc" onclick="setLoc(this,'Palm Springs')">Palm Springs</button>
-        <button class="loc" onclick="setLoc(this,'San Francisco')">San Francisco</button>
-        <button class="loc" onclick="setLoc(this,'SoHo — New York')">SoHo — New York</button>
-        <button class="loc" onclick="setLoc(this,'shipping')">Requires Shipping</button>
+        <button class="loc" onclick="setLoc(this,&#39;Palm Springs&#39;)">Palm Springs</button>
+        <button class="loc" onclick="setLoc(this,&#39;San Francisco&#39;)">San Francisco</button>
+        <button class="loc" onclick="setLoc(this,&#39;SoHo — New York&#39;)">SoHo — New York</button>
+        <button class="loc" onclick="setLoc(this,&#39;shipping&#39;)">Requires Shipping</button>
       </div>
       <div class="ship-box" id="ship-box">
         <div class="ship-lbl">Shipping Address</div>
@@ -288,8 +290,8 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
     <section class="sec">
       <div class="sec-hd"><span class="sec-n">ii.</span><h3>What Are You Trading In?</h3></div>
       <div class="tab-nav">
-        <button class="tnav on" onclick="tab('search',this)">Search Catalog</button>
-        <button class="tnav" onclick="tab('manual',this)">Manual Entry</button>
+        <button class="tnav on" onclick="tab(&#39;search&#39;,this)">Search Catalog</button>
+        <button class="tnav" onclick="tab(&#39;manual&#39;,this)">Manual Entry</button>
       </div>
 
       <div class="tpane on" id="tab-search">
@@ -303,7 +305,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
       <div class="tpane" id="tab-manual">
         <div class="fg">
           <div class="fld ff"><label>Item Name *</label><input type="text" id="m-name" placeholder="e.g. Leica M11, Black Chrome" oninput="autoBrand(this.value)"></div>
-          <div class="fld"><label>Brand</label><input type="text" id="m-vendor" placeholder="Leica" oninput="this.dataset.userEdited='true'" onfocus="if(!this.value)this.dataset.userEdited='false'"></div>
+          <div class="fld"><label>Brand</label><input type="text" id="m-vendor" placeholder="Leica" oninput="this.dataset.userEdited=&#39;true&#39;" onfocus="if(!this.value)this.dataset.userEdited=&#39;false&#39;"></div>
           <div class="fld"><label>System ID</label>
             <select id="m-sys">
               <option value="">— Select —</option>
@@ -371,7 +373,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
         <div class="fld"><label>Catalog Number (MPN)</label><input type="text" id="catalog" placeholder="Optional"></div>
       </div>
       <span class="sl">Cosmetic Grade *</span>
-      <div class="grade-row" id="grade-row"><button class="gbtn" onclick="pickGrade('10-',this)">10-</button><button class="gbtn" onclick="pickGrade('9+',this)">9+</button><button class="gbtn" onclick="pickGrade('9',this)">9</button><button class="gbtn" onclick="pickGrade('8+',this)">8+</button><button class="gbtn" onclick="pickGrade('8',this)">8</button><button class="gbtn" onclick="pickGrade('7+',this)">7+</button><button class="gbtn" onclick="pickGrade('7',this)">7</button><button class="gbtn" onclick="pickGrade('6+',this)">6+</button><button class="gbtn" onclick="pickGrade('6',this)">6</button><button class="gbtn" onclick="pickGrade('AS-IS',this)">AS-IS</button></div>
+      <div class="grade-row" id="grade-row"><button class="gbtn" onclick="pickGrade(&#39;10-&#39;,this)">10-</button><button class="gbtn" onclick="pickGrade(&#39;9+&#39;,this)">9+</button><button class="gbtn" onclick="pickGrade(&#39;9&#39;,this)">9</button><button class="gbtn" onclick="pickGrade(&#39;8+&#39;,this)">8+</button><button class="gbtn" onclick="pickGrade(&#39;8&#39;,this)">8</button><button class="gbtn" onclick="pickGrade(&#39;7+&#39;,this)">7+</button><button class="gbtn" onclick="pickGrade(&#39;7&#39;,this)">7</button><button class="gbtn" onclick="pickGrade(&#39;6+&#39;,this)">6+</button><button class="gbtn" onclick="pickGrade(&#39;6&#39;,this)">6</button><button class="gbtn" onclick="pickGrade(&#39;AS-IS&#39;,this)">AS-IS</button></div>
       <span class="sl">Comes With</span>
       <div class="acc-row" id="acc-row"></div>
       <div class="fld" style="margin-bottom:18px;"><label>Trade-In Notes</label><textarea id="notes" placeholder="Condition observations, cosmetic details, functional notes…"></textarea></div>
@@ -385,8 +387,8 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
         <input type="number" id="r-override" placeholder="Auto-populated" min="0" step="0.01" oninput="updPricing()">
       </div>
       <div class="pt-row">
-        <button class="ptbtn on" id="pt-ti" onclick="setPT('tradein')">Trade In</button>
-        <button class="ptbtn" id="pt-or" onclick="setPT('outright')">Sell Outright</button>
+        <button class="ptbtn on" id="pt-ti" onclick="setPT(&#39;tradein&#39;)">Trade In</button>
+        <button class="ptbtn" id="pt-or" onclick="setPT(&#39;outright&#39;)">Sell Outright</button>
       </div>
       <div class="pgrid">
         <div class="pbox"><div class="pbox-l">Retail Value</div><div class="pbox-v" id="p-ret">—</div></div>
