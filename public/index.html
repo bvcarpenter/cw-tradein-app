@@ -296,7 +296,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
         <div class="srch-wrap">
           <span class="srch-icon">⌕</span>
           <input class="srch-input" id="item-search" type="text" placeholder="Search by name, SKU, system, grade — e.g. Leica M11, 9+…" oninput="dSearch(this.value)" autocomplete="off">
-          <div class="srch-res" id="srch-res"></div>
+          <div class="srch-res" id="srch-res" style="display: block;"><div class="no-res" style="color:#e07070;">Catalog unavailable — Failed to fetch</div></div>
         </div>
       </div>
 
@@ -436,7 +436,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
 // ════════════════════════════════════════════
 // CONFIG
 // ════════════════════════════════════════════
-const CSV_URL = 'https://storage.ablestar.app/export/70932562235/535d66f56fbd462e809fd8a8ff2f91a3/Product_Titles.csv';
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS_H21bO2pMN_DyNQa5M6I0eRmQQT0lOOoptRxHPNIePTkKrz-RXOkxXyCwvTDE1v1M4DaaXcx-srS3/pub?output=csv';
 
 // ════════════════════════════════════════════
 // STATE
