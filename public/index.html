@@ -3,320 +3,214 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Trade // Sell — Camera West</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&amp;family=Jost:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap');
-
-:root {
-  --bg: #0e0e0e;
-  --bg2: #141414;
-  --bg3: #1a1a1a;
-  --bg4: #222;
-  --border: #2a2a2a;
-  --border-l: #333;
-  --white: #f5f5f0;
-  --dim: rgba(245,245,240,0.55);
-  --faint: rgba(245,245,240,0.1);
-  --accent: #d95e00;
-  --acc-dim: rgba(217,94,0,0.12);
-  --acc-mid: rgba(217,94,0,0.5);
-  --red-soft: #3a1414;
-  --green-soft: #143a24;
+/* ─── RESET & TOKENS ─── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+:root{
+  --bg:#0e0e0e;--bg2:#141414;--bg3:#1a1a1a;--bg4:#222;
+  --border:#2a2a2a;--border-l:#333;
+  --white:#f5f5f0;--dim:rgba(245,245,240,.55);--faint:rgba(245,245,240,.1);
+  --accent:#d95e00;--acc-dim:rgba(217,94,0,.12);--acc-mid:rgba(217,94,0,.5);
+  --red-soft:#3a1414;--grn-soft:#143a24;
 }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; }
-body {
-  font-family: 'Jost', sans-serif;
-  background: var(--bg);
-  color: var(--white);
-  font-size: 14px;
-  font-weight: 300;
-  letter-spacing: 0.025em;
-  -webkit-font-smoothing: antialiased;
-}
+body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-size:14px;font-weight:300;letter-spacing:.025em;-webkit-font-smoothing:antialiased}
 
 /* HEADER */
-.hdr {
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  height: 56px;
-  padding: 0 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 200;
-}
-.hdr-r { display: flex; align-items: center; gap: 14px; }
-.badge {
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--accent);
-  border: 1px solid var(--acc-mid);
-  padding: 4px 10px;
-  border-radius: 20px;
-}
-.btn-hdr {
-  font-family: 'Jost', sans-serif;
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  background: var(--white);
-  color: var(--bg);
-  border: none;
-  padding: 9px 18px;
-  cursor: pointer;
-  transition: opacity .2s;
-}
-.btn-hdr:hover { opacity: .82; }
+.hdr{background:var(--bg);border-bottom:1px solid var(--border);height:56px;padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200}
+.hdr-r{display:flex;align-items:center;gap:14px}
+.badge{font-size:9px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);border:1px solid var(--acc-mid);padding:4px 10px;border-radius:20px}
+.btn-hdr{font-family:'Jost',sans-serif;font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;background:var(--white);color:var(--bg);border:none;padding:9px 18px;cursor:pointer;transition:opacity .2s}
+.btn-hdr:hover{opacity:.82}
 
 /* LAYOUT */
-.wrap { display: flex; height: calc(100vh - 56px); }
+.wrap{display:flex;height:calc(100vh - 56px)}
 
 /* SIDEBAR */
-.sb {
-  width: 310px;
-  flex-shrink: 0;
-  background: var(--bg2);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.sb-head {
-  padding: 22px 20px 14px;
-  border-bottom: 1px solid var(--border);
-}
-.sb-head .lbl { font-size: 9px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); margin-bottom: 3px; }
-.sb-head h2 { font-family: 'Cormorant Garamond', serif; font-size: 19px; font-weight: 300; }
-.cart { flex: 1; overflow-y: auto; padding: 12px; }
-.cart-empty { color: var(--dim); font-size: 11px; text-align: center; padding: 36px 14px; line-height: 2.1; letter-spacing: 0.05em; }
-.ci { background: var(--bg3); border: 1px solid var(--border); padding: 11px 13px; margin-bottom: 7px; position: relative; transition: border-color .15s; }
-.ci:hover { border-color: var(--border-l); }
-.ci-name { font-size: 11px; font-weight: 400; line-height: 1.4; padding-right: 18px; margin-bottom: 4px; }
-.ci-sub { font-size: 9px; color: var(--dim); letter-spacing: 0.05em; margin-bottom: 5px; }
-.ci-row { display: flex; align-items: center; gap: 6px; }
-.gpill { font-size: 9px; font-weight: 500; letter-spacing: 0.08em; padding: 2px 7px; background: var(--acc-dim); border: 1px solid var(--acc-mid); color: var(--accent); }
-.ci-price { font-size: 11px; color: var(--accent); margin-left: auto; }
-.ci-rm { position: absolute; top: 9px; right: 9px; background: none; border: none; color: var(--border-l); cursor: pointer; font-size: 14px; transition: color .15s; }
-.ci-rm:hover { color: var(--white); }
-.sb-tot { border-top: 1px solid var(--border); padding: 14px 20px; }
-.tr { display: flex; justify-content: space-between; font-size: 10px; color: var(--dim); margin-bottom: 4px; letter-spacing: 0.03em; }
-.tr.main { font-size: 12px; font-weight: 400; color: var(--white); border-top: 1px solid var(--border); padding-top: 7px; margin-top: 3px; margin-bottom: 0; }
-.tr.main span:last-child { color: var(--accent); }
+.sb{width:310px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sb-head{padding:22px 20px 14px;border-bottom:1px solid var(--border)}
+.sb-head .lbl{font-size:9px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin-bottom:3px}
+.sb-head h2{font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:300}
+.cart{flex:1;overflow-y:auto;padding:12px}
+.cart-empty{color:var(--dim);font-size:11px;text-align:center;padding:36px 14px;line-height:2.1;letter-spacing:.05em}
+.ci{background:var(--bg3);border:1px solid var(--border);padding:11px 13px;margin-bottom:7px;position:relative;transition:border-color .15s}
+.ci:hover{border-color:var(--border-l)}
+.ci-name{font-size:11px;font-weight:400;line-height:1.4;padding-right:18px;margin-bottom:4px}
+.ci-sub{font-size:9px;color:var(--dim);letter-spacing:.05em;margin-bottom:5px}
+.ci-row{display:flex;align-items:center;gap:6px}
+.gpill{font-size:9px;font-weight:500;letter-spacing:.08em;padding:2px 7px;background:var(--acc-dim);border:1px solid var(--acc-mid);color:var(--accent)}
+.ci-price{font-size:11px;color:var(--accent);margin-left:auto}
+.ci-rm{position:absolute;top:9px;right:9px;background:none;border:none;color:var(--border-l);cursor:pointer;font-size:14px;transition:color .15s}
+.ci-rm:hover{color:var(--white)}
+.sb-tot{border-top:1px solid var(--border);padding:14px 20px}
+.tr{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);margin-bottom:4px;letter-spacing:.03em}
+.tr.main{font-size:12px;font-weight:400;color:var(--white);border-top:1px solid var(--border);padding-top:7px;margin-top:3px;margin-bottom:0}
+.tr.main span:last-child{color:var(--accent)}
 
 /* MAIN */
-.main { flex: 1; overflow-y: auto; padding: 32px 34px; }
-
-.pg-title { margin-bottom: 34px; }
-.pg-title h1 {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 32px;
-  font-weight: 300;
-  letter-spacing: 0.04em;
-  line-height: 1.1;
-}
-.pg-title p { font-size: 11px; color: var(--dim); margin-top: 7px; letter-spacing: 0.08em; }
+.main{flex:1;overflow-y:auto;padding:32px 34px}
+.pg-title{margin-bottom:34px}
+.pg-title h1{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;letter-spacing:.04em;line-height:1.1}
+.pg-title p{font-size:11px;color:var(--dim);margin-top:7px;letter-spacing:.08em}
 
 /* SECTION */
-.sec { border-top: 1px solid var(--border); padding: 26px 0; }
-.sec:last-child { border-bottom: 1px solid var(--border); }
-.sec-hd { display: flex; align-items: baseline; gap: 13px; margin-bottom: 20px; }
-.sec-n { font-family: 'Cormorant Garamond', serif; font-size: 13px; font-style: italic; color: var(--dim); letter-spacing: 0.07em; min-width: 18px; }
-.sec-hd h3 { font-size: 9px; font-weight: 500; letter-spacing: 0.24em; text-transform: uppercase; color: var(--white); }
+.sec{border-top:1px solid var(--border);padding:26px 0}
+.sec:last-child{border-bottom:1px solid var(--border)}
+.sec-hd{display:flex;align-items:baseline;gap:13px;margin-bottom:20px}
+.sec-n{font-family:'Cormorant Garamond',serif;font-size:13px;font-style:italic;color:var(--dim);letter-spacing:.07em;min-width:18px}
+.sec-hd h3{font-size:9px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--white)}
 
-/* FIELD */
-.fg { display: grid; gap: 13px; grid-template-columns: 1fr 1fr; }
-.fg.t3 { grid-template-columns: 1fr 1fr 1fr; }
-.fg.t1 { grid-template-columns: 1fr; }
-.ff { grid-column: 1/-1; }
-.fld { display: flex; flex-direction: column; gap: 5px; }
-.fld label { font-size: 9px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); }
-.fld input, .fld select, .fld textarea {
-  background: var(--bg3);
-  border: 1px solid var(--border-l);
-  color: var(--white);
-  font-family: 'Jost', sans-serif;
-  font-size: 13px;
-  font-weight: 300;
-  letter-spacing: 0.03em;
-  padding: 10px 12px;
-  outline: none;
-  width: 100%;
-  border-radius: 0;
-  transition: border-color .15s;
-  appearance: none;
-  -webkit-appearance: none;
-}
-.fld input::placeholder, .fld textarea::placeholder { color: rgba(245,245,240,0.2); }
-.fld input:focus, .fld select:focus, .fld textarea:focus { border-color: var(--acc-mid); }
-.fld textarea { resize: vertical; min-height: 68px; }
-.fld select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(245,245,240,0.35)'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 30px;
-  cursor: pointer;
-}
-.fld select option { background: var(--bg3); }
+/* FIELDS */
+.fg{display:grid;gap:13px;grid-template-columns:1fr 1fr}
+.fg.t3{grid-template-columns:1fr 1fr 1fr}
+.fg.t1{grid-template-columns:1fr}
+.ff{grid-column:1/-1}
+.fld{display:flex;flex-direction:column;gap:5px}
+.fld label{font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
+.fld input,.fld select,.fld textarea{background:var(--bg3);border:1px solid var(--border-l);color:var(--white);font-family:'Jost',sans-serif;font-size:13px;font-weight:300;letter-spacing:.03em;padding:10px 12px;outline:none;width:100%;border-radius:0;transition:border-color .15s;appearance:none;-webkit-appearance:none}
+.fld input::placeholder,.fld textarea::placeholder{color:rgba(245,245,240,.2)}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--acc-mid)}
+.fld textarea{resize:vertical;min-height:68px}
+.fld select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(245,245,240,0.35)'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;cursor:pointer}
+.fld select option{background:var(--bg3)}
+.sl{font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);display:block;margin-bottom:9px}
 
-/* SUBLABEL */
-.sl { font-size: 9px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); display: block; margin-bottom: 9px; }
-
-/* LOCATION CHIPS */
-.loc-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
-.loc { font-family: 'Jost', sans-serif; font-size: 10px; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; padding: 9px 15px; border: 1px solid var(--border-l); cursor: pointer; background: transparent; color: var(--dim); transition: all .15s; }
-.loc:hover { border-color: var(--dim); color: var(--white); }
-.loc.on { border-color: var(--acc-mid); color: var(--accent); background: var(--acc-dim); }
-
-.ship-box { display: none; margin-top: 13px; padding: 14px; border: 1px solid var(--border); background: var(--bg3); }
-.ship-box.vis { display: block; }
-.ship-lbl { font-size: 9px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin-bottom: 11px; }
+/* LOCATION */
+.loc-row{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
+.loc{font-family:'Jost',sans-serif;font-size:10px;font-weight:400;letter-spacing:.1em;text-transform:uppercase;padding:9px 15px;border:1px solid var(--border-l);cursor:pointer;background:transparent;color:var(--dim);transition:all .15s}
+.loc:hover{border-color:var(--dim);color:var(--white)}
+.loc.on{border-color:var(--acc-mid);color:var(--accent);background:var(--acc-dim)}
+.ship-box{display:none;margin-top:13px;padding:14px;border:1px solid var(--border);background:var(--bg3)}
+.ship-box.vis{display:block}
+.ship-lbl{font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:11px}
 
 /* SEARCH */
-.srch-wrap { position: relative; }
-.srch-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--dim); font-size: 14px; pointer-events: none; }
-.srch-input {
-  background: var(--bg3) !important;
-  border: 1px solid var(--border-l) !important;
-  color: var(--white) !important;
-  font-family: 'Jost', sans-serif !important;
-  font-size: 13px !important;
-  font-weight: 300 !important;
-  padding: 10px 12px 10px 36px !important;
-  width: 100%;
-  outline: none;
-  border-radius: 0;
-  transition: border-color .15s;
-  letter-spacing: 0.03em;
-}
-.srch-input::placeholder { color: rgba(245,245,240,0.2) !important; }
-.srch-input:focus { border-color: var(--acc-mid) !important; }
-.srch-res { position: absolute; top: calc(100% + 2px); left: 0; right: 0; background: var(--bg3); border: 1px solid var(--acc-mid); max-height: 260px; overflow-y: auto; z-index: 300; }
-.ri { padding: 10px 13px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; transition: background .1s; }
-.ri:last-child { border-bottom: none; }
-.ri:hover { background: var(--bg4); }
-.ri-n { font-size: 12px; font-weight: 400; color: var(--white); }
-.ri-m { font-size: 9px; color: var(--dim); margin-top: 2px; letter-spacing: 0.04em; }
-.ri-p { font-size: 11px; color: var(--accent); flex-shrink: 0; }
-.no-res { padding: 16px; font-size: 11px; color: var(--dim); text-align: center; letter-spacing: 0.05em; }
+.srch-wrap{position:relative}
+.srch-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--dim);font-size:14px;pointer-events:none}
+.srch-input{background:var(--bg3)!important;border:1px solid var(--border-l)!important;color:var(--white)!important;font-family:'Jost',sans-serif!important;font-size:13px!important;font-weight:300!important;padding:10px 12px 10px 36px!important;width:100%;outline:none;border-radius:0;transition:border-color .15s;letter-spacing:.03em}
+.srch-input::placeholder{color:rgba(245,245,240,.2)!important}
+.srch-input:focus{border-color:var(--acc-mid)!important}
+.srch-res{position:absolute;top:calc(100% + 2px);left:0;right:0;background:var(--bg3);border:1px solid var(--acc-mid);max-height:300px;overflow-y:auto;z-index:300;display:none}
+.ri{padding:10px 13px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;transition:background .1s}
+.ri:last-child{border-bottom:none}
+.ri:hover{background:var(--bg4)}
+.ri-n{font-size:12px;font-weight:400;color:var(--white);line-height:1.35}
+.ri-m{font-size:9px;color:var(--dim);margin-top:3px;letter-spacing:.04em}
+.ri-r{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
+.ri-p{font-size:11px;color:var(--accent)}
+.ri-g{font-size:9px;font-weight:500;letter-spacing:.06em;padding:2px 6px;background:var(--acc-dim);border:1px solid var(--acc-mid);color:var(--accent)}
+.no-res{padding:16px;font-size:11px;color:var(--dim);text-align:center;letter-spacing:.05em}
 
 /* TABS */
-.tab-nav { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
-.tnav { font-family: 'Jost', sans-serif; font-size: 9px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; background: none; border: none; color: var(--dim); padding: 9px 16px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s; }
-.tnav:hover { color: var(--white); }
-.tnav.on { color: var(--white); border-bottom-color: var(--accent); }
-.tpane { display: none; }
-.tpane.on { display: block; }
+.tab-nav{display:flex;border-bottom:1px solid var(--border);margin-bottom:16px}
+.tnav{font-family:'Jost',sans-serif;font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;background:none;border:none;color:var(--dim);padding:9px 16px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.tnav:hover{color:var(--white)}
+.tnav.on{color:var(--white);border-bottom-color:var(--accent)}
+.tpane{display:none}
+.tpane.on{display:block}
 
 /* SELECTED BAR */
-.sel-bar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 13px 15px; border: 1px solid var(--acc-mid); background: var(--acc-dim); margin-bottom: 18px; }
-.sel-bar h4 { font-size: 13px; font-weight: 400; line-height: 1.35; margin-bottom: 3px; }
-.sel-bar p { font-size: 9px; color: var(--dim); letter-spacing: 0.05em; }
-.btn-chg { font-family: 'Jost', sans-serif; font-size: 9px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; background: none; border: 1px solid var(--border-l); color: var(--dim); padding: 7px 13px; cursor: pointer; white-space: nowrap; transition: all .15s; }
-.btn-chg:hover { border-color: var(--dim); color: var(--white); }
+.sel-bar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:13px 15px;border:1px solid var(--acc-mid);background:var(--acc-dim);margin-bottom:18px}
+.sel-bar h4{font-size:13px;font-weight:400;line-height:1.35;margin-bottom:3px}
+.sel-bar p{font-size:9px;color:var(--dim);letter-spacing:.05em}
+.btn-chg{font-family:'Jost',sans-serif;font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;background:none;border:1px solid var(--border-l);color:var(--dim);padding:7px 13px;cursor:pointer;white-space:nowrap;transition:all .15s}
+.btn-chg:hover{border-color:var(--dim);color:var(--white)}
 
 /* GRADES */
-.grade-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 18px; }
-.gbtn { font-family: 'Jost', sans-serif; font-size: 11px; font-weight: 400; letter-spacing: 0.05em; padding: 8px 14px; border: 1px solid var(--border-l); background: transparent; color: var(--dim); cursor: pointer; transition: all .15s; }
-.gbtn:hover { border-color: var(--dim); color: var(--white); }
-.gbtn.on { border-color: var(--acc-mid); color: var(--accent); background: var(--acc-dim); }
+.grade-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:18px}
+.gbtn{font-family:'Jost',sans-serif;font-size:11px;font-weight:400;letter-spacing:.05em;padding:8px 14px;border:1px solid var(--border-l);background:transparent;color:var(--dim);cursor:pointer;transition:all .15s}
+.gbtn:hover{border-color:var(--dim);color:var(--white)}
+.gbtn.on{border-color:var(--acc-mid);color:var(--accent);background:var(--acc-dim)}
 
 /* ACCESSORIES */
-.acc-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 18px; }
-.achip { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--border-l); cursor: pointer; background: transparent; color: var(--dim); font-family: 'Jost', sans-serif; font-size: 11px; font-weight: 300; letter-spacing: 0.03em; transition: all .15s; user-select: none; }
-.achip:hover { border-color: var(--dim); color: var(--white); }
-.achip.on { border-color: var(--acc-mid); color: var(--accent); background: var(--acc-dim); }
-.achk { width: 12px; height: 12px; border: 1px solid currentColor; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 8px; }
+.acc-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:18px}
+.achip{display:flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid var(--border-l);cursor:pointer;background:transparent;color:var(--dim);font-family:'Jost',sans-serif;font-size:11px;font-weight:300;letter-spacing:.03em;transition:all .15s;user-select:none}
+.achip:hover{border-color:var(--dim);color:var(--white)}
+.achip.on{border-color:var(--acc-mid);color:var(--accent);background:var(--acc-dim)}
+.achk{width:12px;height:12px;border:1px solid currentColor;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:8px}
+.div{height:1px;background:var(--border);margin:18px 0}
 
-/* DIVIDER */
-.div { height: 1px; background: var(--border); margin: 18px 0; }
-
-/* PRICE TYPE TOGGLE */
-.pt-row { display: flex; gap: 5px; margin-bottom: 14px; }
-.ptbtn { font-family: 'Jost', sans-serif; font-size: 9px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; padding: 9px 17px; border: 1px solid var(--border-l); background: transparent; color: var(--dim); cursor: pointer; transition: all .15s; }
-.ptbtn:hover { border-color: var(--dim); color: var(--white); }
-.ptbtn.on { background: var(--white); border-color: var(--white); color: var(--bg); }
+/* PRICE TYPE */
+.pt-row{display:flex;gap:5px;margin-bottom:14px}
+.ptbtn{font-family:'Jost',sans-serif;font-size:9px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;padding:9px 17px;border:1px solid var(--border-l);background:transparent;color:var(--dim);cursor:pointer;transition:all .15s}
+.ptbtn:hover{border-color:var(--dim);color:var(--white)}
+.ptbtn.on{background:var(--white);border-color:var(--white);color:var(--bg)}
 
 /* PRICE GRID */
-.pgrid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: var(--border); margin-bottom: 14px; }
-.pbox { background: var(--bg3); padding: 13px 14px; text-align: center; }
-.pbox-l { font-size: 8px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); margin-bottom: 5px; }
-.pbox-v { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 400; color: var(--white); }
-.pbox-p { font-size: 9px; color: var(--dim); margin-top: 2px; }
+.pgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);margin-bottom:14px}
+.pbox{background:var(--bg3);padding:13px 14px;text-align:center}
+.pbox-l{font-size:8px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+.pbox-v{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:400;color:var(--white)}
+.pbox-p{font-size:9px;color:var(--dim);margin-top:2px}
 
 /* NET BAR */
-.net-bar { background: var(--acc-dim); border: 1px solid var(--acc-mid); padding: 13px 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
-.net-lbl { font-size: 8px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin-bottom: 3px; }
-.net-v { font-family: 'Cormorant Garamond', serif; font-size: 27px; font-weight: 400; color: var(--accent); }
-.net-r { font-size: 9px; color: var(--dim); text-align: right; line-height: 1.7; }
+.net-bar{background:var(--acc-dim);border:1px solid var(--acc-mid);padding:13px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.net-lbl{font-size:8px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:3px}
+.net-v{font-family:'Cormorant Garamond',serif;font-size:27px;font-weight:400;color:var(--accent)}
+.net-r{font-size:9px;color:var(--dim);text-align:right;line-height:1.7}
 
 /* RETAIL OVERRIDE */
-.or-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-.or-row label { font-size: 9px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
-.or-row input { background: var(--bg3); border: 1px solid var(--border-l); color: var(--white); font-family: 'Jost', sans-serif; font-size: 13px; font-weight: 300; padding: 9px 12px; outline: none; width: 130px; border-radius: 0; transition: border-color .15s; }
-.or-row input:focus { border-color: var(--acc-mid); }
-.or-row input::placeholder { color: rgba(245,245,240,0.2); }
+.or-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.or-row label{font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);white-space:nowrap}
+.or-row input{background:var(--bg3);border:1px solid var(--border-l);color:var(--white);font-family:'Jost',sans-serif;font-size:13px;font-weight:300;padding:9px 12px;outline:none;width:130px;border-radius:0;transition:border-color .15s}
+.or-row input:focus{border-color:var(--acc-mid)}
+.or-row input::placeholder{color:rgba(245,245,240,.2)}
 
-/* DETAIL SECTION */
-.det { display: none; }
-.det.vis { display: block; }
-
-/* EXPORT */
-.exp { display: none; }
-.exp.vis { display: block; }
-.exp-acts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; margin-top: 14px; }
+/* VISIBILITY */
+.det{display:none}.det.vis{display:block}
+.exp{display:none}.exp.vis{display:block}
+.exp-acts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:14px}
 
 /* BUTTONS */
-.btn { font-family: 'Jost', sans-serif; font-size: 10px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; padding: 13px 20px; border: none; cursor: pointer; transition: opacity .15s; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
-.btn:hover { opacity: .83; }
-.btn:disabled { opacity: .28; cursor: not-allowed; }
-.btn-w { background: var(--white); color: var(--bg); }
-.btn-ol { background: transparent; border: 1px solid var(--border-l); color: var(--dim); }
-.btn-ol:hover { border-color: var(--dim); color: var(--white); opacity: 1; }
-.btn-g { background: var(--green-soft); border: 1px solid #2a5a3a; color: #70d090; }
-.btn-r { background: var(--red-soft); border: 1px solid #5a2a2a; color: #e07070; }
-.btn-a { background: var(--accent); color: var(--bg); }
-.btn-full { width: 100%; }
+.btn{font-family:'Jost',sans-serif;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;padding:13px 20px;border:none;cursor:pointer;transition:opacity .15s;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.btn:hover{opacity:.83}
+.btn:disabled{opacity:.28;cursor:not-allowed}
+.btn-w{background:var(--white);color:var(--bg)}
+.btn-ol{background:transparent;border:1px solid var(--border-l);color:var(--dim)}
+.btn-ol:hover{border-color:var(--dim);color:var(--white);opacity:1}
+.btn-g{background:var(--grn-soft);border:1px solid #2a5a3a;color:#70d090}
+.btn-r{background:var(--red-soft);border:1px solid #5a2a2a;color:#e07070}
+.btn-a{background:var(--accent);color:var(--bg)}
+.btn-full{width:100%}
 
 /* MODAL */
-.mo { position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 500; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(3px); }
-.mo.open { display: flex; }
-.mod { background: var(--bg2); border: 1px solid var(--border-l); max-width: 680px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; }
-.mod-h { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-.mod-h h3 { font-family: 'Cormorant Garamond', serif; font-size: 19px; font-weight: 300; }
-.mod-x { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 20px; line-height: 1; transition: color .15s; }
-.mod-x:hover { color: var(--white); }
-.mod-b { padding: 0; overflow-y: auto; flex: 1; }
-.mod-f { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 7px; }
-.print-prev { background: #fff; color: #111; padding: 22px 26px; font-family: 'Jost', sans-serif; font-size: 12px; }
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+.mo.open{display:flex}
+.mod{background:var(--bg2);border:1px solid var(--border-l);max-width:680px;width:100%;max-height:90vh;display:flex;flex-direction:column}
+.mod-h{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.mod-h h3{font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:300}
+.mod-x{background:none;border:none;color:var(--dim);cursor:pointer;font-size:20px;line-height:1;transition:color .15s}
+.mod-x:hover{color:var(--white)}
+.mod-b{padding:0;overflow-y:auto;flex:1}
+.mod-f{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:7px}
+.print-prev{background:#fff;color:#111;padding:22px 26px;font-family:'Jost',sans-serif;font-size:12px}
 
 /* SCROLLBAR */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border-l); border-radius: 2px; }
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-l);border-radius:2px}
 
 /* RESPONSIVE */
-@media (max-width: 840px) {
-  .wrap { flex-direction: column; height: auto; }
-  .sb { width: 100%; max-height: 240px; border-right: none; border-bottom: 1px solid var(--border); }
-  .main { padding: 20px 16px; }
-  .pg-title h1 { font-size: 26px; }
-  .fg.t3 { grid-template-columns: 1fr 1fr; }
-  .pgrid { grid-template-columns: 1fr 1fr; }
-  .exp-acts { grid-template-columns: 1fr; }
+@media(max-width:840px){
+  .wrap{flex-direction:column;height:auto}
+  .sb{width:100%;max-height:240px;border-right:none;border-bottom:1px solid var(--border)}
+  .main{padding:20px 16px}
+  .pg-title h1{font-size:26px}
+  .fg.t3{grid-template-columns:1fr 1fr}
+  .pgrid{grid-template-columns:1fr 1fr}
+  .exp-acts{grid-template-columns:1fr}
 }
-@media (max-width: 520px) {
-  .fg, .fg.t3 { grid-template-columns: 1fr; }
-  .pgrid { grid-template-columns: 1fr; }
+@media(max-width:520px){
+  .fg,.fg.t3{grid-template-columns:1fr}
+  .pgrid{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 
+<!-- HEADER -->
 <header class="hdr">
   <a href="#" style="display:flex;align-items:center;text-decoration:none;">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 75" height="26" style="display:block;">
@@ -339,7 +233,6 @@ body {
 </header>
 
 <div class="wrap">
-
   <!-- SIDEBAR -->
   <aside class="sb">
     <div class="sb-head">
@@ -359,26 +252,20 @@ body {
 
   <!-- MAIN -->
   <main class="main">
-
     <div class="pg-title">
       <h1>Trade <em style="font-style:italic;color:var(--accent)">//</em> Sell<br>Your Gear</h1>
-      <p>Internal Trade-In Manager — Rancho Mirage</p>
+      <p>Internal Trade-In Manager</p>
     </div>
 
     <!-- i. Customer Details -->
     <section class="sec">
-      <div class="sec-hd">
-        <span class="sec-n">i.</span>
-        <h3>Customer Details</h3>
-      </div>
-
+      <div class="sec-hd"><span class="sec-n">i.</span><h3>Customer Details</h3></div>
       <div class="fg t3" style="margin-bottom:16px;">
         <div class="fld"><label>First Name *</label><input type="text" id="c-first" placeholder="Jane"></div>
         <div class="fld"><label>Last Name *</label><input type="text" id="c-last" placeholder="Smith"></div>
         <div class="fld"><label>Phone</label><input type="tel" id="c-phone" placeholder="(760) 555-0100"></div>
         <div class="fld ff"><label>Email</label><input type="email" id="c-email" placeholder="jane@email.com"></div>
       </div>
-
       <span class="sl">Preferred Location *</span>
       <div class="loc-row">
         <button class="loc" onclick="setLoc(this,'Palm Springs')">Palm Springs</button>
@@ -386,7 +273,6 @@ body {
         <button class="loc" onclick="setLoc(this,'SoHo — New York')">SoHo — New York</button>
         <button class="loc" onclick="setLoc(this,'shipping')">Requires Shipping</button>
       </div>
-
       <div class="ship-box" id="ship-box">
         <div class="ship-lbl">Shipping Address</div>
         <div class="fg" style="margin-bottom:0;">
@@ -398,13 +284,9 @@ body {
       </div>
     </section>
 
-    <!-- ii. What Are You Trading In -->
+    <!-- ii. What Are You Trading In? -->
     <section class="sec">
-      <div class="sec-hd">
-        <span class="sec-n">ii.</span>
-        <h3>What Are You Trading In?</h3>
-      </div>
-
+      <div class="sec-hd"><span class="sec-n">ii.</span><h3>What Are You Trading In?</h3></div>
       <div class="tab-nav">
         <button class="tnav on" onclick="tab('search',this)">Search Catalog</button>
         <button class="tnav" onclick="tab('manual',this)">Manual Entry</button>
@@ -413,8 +295,8 @@ body {
       <div class="tpane on" id="tab-search">
         <div class="srch-wrap">
           <span class="srch-icon">⌕</span>
-          <input class="srch-input" id="item-search" type="text" placeholder="Configure WORKER_URL in script to enable live search…" oninput="dSearch(this.value)" autocomplete="off" disabled="">
-          <div class="srch-res" id="srch-res" style="display:none;"></div>
+          <input class="srch-input" id="item-search" type="text" placeholder="Search by name, SKU, system, grade — e.g. Leica M11, 9+…" oninput="dSearch(this.value)" autocomplete="off">
+          <div class="srch-res" id="srch-res"></div>
         </div>
       </div>
 
@@ -422,245 +304,56 @@ body {
         <div class="fg">
           <div class="fld ff"><label>Item Name *</label><input type="text" id="m-name" placeholder="e.g. Leica M11, Black Chrome" oninput="autoBrand(this.value)"></div>
           <div class="fld"><label>Brand</label><input type="text" id="m-vendor" placeholder="Leica" oninput="this.dataset.userEdited='true'" onfocus="if(!this.value)this.dataset.userEdited='false'"></div>
-          <div class="fld"><label>System ID</label><select id="m-sys">
+          <div class="fld"><label>System ID</label>
+            <select id="m-sys">
               <option value="">— Select —</option>
-              <option value="0.95 Edition">0.95 Edition</option>
-              <option value="Alpa 35mm">Alpa 35mm</option>
-              <option value="Alpa Technical">Alpa Technical</option>
-              <option value="Bronica ETR">Bronica ETR</option>
-              <option value="Bronica GS">Bronica GS</option>
-              <option value="Bronica RF">Bronica RF</option>
-              <option value="Bronica SQ">Bronica SQ</option>
-              <option value="Canon Cine">Canon Cine</option>
-              <option value="Canon EF">Canon EF</option>
-              <option value="Canon FD">Canon FD</option>
-              <option value="Canon M">Canon M</option>
-              <option value="Canon Powershot">Canon Powershot</option>
-              <option value="Canon R">Canon R</option>
-              <option value="Canon RF">Canon RF</option>
-              <option value="Contax 645">Contax 645</option>
-              <option value="Contax Compact">Contax Compact</option>
-              <option value="Contax G">Contax G</option>
-              <option value="Contax RF">Contax RF</option>
-              <option value="Contax SLR">Contax SLR</option>
-              <option value="Contax YC">Contax YC</option>
-              <option value="Exakta 35mm">Exakta 35mm</option>
-              <option value="Exakta Medium Format">Exakta Medium Format</option>
-              <option value="Fujifilm GFX">Fujifilm GFX</option>
-              <option value="Fujifilm Medium Format">Fujifilm Medium Format</option>
-              <option value="Fujifilm X">Fujifilm X</option>
-              <option value="Gopro">Gopro</option>
-              <option value="Hasselblad Flextight">Hasselblad Flextight</option>
-              <option value="Hasselblad H">Hasselblad H</option>
-              <option value="Hasselblad V">Hasselblad V</option>
-              <option value="Hasselblad X-Pan">Hasselblad X-Pan</option>
-              <option value="Hasselblad XCD">Hasselblad XCD</option>
-              <option value="Kodak 35mm">Kodak 35mm</option>
-              <option value="Kodak Medium Format">Kodak Medium Format</option>
-              <option value="Large Format">Large Format</option>
-              <option value="Large Format Cine">Large Format Cine</option>
-              <option value="Leica APS-C">Leica APS-C</option>
-              <option value="Leica Cine">Leica Cine</option>
-              <option value="Leica CL">Leica CL</option>
-              <option value="Leica Compacts">Leica Compacts</option>
-              <option value="Leica M">Leica M</option>
-              <option value="Leica M10">Leica M10</option>
-              <option value="Leica Q">Leica Q</option>
-              <option value="Leica R">Leica R</option>
-              <option value="Leica S">Leica S</option>
-              <option value="Leica SL">Leica SL</option>
-              <option value="Leica SM">Leica SM</option>
-              <option value="Leica Sofort">Leica Sofort</option>
-              <option value="Leica Sport Optics">Leica Sport Optics</option>
-              <option value="Leica TL">Leica TL</option>
-              <option value="Leica X">Leica X</option>
-              <option value="M42">M42</option>
-              <option value="Mamiya 645">Mamiya 645</option>
-              <option value="Mamiya 7">Mamiya 7</option>
-              <option value="Mamiya Press">Mamiya Press</option>
-              <option value="Mamiya RB">Mamiya RB</option>
-              <option value="Mamiya RZ">Mamiya RZ</option>
-              <option value="Mamiya TLR">Mamiya TLR</option>
-              <option value="Minox 35mm">Minox 35mm</option>
-              <option value="Minox Subminiature">Minox Subminiature</option>
-              <option value="Misc 35mm">Misc 35mm</option>
-              <option value="Misc Compact">Misc Compact</option>
-              <option value="Misc Medium">Misc Medium</option>
-              <option value="Nikon 1">Nikon 1</option>
-              <option value="Nikon AF">Nikon AF</option>
-              <option value="Nikon AI">Nikon AI</option>
-              <option value="Nikon AI-S">Nikon AI-S</option>
-              <option value="Nikon Coolpix">Nikon Coolpix</option>
-              <option value="Nikon Keymission">Nikon Keymission</option>
-              <option value="Nikon Non AI">Nikon Non AI</option>
-              <option value="Nikon RF">Nikon RF</option>
-              <option value="Nikon Z">Nikon Z</option>
-              <option value="Nikonos">Nikonos</option>
-              <option value="Olympus 35mm">Olympus 35mm</option>
-              <option value="Olympus 43rds">Olympus 43rds</option>
-              <option value="Olympus Compacts">Olympus Compacts</option>
-              <option value="Olympus M 4/3">Olympus M 4/3</option>
-              <option value="Panasonic Compacts">Panasonic Compacts</option>
-              <option value="Panasonic Lumix G">Panasonic Lumix G</option>
-              <option value="Panasonic Lumix S">Panasonic Lumix S</option>
-              <option value="Panasonic Video">Panasonic Video</option>
-              <option value="Panoramic">Panoramic</option>
-              <option value="Pentax 645">Pentax 645</option>
-              <option value="Pentax 67">Pentax 67</option>
-              <option value="Pentax SLR">Pentax SLR</option>
-              <option value="Pentax SM">Pentax SM</option>
-              <option value="Phase One">Phase One</option>
-              <option value="profoto">profoto</option>
-              <option value="Ricoh GR">Ricoh GR</option>
-              <option value="Rollei 35mm">Rollei 35mm</option>
-              <option value="Rollei 6000">Rollei 6000</option>
-              <option value="Rollei SLR">Rollei SLR</option>
-              <option value="Rollieflex TLR">Rollieflex TLR</option>
-              <option value="Sony A">Sony A</option>
-              <option value="Sony E">Sony E</option>
-              <option value="Sony RX">Sony RX</option>
-              <option value="Super 16mm">Super 16mm</option>
-              <option value="Super 35mm">Super 35mm</option>
-              <option value="Super 8mm">Super 8mm</option>
-              <option value="Tessina Subminiature">Tessina Subminiature</option>
-              <option value="TLR">TLR</option>
-              <option value="Watches">Watches</option>
-              <option value="Workshops">Workshops</option>
-              <option value="Zeiss Ikon">Zeiss Ikon</option>
-              <option value="Zeiss Ikon Contaflex">Zeiss Ikon Contaflex</option>
-              <option value="Zeiss Ikon Contarex">Zeiss Ikon Contarex</option>
-              <option value="Zeiss Ikon Folding">Zeiss Ikon Folding</option>
-              <option value="Zeiss Ikon TCR">Zeiss Ikon TCR</option>
-            </select></div>
-          <div class="fld">
-            <label>Item Type</label>
+              <option>0.95 Edition</option><option>Alpa 35mm</option><option>Alpa Technical</option>
+              <option>Bronica ETR</option><option>Bronica GS</option><option>Bronica RF</option><option>Bronica SQ</option>
+              <option>Canon Cine</option><option>Canon EF</option><option>Canon FD</option><option>Canon M</option><option>Canon Powershot</option><option>Canon R</option><option>Canon RF</option>
+              <option>Contax 645</option><option>Contax Compact</option><option>Contax G</option><option>Contax RF</option><option>Contax SLR</option><option>Contax YC</option>
+              <option>Exakta 35mm</option><option>Exakta Medium Format</option>
+              <option>Fujifilm GFX</option><option>Fujifilm Medium Format</option><option>Fujifilm X</option>
+              <option>Gopro</option>
+              <option>Hasselblad Flextight</option><option>Hasselblad H</option><option>Hasselblad V</option><option>Hasselblad X-Pan</option><option>Hasselblad XCD</option>
+              <option>Kodak 35mm</option><option>Kodak Medium Format</option>
+              <option>Large Format</option><option>Large Format Cine</option>
+              <option>Leica APS-C</option><option>Leica Cine</option><option>Leica CL</option><option>Leica Compacts</option><option>Leica M</option><option>Leica M10</option><option>Leica Q</option><option>Leica R</option><option>Leica S</option><option>Leica SL</option><option>Leica SM</option><option>Leica Sofort</option><option>Leica Sport Optics</option><option>Leica TL</option><option>Leica X</option>
+              <option>M42</option>
+              <option>Mamiya 645</option><option>Mamiya 7</option><option>Mamiya Press</option><option>Mamiya RB</option><option>Mamiya RZ</option><option>Mamiya TLR</option>
+              <option>Minox 35mm</option><option>Minox Subminiature</option>
+              <option>Misc 35mm</option><option>Misc Compact</option><option>Misc Medium</option>
+              <option>Nikon 1</option><option>Nikon AF</option><option>Nikon AI</option><option>Nikon AI-S</option><option>Nikon Coolpix</option><option>Nikon Keymission</option><option>Nikon Non AI</option><option>Nikon RF</option><option>Nikon Z</option><option>Nikonos</option>
+              <option>Olympus 35mm</option><option>Olympus 43rds</option><option>Olympus Compacts</option><option>Olympus M 4/3</option>
+              <option>Panasonic Compacts</option><option>Panasonic Lumix G</option><option>Panasonic Lumix S</option><option>Panasonic Video</option>
+              <option>Panoramic</option>
+              <option>Pentax 645</option><option>Pentax 67</option><option>Pentax SLR</option><option>Pentax SM</option>
+              <option>Phase One</option><option>profoto</option><option>Ricoh GR</option>
+              <option>Rollei 35mm</option><option>Rollei 6000</option><option>Rollei SLR</option><option>Rollieflex TLR</option>
+              <option>Sony A</option><option>Sony E</option><option>Sony RX</option>
+              <option>Super 16mm</option><option>Super 35mm</option><option>Super 8mm</option>
+              <option>Tessina Subminiature</option><option>TLR</option><option>Watches</option><option>Workshops</option>
+              <option>Zeiss Ikon</option><option>Zeiss Ikon Contaflex</option><option>Zeiss Ikon Contarex</option><option>Zeiss Ikon Folding</option><option>Zeiss Ikon TCR</option>
+            </select>
+          </div>
+          <div class="fld"><label>Item Type</label>
             <select id="m-type">
               <option value="">— Select —</option>
-              <option value="120">120</option>
-              <option value="35mm">35mm</option>
-              <option value="Accessories">Accessories</option>
-              <option value="Backpacks">Backpacks</option>
-              <option value="Backs">Backs</option>
-              <option value="Backup">Backup</option>
-              <option value="Batteries">Batteries</option>
-              <option value="Bodies">Bodies</option>
-              <option value="Books">Books</option>
-              <option value="C Fast Cards">C Fast Cards</option>
-              <option value="C-Pol Filters">C-Pol Filters</option>
-              <option value="Canvas">Canvas</option>
-              <option value="Cases">Cases</option>
-              <option value="CF Cards">CF Cards</option>
-              <option value="CFast 2.0 Cards">CFast 2.0 Cards</option>
-              <option value="Chargers">Chargers</option>
-              <option value="Chemistry">Chemistry</option>
-              <option value="Close Up">Close Up</option>
-              <option value="Color Calibration">Color Calibration</option>
-              <option value="Color Filters">Color Filters</option>
-              <option value="Continous">Continous</option>
-              <option value="DVD">DVD</option>
-              <option value="External Recorders">External Recorders</option>
-              <option value="Filters">Filters</option>
-              <option value="Finders">Finders</option>
-              <option value="Flash">Flash</option>
-              <option value="Flashlight">Flashlight</option>
-              <option value="Gallery Prints">Gallery Prints</option>
-              <option value="Hand Grip">Hand Grip</option>
-              <option value="Heads">Heads</option>
-              <option value="Ink">Ink</option>
-              <option value="Instant">Instant</option>
-              <option value="IR Filters">IR Filters</option>
-              <option value="Legs">Legs</option>
-              <option value="Lens Mount Adapters">Lens Mount Adapters</option>
-              <option value="Lenses">Lenses</option>
-              <option value="Magazines">Magazines</option>
-              <option value="Manuals">Manuals</option>
-              <option value="Messenger Bags">Messenger Bags</option>
-              <option value="Meters">Meters</option>
-              <option value="Microphones">Microphones</option>
-              <option value="Modifiers">Modifiers</option>
-              <option value="Monitors">Monitors</option>
-              <option value="Muslin">Muslin</option>
-              <option value="ND Filters">ND Filters</option>
-              <option value="Neck Straps">Neck Straps</option>
-              <option value="Paper">Paper</option>
-              <option value="Parts">Parts</option>
-              <option value="Printer">Printer</option>
-              <option value="Prints">Prints</option>
-              <option value="Readers">Readers</option>
-              <option value="Rolling Cases">Rolling Cases</option>
-              <option value="Scanners">Scanners</option>
-              <option value="Screen Protectors">Screen Protectors</option>
-              <option value="SD Cards">SD Cards</option>
-              <option value="Seminars">Seminars</option>
-              <option value="Sheet">Sheet</option>
-              <option value="Shirts">Shirts</option>
-              <option value="Sliders">Sliders</option>
-              <option value="Sling">Sling</option>
-              <option value="Soft Release">Soft Release</option>
-              <option value="Square Filters">Square Filters</option>
-              <option value="Stabilzers">Stabilzers</option>
-              <option value="Stands">Stands</option>
-              <option value="Stepping Rings">Stepping Rings</option>
-              <option value="Strobe">Strobe</option>
-              <option value="T-Shirt">T-Shirt</option>
-              <option value="Teleconverters">Teleconverters</option>
-              <option value="Tents">Tents</option>
-              <option value="Thumbs Up">Thumbs Up</option>
-              <option value="Triggers">Triggers</option>
-              <option value="Tripod Plates">Tripod Plates</option>
-              <option value="UV Filters">UV Filters</option>
-              <option value="Video">Video</option>
-              <option value="Vinyl">Vinyl</option>
-              <option value="Wearables">Wearables</option>
-              <option value="Wrist Straps">Wrist Straps</option>
-              <option value="XQD Cards">XQD Cards</option>
+              <option>120</option><option>35mm</option><option>Accessories</option><option>Backpacks</option><option>Backs</option><option>Backup</option><option>Batteries</option><option>Bodies</option><option>Books</option><option>C Fast Cards</option><option>C-Pol Filters</option><option>Canvas</option><option>Cases</option><option>CF Cards</option><option>CFast 2.0 Cards</option><option>Chargers</option><option>Chemistry</option><option>Close Up</option><option>Color Calibration</option><option>Color Filters</option><option>Continous</option><option>DVD</option><option>External Recorders</option><option>Filters</option><option>Finders</option><option>Flash</option><option>Flashlight</option><option>Gallery Prints</option><option>Hand Grip</option><option>Heads</option><option>Ink</option><option>Instant</option><option>IR Filters</option><option>Legs</option><option>Lens Mount Adapters</option><option>Lenses</option><option>Magazines</option><option>Manuals</option><option>Messenger Bags</option><option>Meters</option><option>Microphones</option><option>Modifiers</option><option>Monitors</option><option>Muslin</option><option>ND Filters</option><option>Neck Straps</option><option>Paper</option><option>Parts</option><option>Printer</option><option>Prints</option><option>Readers</option><option>Rolling Cases</option><option>Scanners</option><option>Screen Protectors</option><option>SD Cards</option><option>Seminars</option><option>Sheet</option><option>Shirts</option><option>Sliders</option><option>Sling</option><option>Soft Release</option><option>Square Filters</option><option>Stabilzers</option><option>Stands</option><option>Stepping Rings</option><option>Strobe</option><option>T-Shirt</option><option>Teleconverters</option><option>Tents</option><option>Thumbs Up</option><option>Triggers</option><option>Tripod Plates</option><option>UV Filters</option><option>Video</option><option>Vinyl</option><option>Wearables</option><option>Wrist Straps</option><option>XQD Cards</option>
             </select>
           </div>
-          <div class="fld">
-            <label>Medium</label>
+          <div class="fld"><label>Medium</label>
             <select id="m-med">
               <option value="">— Select —</option>
-              <option value="Digital">Digital</option>
-              <option value="Film">Film</option>
-              <option value="Other">Other</option>
-              <option value="Sport Optics">Sport Optics</option>
-              <option value="Watches">Watches</option>
+              <option>Digital</option><option>Film</option><option>Other</option><option>Sport Optics</option><option>Watches</option>
             </select>
           </div>
-          <div class="fld">
-            <label>Format</label>
+          <div class="fld"><label>Format</label>
             <select id="m-format">
               <option value="">— Select —</option>
-              <option value="35mm">35mm</option>
-              <option value="Action Cam">Action Cam</option>
-              <option value="Backdrops">Backdrops</option>
-              <option value="Bags">Bags</option>
-              <option value="Binoculars">Binoculars</option>
-              <option value="Compact">Compact</option>
-              <option value="Darkroom">Darkroom</option>
-              <option value="Film">Film</option>
-              <option value="Filters">Filters</option>
-              <option value="Fixed Lens">Fixed Lens</option>
-              <option value="Gallery">Gallery</option>
-              <option value="Large Format">Large Format</option>
-              <option value="Lighting">Lighting</option>
-              <option value="Medium Format">Medium Format</option>
-              <option value="Memory">Memory</option>
-              <option value="Mirrorless">Mirrorless</option>
-              <option value="Monocular">Monocular</option>
-              <option value="Printing">Printing</option>
-              <option value="Rangefinder">Rangefinder</option>
-              <option value="Rifle Scopes">Rifle Scopes</option>
-              <option value="SLR">SLR</option>
-              <option value="Spotting">Spotting</option>
-              <option value="Straps">Straps</option>
-              <option value="Subminiature">Subminiature</option>
-              <option value="Tripod">Tripod</option>
-              <option value="Video">Video</option>
-              <option value="Wearables">Wearables</option>
+              <option>35mm</option><option>Action Cam</option><option>Backdrops</option><option>Bags</option><option>Binoculars</option><option>Compact</option><option>Darkroom</option><option>Film</option><option>Filters</option><option>Fixed Lens</option><option>Gallery</option><option>Large Format</option><option>Lighting</option><option>Medium Format</option><option>Memory</option><option>Mirrorless</option><option>Monocular</option><option>Printing</option><option>Rangefinder</option><option>Rifle Scopes</option><option>SLR</option><option>Spotting</option><option>Straps</option><option>Subminiature</option><option>Tripod</option><option>Video</option><option>Wearables</option>
             </select>
           </div>
-                    <div class="fld"><label>Retail Price</label><input type="number" id="m-ret" placeholder="0.00" min="0" step="0.01"></div>
+          <div class="fld"><label>Retail Price</label><input type="number" id="m-ret" placeholder="0.00" min="0" step="0.01"></div>
         </div>
         <div style="margin-top:13px;"><button class="btn btn-ol" onclick="useManual()">Use This Item</button></div>
       </div>
@@ -668,80 +361,59 @@ body {
 
     <!-- iii. Item Details -->
     <section class="sec det" id="det-sec">
-      <div class="sec-hd">
-        <span class="sec-n">iii.</span>
-        <h3>Item Details</h3>
-      </div>
-
+      <div class="sec-hd"><span class="sec-n">iii.</span><h3>Item Details</h3></div>
       <div class="sel-bar">
         <div><h4 id="sel-name">—</h4><p id="sel-meta">—</p></div>
         <button class="btn-chg" onclick="clrItem()">Change Item</button>
       </div>
-
       <div class="fg" style="margin-bottom:18px;">
         <div class="fld"><label>Serial Number</label><input type="text" id="serial" placeholder="Optional"></div>
         <div class="fld"><label>Catalog Number (MPN)</label><input type="text" id="catalog" placeholder="Optional"></div>
       </div>
-
       <span class="sl">Cosmetic Grade *</span>
       <div class="grade-row" id="grade-row"><button class="gbtn" onclick="pickGrade('10-',this)">10-</button><button class="gbtn" onclick="pickGrade('9+',this)">9+</button><button class="gbtn" onclick="pickGrade('9',this)">9</button><button class="gbtn" onclick="pickGrade('8+',this)">8+</button><button class="gbtn" onclick="pickGrade('8',this)">8</button><button class="gbtn" onclick="pickGrade('7+',this)">7+</button><button class="gbtn" onclick="pickGrade('7',this)">7</button><button class="gbtn" onclick="pickGrade('6+',this)">6+</button><button class="gbtn" onclick="pickGrade('6',this)">6</button><button class="gbtn" onclick="pickGrade('AS-IS',this)">AS-IS</button></div>
-
       <span class="sl">Comes With</span>
       <div class="acc-row" id="acc-row"></div>
-
       <div class="fld" style="margin-bottom:18px;"><label>Trade-In Notes</label><textarea id="notes" placeholder="Condition observations, cosmetic details, functional notes…"></textarea></div>
-
       <div class="div"></div>
-
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;flex-wrap:wrap;gap:6px;">
         <span class="sl" style="margin-bottom:0;">Pricing</span>
-        <span id="p-src" style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim);">From catalog</span>
+        <span id="p-src" style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);">From catalog</span>
       </div>
-
       <div class="or-row">
         <label>Retail Override</label>
         <input type="number" id="r-override" placeholder="Auto-populated" min="0" step="0.01" oninput="updPricing()">
       </div>
-
       <div class="pt-row">
         <button class="ptbtn on" id="pt-ti" onclick="setPT('tradein')">Trade In</button>
         <button class="ptbtn" id="pt-or" onclick="setPT('outright')">Sell Outright</button>
       </div>
-
       <div class="pgrid">
         <div class="pbox"><div class="pbox-l">Retail Value</div><div class="pbox-v" id="p-ret">—</div></div>
         <div class="pbox"><div class="pbox-l">Trade-In Credit</div><div class="pbox-v" id="p-ti">—</div><div class="pbox-p">70% of retail</div></div>
         <div class="pbox"><div class="pbox-l">Sell Outright</div><div class="pbox-v" id="p-or">—</div><div class="pbox-p">50% of retail</div></div>
       </div>
-
       <div class="net-bar">
         <div><div class="net-lbl">Net to Customer — NetSuite</div><div class="net-v" id="p-net">—</div></div>
         <div class="net-r" id="net-r">Trade-In<br>selected</div>
       </div>
-
       <button class="btn btn-w btn-full" id="add-btn" onclick="addItem()" disabled="">Add to Session</button>
     </section>
 
-    <!-- iv. Export -->
+    <!-- iv. Export // Print -->
     <section class="sec exp" id="exp-sec">
-      <div class="sec-hd">
-        <span class="sec-n">iv.</span>
-        <h3>Export <em style="font-style:italic;color:var(--accent)">//</em> Print</h3>
-      </div>
-
+      <div class="sec-hd"><span class="sec-n">iv.</span><h3>Export <em style="font-style:italic;color:var(--accent)">//</em> Print</h3></div>
       <div class="fg t3" style="margin-bottom:0;">
         <div class="fld"><label>Credit Memo # (from ERP)</label><input type="text" id="cm-num" placeholder="CM00000"></div>
         <div class="fld"><label>Associate</label><input type="text" id="assoc" placeholder="Your name"></div>
         <div class="fld"><label>Date</label><input type="date" id="txn-date"></div>
       </div>
-
       <div class="exp-acts">
         <button class="btn btn-g" onclick="exportXLSX()">Export NetSuite XLSX</button>
         <button class="btn btn-a" onclick="openPrint()">Print Credit Memo</button>
         <button class="btn btn-r" onclick="clrSession()">Clear Session</button>
       </div>
     </section>
-
   </main>
 </div>
 
@@ -761,15 +433,19 @@ body {
 </div>
 
 <script>
-// ─── DATA ───
-// ── CONFIG — set this to your deployed Cloudflare Worker URL ──────────────
-const WORKER_URL = 'https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev';
-// ─────────────────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════
+const CSV_URL = '/api/catalog'; // proxied through Cloudflare to avoid CORS
 
-const PRODUCTS = []; // not used in live mode — search calls the worker
+// ════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════
+let PRODUCTS = [], productsLoaded = false;
 let selItem = null, selGrade = null, selPT = 'tradein';
-let sessionItems = [];
-let srchT = null, selLoc = '';
+let sessionItems = [], srchT = null, selLoc = '';
+let searchResultsCache = [];
+
 const GRADES = ['10-','9+','9','8+','8','7+','7','6+','6','AS-IS'];
 const ACC_MAP = {
   camera:    ['Box','Charger','Battery','Battery Grip','Strap','Body Cap','Manual','Accessories'],
@@ -781,24 +457,234 @@ const CAM_T = new Set(['Bodies','Instant','Cine','Video','Scanners']);
 const LEN_T = new Set(['Lenses','Close Up','Teleconverters','Filters','UV Filters',
                        'ND Filters','C-Pol Filters','IR Filters','Color Filters','Square Filters']);
 
-// ─── INIT ───
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
   buildGrades();
-  // Validate worker URL on load
-  if (WORKER_URL.includes('YOUR_WORKER')) {
-    const el = document.getElementById('srch-res');
-    document.getElementById('item-search').placeholder =
-      'Configure WORKER_URL in script to enable live search…';
-    document.getElementById('item-search').disabled = true;
-  }
+  loadCSV();
 });
 
-// ─── LOCATION ───
+// ════════════════════════════════════════════
+// TITLE CLEANING
+// Strip serial numbers and grade suffixes from product titles
+// e.g. "Leica M11, 343450932"  → "Leica M11"
+//      "Leica eyepiece (9)"    → "Leica eyepiece"
+//      "Leica BOOWU Copy Stand, Boxed (9+)" → "Leica BOOWU Copy Stand, Boxed"
+// ════════════════════════════════════════════
+function cleanTitle(raw) {
+  let t = (raw || '').trim();
+
+  // 1. Strip trailing grade in parens: (9+), (9), (8+), (10-), (AS-IS), etc.
+  t = t.replace(/\s*\([A-Z0-9+\-]{1,5}\)\s*$/i, '').trim();
+
+  // 2. Strip trailing serial number after comma: ", 343450932" or ", SN12345"
+  //    Serials are typically 6+ digit numbers or alphanumeric codes after the last comma
+  t = t.replace(/,\s*[A-Z0-9]{5,}\s*$/i, '').trim();
+
+  // 3. Strip trailing " #2", " #3" style duplicates (keep name clean)
+  // (leave #N if it appears mid-title, only strip if it looks like a duplicate suffix)
+  // Actually we keep these — "Set #2" is meaningful
+
+  return t;
+}
+
+// ════════════════════════════════════════════
+// CSV LOADING
+// ════════════════════════════════════════════
+async function loadCSV() {
+  if (productsLoaded) return;
+  try {
+    const res   = await fetch(CSV_URL);
+    const text  = await res.text();
+    const lines = text.trim().split('\n');
+
+    // Parse header row
+    const hdrs = parseCSVLine(lines[0]).map(h => h.replace(/^=?"?|"?$/g,'').trim());
+    const idx  = {};
+    hdrs.forEach((h, i) => idx[h] = i);
+
+    PRODUCTS = lines.slice(1).map(line => {
+      const cols  = parseCSVLine(line);
+      const get   = k => (cols[idx[k]] || '').replace(/^=?"?|"?;?$/g,'').replace(/^=""(.*)""$/, '$1').trim();
+
+      const rawTitle = get('Title');
+      const sku      = get('SKU');
+      if (!sku && !rawTitle) return null;
+
+      const cleanedTitle = cleanTitle(rawTitle);
+      const grade  = get('Pre-Owned Grade');
+      const si     = get('System ID');
+      const it     = get('Type');
+      const m      = get('Medium');
+      const fmt    = get('Format');
+      const price  = parseFloat(get('Price')) || 0;
+
+      let cat = 'accessory';
+      if (CAM_T.has(it)) cat = 'camera';
+      else if (LEN_T.has(it)) cat = 'lens';
+
+      return { n: cleanedTitle, rawTitle, si, it, m, fmt, grade, p: price, cat, sku };
+    }).filter(Boolean);
+
+    productsLoaded = true;
+    console.log('CSV loaded:', PRODUCTS.length, 'items');
+  } catch(e) {
+    console.error('CSV load failed:', e);
+  }
+}
+
+function parseCSVLine(line) {
+  const out = []; let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { out.push(cur); cur = ''; }
+    else { cur += c; }
+  }
+  out.push(cur);
+  return out;
+}
+
+// ════════════════════════════════════════════
+// SEARCH
+// ════════════════════════════════════════════
+function dSearch(v) {
+  clearTimeout(srchT);
+  const el = document.getElementById('srch-res');
+  if (v.length < 2) { el.style.display = 'none'; return; }
+  el.innerHTML = '<div class="no-res">Searching…</div>';
+  el.style.display = 'block';
+  srchT = setTimeout(() => runSearch(v), 250);
+}
+
+async function runSearch(q) {
+  const el = document.getElementById('srch-res');
+  if (!productsLoaded) await loadCSV();
+  if (!PRODUCTS.length) {
+    el.innerHTML = '<div class="no-res" style="color:#e07070;">Catalog unavailable — use Manual Entry</div>';
+    return;
+  }
+
+  const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const scored = [];
+
+  for (const p of PRODUCTS) {
+    // Search across: cleaned title, raw title, SKU, system, type, medium, format, grade
+    const hay = [p.n, p.rawTitle, p.sku, p.si, p.it, p.m, p.fmt, p.grade]
+      .filter(Boolean).join(' ').toLowerCase();
+    let sc = 0, ok = true;
+    for (const t of terms) {
+      if (hay.includes(t)) sc += t.length;
+      else { ok = false; break; }
+    }
+    if (ok && sc) scored.push({ p, sc });
+  }
+
+  scored.sort((a, b) => b.sc - a.sc);
+  const top = scored.slice(0, 25);
+  searchResultsCache = top.map(r => r.p);
+
+  if (!top.length) {
+    el.innerHTML = '<div class="no-res">No results — try Manual Entry</div>';
+  } else {
+    el.innerHTML = top.map(({ p }, i) => {
+      const pr   = p.p ? '$' + p.p.toLocaleString('en-US', {minimumFractionDigits:0}) : '';
+      const meta = [p.si, p.it, p.m].filter(Boolean).join(' · ');
+      const skuLabel = p.sku ? `<span style="opacity:.35;margin-left:4px;font-size:9px;">#${p.sku}</span>` : '';
+      return `<div class="ri" onclick="pickResult(${i})">
+        <div style="flex:1;min-width:0;">
+          <div class="ri-n">${esc(p.n)}${skuLabel}</div>
+          <div class="ri-m">${esc(meta)}</div>
+        </div>
+        <div class="ri-r">
+          ${pr ? `<div class="ri-p">${pr}</div>` : ''}
+          ${p.grade ? `<div class="ri-g">${esc(p.grade)}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+  el.style.display = 'block';
+}
+
+function pickResult(i) { const p = searchResultsCache[i]; if (p) selProduct(p); }
+function closeRes() { document.getElementById('srch-res').style.display = 'none'; }
+document.addEventListener('click', e => { if (!e.target.closest('.srch-wrap')) closeRes(); });
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ════════════════════════════════════════════
+// SELECT PRODUCT
+// ════════════════════════════════════════════
+function selProduct(p) {
+  closeRes();
+  document.getElementById('item-search').value = '';
+  let cat = 'accessory';
+  if (CAM_T.has(p.it)) cat = 'camera';
+  else if (LEN_T.has(p.it)) cat = 'lens';
+  const fmt = p.fmt || inferFormat(p.si || '', p.it || '');
+  selItem = { name: p.n, vendor: '', systemId: p.si||'', itemType: p.it||'',
+              medium: p.m||'', price: p.p||0, sku: p.sku||'', format: fmt, category: cat };
+  setSelectVal('m-sys', p.si||'');
+  setSelectVal('m-type', p.it||'');
+  setSelectVal('m-med', p.m||'');
+  setSelectVal('m-format', fmt);
+  // Pre-select the grade from catalog if available
+  if (p.grade) {
+    const gBtn = [...document.querySelectorAll('.gbtn')].find(b => b.textContent === p.grade);
+    if (gBtn) pickGrade(p.grade, gBtn);
+  }
+  showDet();
+}
+
+function useManual() {
+  const name = document.getElementById('m-name').value.trim();
+  if (!name) { alert('Enter an item name.'); return; }
+  const it    = document.getElementById('m-type').value;
+  let cat     = 'accessory';
+  if (CAM_T.has(it)) cat = 'camera';
+  else if (LEN_T.has(it)) cat = 'lens';
+  const sysV  = document.getElementById('m-sys').value;
+  const fmtV  = document.getElementById('m-format').value || inferFormat(sysV, it);
+  if (!document.getElementById('m-format').value && fmtV) setSelectVal('m-format', fmtV);
+  selItem = {
+    name, vendor: document.getElementById('m-vendor').value.trim(),
+    systemId: sysV, itemType: it, medium: document.getElementById('m-med').value,
+    price: parseFloat(document.getElementById('m-ret').value) || 0,
+    format: fmtV, sku: '', category: cat
+  };
+  showDet();
+}
+
+function showDet() {
+  document.getElementById('sel-name').textContent = selItem.name;
+  document.getElementById('sel-meta').textContent =
+    [selItem.systemId, selItem.itemType, selItem.medium, selItem.format].filter(Boolean).join(' · ');
+  document.getElementById('p-src').textContent = selItem.price > 0 ? 'From catalog' : 'Enter retail price';
+  const accs = ACC_MAP[selItem.category] || ACC_MAP.default;
+  document.getElementById('acc-row').innerHTML = accs.map(a =>
+    `<div class="achip" onclick="this.classList.toggle('on')"><div class="achk"></div><span>${a}</span></div>`).join('');
+  document.getElementById('r-override').value = '';
+  document.getElementById('serial').value = '';
+  document.getElementById('catalog').value = '';
+  document.getElementById('notes').value = '';
+  updPricing();
+  document.getElementById('det-sec').classList.add('vis');
+  document.getElementById('det-sec').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function clrItem() {
+  selItem = null; selGrade = null;
+  document.querySelectorAll('.gbtn').forEach(b => b.classList.remove('on'));
+  document.getElementById('det-sec').classList.remove('vis');
+}
+
+// ════════════════════════════════════════════
+// LOCATION
+// ════════════════════════════════════════════
 function setLoc(btn, loc) {
   document.querySelectorAll('.loc').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
-  selLoc = loc;
+  btn.classList.add('on'); selLoc = loc;
   const sb = document.getElementById('ship-box');
   if (loc === 'shipping') sb.classList.add('vis');
   else {
@@ -807,131 +693,9 @@ function setLoc(btn, loc) {
   }
 }
 
-// ─── SEARCH ───
-let searchResultsCache = [];
-let activeSearch = null; // track in-flight request
-
-function dSearch(v) {
-  clearTimeout(srchT);
-  const el = document.getElementById('srch-res');
-  if (v.length < 2) { closeRes(); return; }
-  // Show loading state immediately
-  el.innerHTML = '<div class="no-res" id="srch-loading">Searching…</div>';
-  el.style.display = 'block';
-  srchT = setTimeout(() => runSearch(v), 280);
-}
-
-async function runSearch(q) {
-  const el = document.getElementById('srch-res');
-
-  // Cancel any previous in-flight request
-  if (activeSearch) activeSearch.abort();
-  activeSearch = new AbortController();
-
-  try {
-    const url = `${WORKER_URL}?q=${encodeURIComponent(q)}&limit=20`;
-    const res = await fetch(url, { signal: activeSearch.signal });
-
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const products = data.products || [];
-
-    searchResultsCache = products;
-
-    if (!products.length) {
-      el.innerHTML = '<div class="no-res">No results — try Manual Entry</div>';
-    } else {
-      el.innerHTML = products.map((p, i) => {
-        const pr = p.p ? '$'+p.p.toLocaleString('en-US',{minimumFractionDigits:0}) : '';
-        const meta = [p.si, p.it, p.m].filter(Boolean).join(' · ');
-        const name = p.n.replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        return `<div class="ri" onclick="pickResult(${i})">
-          <div><div class="ri-n">${name}</div><div class="ri-m">${meta}</div></div>
-          ${pr ? `<div class="ri-p">${pr}</div>` : ''}
-        </div>`;
-      }).join('');
-    }
-    el.style.display = 'block';
-
-  } catch (err) {
-    if (err.name === 'AbortError') return; // cancelled, ignore
-    el.innerHTML = `<div class="no-res" style="color:#e07070;">
-      Search unavailable — check Worker URL config or use Manual Entry.<br>
-      <span style="font-size:9px;opacity:.6;">${err.message}</span>
-    </div>`;
-    el.style.display = 'block';
-  }
-}
-
-function pickResult(i) {
-  const p = searchResultsCache[i];
-  if (p) selProduct(p);
-}
-function closeRes() { document.getElementById('srch-res').style.display = 'none'; }
-document.addEventListener('click', e => { if (!e.target.closest('.srch-wrap')) closeRes(); });
-
-// ─── SELECT PRODUCT ───
-function selProduct(p) {
-  closeRes();
-  document.getElementById('item-search').value = '';
-  let cat = 'accessory';
-  if (CAM_T.has(p.it)) cat = 'camera';
-  else if (LEN_T.has(p.it)) cat = 'lens';
-  const fmt = inferFormat(p.si||'', p.it||'');
-  selItem = {name:p.n, vendor:p.v||'', systemId:p.si||'', itemType:p.it||'', medium:p.m||'', price:p.p||0, sku:p.sku||'', format:fmt, category:cat};
-  // Populate manual entry fields too (for reference / NetSuite)
-  const vendorEl = document.getElementById('m-vendor');
-  vendorEl.value = p.v||'';
-  vendorEl.dataset.userEdited = 'false';
-  setSelectVal('m-sys', p.si||'');
-  setSelectVal('m-type', p.it||'');
-  setSelectVal('m-med', p.m||'');
-  setSelectVal('m-format', fmt);
-  showDet();
-}
-function useManual() {
-  const name = document.getElementById('m-name').value.trim();
-  if (!name) { alert('Enter an item name.'); return; }
-  const it = document.getElementById('m-type').value;
-  let cat = 'accessory';
-  if (CAM_T.has(it)) cat = 'camera';
-  else if (LEN_T.has(it)) cat = 'lens';
-  const sysVal = document.getElementById('m-sys').value;
-  const fmtVal = document.getElementById('m-format').value || inferFormat(sysVal, it);
-  if (!document.getElementById('m-format').value && fmtVal) setSelectVal('m-format', fmtVal);
-  selItem = {name, vendor:document.getElementById('m-vendor').value.trim(),
-    systemId:sysVal,
-    itemType:it, medium:document.getElementById('m-med').value,
-    price: parseFloat(document.getElementById('m-ret').value)||0,
-    format: fmtVal,
-    sku:'', category:cat};
-  showDet();
-}
-function showDet() {
-  document.getElementById('sel-name').textContent = selItem.name;
-  document.getElementById('sel-meta').textContent =
-    [selItem.systemId, selItem.itemType, selItem.medium, selItem.format, selItem.vendor].filter(Boolean).join(' · ');
-  document.getElementById('p-src').textContent = selItem.price > 0 ? 'From catalog' : 'Enter retail price';
-  // Accessories
-  const accs = ACC_MAP[selItem.category] || ACC_MAP.default;
-  document.getElementById('acc-row').innerHTML = accs.map(a =>
-    `<div class="achip" onclick="this.classList.toggle('on')"><div class="achk"></div><span>${a}</span></div>`).join('');
-  selGrade = null;
-  document.querySelectorAll('.gbtn').forEach(b => b.classList.remove('on'));
-  document.getElementById('r-override').value = '';
-  document.getElementById('serial').value = '';
-  document.getElementById('catalog').value = '';
-  document.getElementById('notes').value = '';
-  updPricing();
-  document.getElementById('det-sec').classList.add('vis');
-  document.getElementById('det-sec').scrollIntoView({behavior:'smooth', block:'nearest'});
-}
-function clrItem() {
-  selItem = null; selGrade = null;
-  document.getElementById('det-sec').classList.remove('vis');
-}
-
-// ─── GRADES ───
+// ════════════════════════════════════════════
+// GRADES
+// ════════════════════════════════════════════
 function buildGrades() {
   document.getElementById('grade-row').innerHTML = GRADES.map(g =>
     `<button class="gbtn" onclick="pickGrade('${g}',this)">${g}</button>`).join('');
@@ -943,7 +707,9 @@ function pickGrade(g, btn) {
   valAdd();
 }
 
-// ─── PRICING ───
+// ════════════════════════════════════════════
+// PRICING
+// ════════════════════════════════════════════
 function setPT(t) {
   selPT = t;
   document.getElementById('pt-ti').classList.toggle('on', t === 'tradein');
@@ -952,15 +718,15 @@ function setPT(t) {
   updPricing();
 }
 function updPricing() {
-  const ov = parseFloat(document.getElementById('r-override').value);
+  const ov  = parseFloat(document.getElementById('r-override').value);
   const ret = ov > 0 ? ov : (selItem ? selItem.price : 0);
-  const ti = ret * 0.70, or = ret * 0.50;
+  const ti  = ret * 0.70, or = ret * 0.50;
   const net = selPT === 'tradein' ? ti : or;
-  const f = v => v > 0 ? '$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
-  document.getElementById('p-ret').textContent = f(ret);
-  document.getElementById('p-ti').textContent = f(ti);
-  document.getElementById('p-or').textContent = f(or);
-  document.getElementById('p-net').textContent = f(net);
+  const fd  = v => v > 0 ? '$' + v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
+  document.getElementById('p-ret').textContent = fd(ret);
+  document.getElementById('p-ti').textContent  = fd(ti);
+  document.getElementById('p-or').textContent  = fd(or);
+  document.getElementById('p-net').textContent = fd(net);
   valAdd();
 }
 function valAdd() {
@@ -968,19 +734,22 @@ function valAdd() {
   document.getElementById('add-btn').disabled = !(selItem && selGrade && ret > 0);
 }
 
-// ─── ADD ITEM ───
+// ════════════════════════════════════════════
+// ADD ITEM
+// ════════════════════════════════════════════
 function addItem() {
   if (!selItem || !selGrade) return;
-  const ov = parseFloat(document.getElementById('r-override').value);
-  const ret = ov > 0 ? ov : selItem.price;
-  const ti = ret * 0.70, or = ret * 0.50;
-  const net = selPT === 'tradein' ? ti : or;
+  const ov   = parseFloat(document.getElementById('r-override').value);
+  const ret  = ov > 0 ? ov : selItem.price;
+  const ti   = ret * 0.70, or = ret * 0.50;
+  const net  = selPT === 'tradein' ? ti : or;
   const accs = [...document.querySelectorAll('.achip.on')].map(c => c.querySelector('span').textContent);
   sessionItems.push({
     id: Date.now(),
     name: selItem.name, vendor: selItem.vendor, systemId: selItem.systemId,
-    itemType: selItem.itemType, medium: selItem.medium, format: selItem.format||'', category: selItem.category, sku: selItem.sku,
-    serial: document.getElementById('serial').value.trim(),
+    itemType: selItem.itemType, medium: selItem.medium, format: selItem.format||'',
+    category: selItem.category, sku: selItem.sku,
+    serial:  document.getElementById('serial').value.trim(),
     catalog: document.getElementById('catalog').value.trim(),
     grade: selGrade, accessories: accs,
     notes: document.getElementById('notes').value.trim(),
@@ -993,29 +762,31 @@ function addItem() {
     document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
 }
 
-// ─── CART ───
-const f = v => '$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+// ════════════════════════════════════════════
+// CART
+// ════════════════════════════════════════════
+const ff = v => '$' + v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 function renderCart() {
   const cart = document.getElementById('cart');
-  const tot = document.getElementById('sb-tot');
-  document.getElementById('badge').textContent = sessionItems.length + ' Item' + (sessionItems.length!==1?'s':'');
+  const tot  = document.getElementById('sb-tot');
+  document.getElementById('badge').textContent = sessionItems.length + ' Item' + (sessionItems.length !== 1 ? 's' : '');
   if (!sessionItems.length) {
     cart.innerHTML = '<div class="cart-empty">No items added yet.<br>Complete the form to begin.</div>';
     tot.style.display = 'none'; return;
   }
   tot.style.display = 'block';
-  document.getElementById('t-ret').textContent  = f(sessionItems.reduce((s,i)=>s+i.retail,0));
-  document.getElementById('t-ti').textContent   = f(sessionItems.reduce((s,i)=>s+i.tradein,0));
-  document.getElementById('t-or').textContent   = f(sessionItems.reduce((s,i)=>s+i.outright,0));
-  document.getElementById('t-net').textContent  = f(sessionItems.reduce((s,i)=>s+i.net,0));
+  document.getElementById('t-ret').textContent = ff(sessionItems.reduce((s,i) => s+i.retail, 0));
+  document.getElementById('t-ti').textContent  = ff(sessionItems.reduce((s,i) => s+i.tradein, 0));
+  document.getElementById('t-or').textContent  = ff(sessionItems.reduce((s,i) => s+i.outright, 0));
+  document.getElementById('t-net').textContent = ff(sessionItems.reduce((s,i) => s+i.net, 0));
   cart.innerHTML = sessionItems.map(it => `
     <div class="ci">
       <button class="ci-rm" onclick="rmItem(${it.id})">×</button>
-      <div class="ci-name">${it.name}</div>
+      <div class="ci-name">${esc(it.name)}</div>
       <div class="ci-sub">${[it.systemId, it.itemType].filter(Boolean).join(' · ')}</div>
       <div class="ci-row">
         <span class="gpill">${it.grade}</span>
-        <span class="ci-price">${it.priceType==='tradein'?'TI':'OR'} ${f(it.net)}</span>
+        <span class="ci-price">${it.priceType==='tradein'?'TI':'OR'} ${ff(it.net)}</span>
       </div>
     </div>`).join('');
 }
@@ -1025,7 +796,9 @@ function rmItem(id) {
   if (!sessionItems.length) document.getElementById('exp-sec').classList.remove('vis');
 }
 
-// ─── TABS ───
+// ════════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════════
 function tab(id, btn) {
   document.querySelectorAll('.tnav').forEach(b => b.classList.remove('on'));
   document.querySelectorAll('.tpane').forEach(p => p.classList.remove('on'));
@@ -1033,15 +806,16 @@ function tab(id, btn) {
   document.getElementById('tab-' + id).classList.add('on');
 }
 
-// ─── EXPORT XLSX ───
+// ════════════════════════════════════════════
+// EXPORT XLSX
+// ════════════════════════════════════════════
 function exportXLSX() {
   if (!sessionItems.length) { alert('No items to export.'); return; }
   const cm   = document.getElementById('cm-num').value.trim() || 'PENDING';
   const asc  = document.getElementById('assoc').value.trim();
   const dt   = document.getElementById('txn-date').value || new Date().toISOString().split('T')[0];
-  const cust = [document.getElementById('c-first').value.trim(),
-                document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || 'Unknown';
-  const wb = XLSX.utils.book_new();
+  const cust = [document.getElementById('c-first').value.trim(), document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || 'Unknown';
+  const wb   = XLSX.utils.book_new();
 
   const H1 = ['Item Name/Number','Vendor Name/Code','MPN','System Identifier','Brand',
     'Cosmetic Condition','Main Department','Sub Department','Sublet Department',
@@ -1053,9 +827,9 @@ function exportXLSX() {
     'Do Not Modify','Do Not Modify','Do Not Modify','Do Not Modify','Do Not Modify',null];
 
   const rows = [H1, H2];
-  sessionItems.forEach((it, idx) => {
-    const r = idx + 3;
-    const mainD = it.medium === 'Digital' ? 'Digital' : it.medium === 'Film' ? 'Film' : (it.medium||'Other');
+  sessionItems.forEach((it, i) => {
+    const r     = i + 3;
+    const mainD = it.medium === 'Digital' ? 'Digital' : it.medium === 'Film' ? 'Film' : (it.medium || 'Other');
     const subD  = it.format || (it.category === 'lens' ? 'Lenses' : it.category === 'camera' ? 'Mirrorless' : 'Accessories');
     const acStr = it.accessories.length ? `, ${it.accessories.join(', ')}` : '';
     rows.push([
@@ -1080,32 +854,32 @@ function exportXLSX() {
   ws2['!cols'] = [{wch:50},{wch:10},{wch:12}];
   XLSX.utils.book_append_sheet(wb, ws2, 'Output');
 
-  const locStr = selLoc === 'shipping' ? 'Shipping Required' : (selLoc||'—');
+  const locStr = selLoc === 'shipping' ? 'Shipping Required' : (selLoc || '—');
   const shipTo = selLoc === 'shipping'
     ? [document.getElementById('s-str').value, document.getElementById('s-city').value,
-       document.getElementById('s-st').value, document.getElementById('s-zip').value].filter(Boolean).join(', ')
-    : '';
+       document.getElementById('s-st').value,  document.getElementById('s-zip').value].filter(Boolean).join(', ') : '';
   const info = [
     ['CAMERA WEST — TRADE-IN SESSION'],[],
-    ['Credit Memo', cm],['Date', dt],['Associate', asc],['Customer', cust],
-    ['Email', document.getElementById('c-email').value.trim()],
-    ['Phone', document.getElementById('c-phone').value.trim()],
-    ['Location', locStr],
-    ...(shipTo ? [['Ship To', shipTo]] : []),
-    [],[' SUMMARY'],
-    ['Items', sessionItems.length],
-    ['Total Retail', sessionItems.reduce((s,i)=>s+i.retail,0)],
-    ['Total Trade-In', sessionItems.reduce((s,i)=>s+i.tradein,0)],
-    ['Total Net', sessionItems.reduce((s,i)=>s+i.net,0)],
+    ['Credit Memo',cm],['Date',dt],['Associate',asc],['Customer',cust],
+    ['Email',document.getElementById('c-email').value.trim()],
+    ['Phone',document.getElementById('c-phone').value.trim()],
+    ['Location',locStr],
+    ...(shipTo ? [['Ship To',shipTo]] : []),
+    [],['SUMMARY'],
+    ['Items',sessionItems.length],
+    ['Total Retail',sessionItems.reduce((s,i)=>s+i.retail,0)],
+    ['Total Trade-In',sessionItems.reduce((s,i)=>s+i.tradein,0)],
+    ['Total Net',sessionItems.reduce((s,i)=>s+i.net,0)],
   ];
   const ws3 = XLSX.utils.aoa_to_sheet(info);
   ws3['!cols'] = [{wch:20},{wch:40}];
   XLSX.utils.book_append_sheet(wb, ws3, 'Session Info');
-
   XLSX.writeFile(wb, `TradeIn_${cm}_${dt.replace(/-/g,'')}.xlsx`);
 }
 
-// ─── PRINT ───
+// ════════════════════════════════════════════
+// PRINT
+// ════════════════════════════════════════════
 function openPrint() {
   if (!sessionItems.length) { alert('No items to print.'); return; }
   document.getElementById('prev').innerHTML = `<div class="print-prev">${buildPrint()}</div>`;
@@ -1116,249 +890,113 @@ function doPrint() {
   const w = window.open('','_blank','width=820,height=720');
   w.document.write(`<!DOCTYPE html><html><head>
   <title>Camera West — Credit Memo</title><meta charset="UTF-8">
-  <style>
-  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap');
-  body{font-family:'Jost',sans-serif;color:#111;margin:0;padding:0;font-size:12px;font-weight:300;-webkit-font-smoothing:antialiased;}
-  @page{margin:18mm 14mm;}
-  </style></head><body>${buildPrint()}</body></html>`);
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>body{font-family:'Jost',sans-serif;color:#111;margin:0;padding:0;font-size:12px;font-weight:300;-webkit-font-smoothing:antialiased;}@page{margin:18mm 14mm;}</style>
+  </head><body>${buildPrint()}</body></html>`);
   w.document.close(); w.focus();
-  setTimeout(() => { w.print(); w.close(); }, 750);
+  setTimeout(()=>{ w.print(); w.close(); }, 750);
 }
 
 function buildPrint() {
   const cm    = document.getElementById('cm-num').value.trim() || 'PENDING';
   const asc   = document.getElementById('assoc').value.trim() || '—';
   const dt    = document.getElementById('txn-date').value || new Date().toISOString().split('T')[0];
-  const fn    = document.getElementById('c-first').value.trim();
-  const ln    = document.getElementById('c-last').value.trim();
-  const cust  = [fn,ln].filter(Boolean).join(' ') || '—';
+  const cust  = [document.getElementById('c-first').value.trim(), document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || '—';
   const email = document.getElementById('c-email').value.trim();
   const phone = document.getElementById('c-phone').value.trim();
-  const loc   = selLoc === 'shipping' ? 'Requires Shipping' : (selLoc||'—');
+  const loc   = selLoc === 'shipping' ? 'Requires Shipping' : (selLoc || '—');
   const shipTo = selLoc === 'shipping'
     ? [document.getElementById('s-str').value, document.getElementById('s-city').value,
-       document.getElementById('s-st').value, document.getElementById('s-zip').value].filter(Boolean).join(', ')
-    : '';
-
+       document.getElementById('s-st').value,  document.getElementById('s-zip').value].filter(Boolean).join(', ') : '';
+  const totNet = sessionItems.reduce((s,i) => s+i.net, 0);
   const rows = sessionItems.map(it => {
-    const ac  = it.accessories.length ? `<br><span style="color:#777;font-size:10px;">Includes: ${it.accessories.join(', ')}</span>` : '';
-    const nt  = it.notes ? `<br><span style="color:#999;font-size:10px;font-style:italic;">${it.notes}</span>` : '';
-    const sn  = [it.serial ? `S/N: ${it.serial}` : '', it.catalog ? `Cat: ${it.catalog}` : ''].filter(Boolean).join(' · ');
+    const ac = it.accessories.length ? `<br><span style="color:#777;font-size:10px;">Includes: ${it.accessories.join(', ')}</span>` : '';
+    const nt = it.notes ? `<br><span style="color:#999;font-size:10px;font-style:italic;">${esc(it.notes)}</span>` : '';
+    const sn = [it.serial?`S/N: ${it.serial}`:'', it.catalog?`Cat: ${it.catalog}`:''].filter(Boolean).join(' · ');
     return `<tr>
       <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;vertical-align:top;line-height:1.45;">
-        <strong style="font-weight:500;">${it.name}</strong>${ac}${nt}
-        ${sn ? `<br><span style="color:#aaa;font-size:10px;">${sn}</span>` : ''}
+        <strong style="font-weight:500;">${esc(it.name)}</strong>${ac}${nt}
+        ${sn?`<br><span style="color:#aaa;font-size:10px;">${sn}</span>`:''}
       </td>
       <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:center;white-space:nowrap;vertical-align:top;">${it.systemId||'—'}</td>
       <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:center;font-weight:500;vertical-align:top;">${it.grade}</td>
-      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:right;vertical-align:top;">${f(it.retail)}</td>
-      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:right;color:#2a7a4a;vertical-align:top;">${f(it.tradein)}</td>
-      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:right;font-weight:500;vertical-align:top;">${f(it.net)}</td>
+      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:right;vertical-align:top;">${ff(it.retail)}</td>
+      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:right;color:#2a7a4a;vertical-align:top;">${ff(it.tradein)}</td>
+      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:right;font-weight:500;vertical-align:top;">${ff(it.net)}</td>
     </tr>`;
   }).join('');
 
-  const totNet = sessionItems.reduce((s,i)=>s+i.net,0);
-
   return `<div style="max-width:760px;margin:0 auto;padding:22px 18px;font-family:'Jost',sans-serif;color:#111;">
-
-  <table width="100%" style="margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #111;">
-    <tr>
-      <td style="vertical-align:top;">
-        <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;letter-spacing:0.1em;text-transform:uppercase;">Camera West</div>
-        <div style="font-size:10px;color:#666;margin-top:4px;letter-spacing:0.04em;line-height:1.8;">
-          70-177 Hwy 111 Ste 100, Rancho Mirage, CA 92270<br>
-          760-992-5422 &nbsp;·&nbsp; support@camerawest.com
-        </div>
-      </td>
-      <td style="text-align:right;vertical-align:top;">
-        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:#aaa;margin-bottom:3px;">Credit Memo</div>
-        <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;color:#d95e00;">${cm}</div>
-        <div style="font-size:10px;color:#666;margin-top:3px;line-height:1.8;">${dt}<br>Associate: ${asc}</div>
-      </td>
-    </tr>
-  </table>
-
-  <table width="100%" style="margin-bottom:16px;">
-    <tr>
-      <td style="width:55%;vertical-align:top;">
-        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:#aaa;margin-bottom:4px;">Customer</div>
-        <div style="font-size:14px;font-weight:500;">${cust}</div>
-        ${email ? `<div style="font-size:10px;color:#555;margin-top:2px;">${email}</div>` : ''}
-        ${phone ? `<div style="font-size:10px;color:#555;">${phone}</div>` : ''}
-        ${loc !== '—' ? `<div style="font-size:10px;color:#777;margin-top:3px;">Location: ${loc}</div>` : ''}
-        ${shipTo ? `<div style="font-size:10px;color:#777;">Ship To: ${shipTo}</div>` : ''}
-      </td>
-      <td style="vertical-align:top;text-align:right;">
-        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:#aaa;margin-bottom:4px;">Transaction</div>
-        <div style="font-size:10px;color:#555;line-height:1.8;">Pre-Owned Trade-In<br>${sessionItems.length} item${sessionItems.length!==1?'s':''}</div>
-      </td>
-    </tr>
-  </table>
-
+  <table width="100%" style="margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #111;"><tr>
+    <td style="vertical-align:top;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;letter-spacing:.1em;text-transform:uppercase;">Camera West</div>
+      <div style="font-size:10px;color:#666;margin-top:4px;letter-spacing:.04em;line-height:1.8;">70-177 Hwy 111 Ste 100, Rancho Mirage, CA 92270<br>760-992-5422 &nbsp;·&nbsp; support@camerawest.com</div>
+    </td>
+    <td style="text-align:right;vertical-align:top;">
+      <div style="font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#aaa;margin-bottom:3px;">Credit Memo</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;color:#d95e00;">${esc(cm)}</div>
+      <div style="font-size:10px;color:#666;margin-top:3px;line-height:1.8;">${dt}<br>Associate: ${esc(asc)}</div>
+    </td>
+  </tr></table>
+  <table width="100%" style="margin-bottom:16px;"><tr>
+    <td style="width:55%;vertical-align:top;">
+      <div style="font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#aaa;margin-bottom:4px;">Customer</div>
+      <div style="font-size:14px;font-weight:500;">${esc(cust)}</div>
+      ${email?`<div style="font-size:10px;color:#555;margin-top:2px;">${esc(email)}</div>`:''}
+      ${phone?`<div style="font-size:10px;color:#555;">${esc(phone)}</div>`:''}
+      ${loc!=='—'?`<div style="font-size:10px;color:#777;margin-top:3px;">Location: ${esc(loc)}</div>`:''}
+      ${shipTo?`<div style="font-size:10px;color:#777;">Ship To: ${esc(shipTo)}</div>`:''}
+    </td>
+    <td style="vertical-align:top;text-align:right;">
+      <div style="font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#aaa;margin-bottom:4px;">Transaction</div>
+      <div style="font-size:10px;color:#555;line-height:1.8;">Pre-Owned Trade-In<br>${sessionItems.length} item${sessionItems.length!==1?'s':''}</div>
+    </td>
+  </tr></table>
   <table width="100%" style="border-collapse:collapse;margin-bottom:12px;">
-    <thead>
-      <tr style="background:#0e0e0e;color:#f5f5f0;">
-        <th style="padding:8px 7px;text-align:left;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:500;">Description</th>
-        <th style="padding:8px 7px;text-align:center;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:500;">System</th>
-        <th style="padding:8px 7px;text-align:center;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:500;">Grade</th>
-        <th style="padding:8px 7px;text-align:right;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:500;">Retail</th>
-        <th style="padding:8px 7px;text-align:right;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:500;">Trade-In</th>
-        <th style="padding:8px 7px;text-align:right;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:500;">Net Price</th>
-      </tr>
-    </thead>
+    <thead><tr style="background:#0e0e0e;color:#f5f5f0;">
+      <th style="padding:8px 7px;text-align:left;font-size:8px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;">Description</th>
+      <th style="padding:8px 7px;text-align:center;font-size:8px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;">System</th>
+      <th style="padding:8px 7px;text-align:center;font-size:8px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;">Grade</th>
+      <th style="padding:8px 7px;text-align:right;font-size:8px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;">Retail</th>
+      <th style="padding:8px 7px;text-align:right;font-size:8px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;">Trade-In</th>
+      <th style="padding:8px 7px;text-align:right;font-size:8px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;">Net Price</th>
+    </tr></thead>
     <tbody>${rows}</tbody>
-    <tfoot>
-      <tr style="background:#f5f5f0;">
-        <td colspan="3" style="padding:9px 7px;font-size:9px;color:#999;">${sessionItems.length} item${sessionItems.length!==1?'s':''}</td>
-        <td style="padding:9px 7px;text-align:right;font-size:11px;">${f(sessionItems.reduce((s,i)=>s+i.retail,0))}</td>
-        <td style="padding:9px 7px;text-align:right;font-size:11px;color:#2a7a4a;">${f(sessionItems.reduce((s,i)=>s+i.tradein,0))}</td>
-        <td style="padding:9px 7px;text-align:right;font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:300;color:#d95e00;">${f(totNet)}</td>
-      </tr>
-    </tfoot>
+    <tfoot><tr style="background:#f5f5f0;">
+      <td colspan="3" style="padding:9px 7px;font-size:9px;color:#999;">${sessionItems.length} item${sessionItems.length!==1?'s':''}</td>
+      <td style="padding:9px 7px;text-align:right;font-size:11px;">${ff(sessionItems.reduce((s,i)=>s+i.retail,0))}</td>
+      <td style="padding:9px 7px;text-align:right;font-size:11px;color:#2a7a4a;">${ff(sessionItems.reduce((s,i)=>s+i.tradein,0))}</td>
+      <td style="padding:9px 7px;text-align:right;font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:300;color:#d95e00;">${ff(totNet)}</td>
+    </tr></tfoot>
   </table>
-
-  <div style="border-left:2px solid #d95e00;padding:8px 13px;font-size:10px;color:#777;margin-bottom:20px;line-height:1.8;letter-spacing:0.02em;">
+  <div style="border-left:2px solid #d95e00;padding:8px 13px;font-size:10px;color:#777;margin-bottom:20px;line-height:1.8;letter-spacing:.02em;">
     By signing below, the customer confirms the items above are accurately described, that they are the rightful owner, and authorizes Camera West to process this trade-in or purchase transaction. All values are estimates pending final inspection. All sales and trade-ins are final.
   </div>
-
-  <table width="100%">
-    <tr>
-      <td style="width:45%;vertical-align:bottom;padding-right:14px;">
-        <div style="height:32px;"></div>
-        <div style="border-top:1px solid #111;padding-top:5px;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#999;">Customer Signature</div>
-        <div style="height:20px;"></div>
-        <div style="border-top:1px solid #ddd;padding-top:5px;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#ccc;">Print Name</div>
-      </td>
-      <td style="width:10%;"></td>
-      <td style="width:45%;vertical-align:bottom;">
-        <div style="height:32px;"></div>
-        <div style="border-top:1px solid #111;padding-top:5px;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#999;">Camera West Associate</div>
-        <div style="height:20px;"></div>
-        <div style="border-top:1px solid #ddd;padding-top:5px;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#ccc;">Date</div>
-      </td>
-    </tr>
-  </table>
-
-  <div style="text-align:center;font-size:8px;color:#ccc;margin-top:18px;padding-top:10px;border-top:1px solid #eee;letter-spacing:0.14em;text-transform:uppercase;">
-    Camera West &nbsp;·&nbsp; camerawest.com
-  </div>
+  <table width="100%"><tr>
+    <td style="width:45%;vertical-align:bottom;padding-right:14px;">
+      <div style="height:32px;"></div>
+      <div style="border-top:1px solid #111;padding-top:5px;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#999;">Customer Signature</div>
+      <div style="height:20px;"></div>
+      <div style="border-top:1px solid #ddd;padding-top:5px;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#ccc;">Print Name</div>
+    </td>
+    <td style="width:10%;"></td>
+    <td style="width:45%;vertical-align:bottom;">
+      <div style="height:32px;"></div>
+      <div style="border-top:1px solid #111;padding-top:5px;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#999;">Camera West Associate</div>
+      <div style="height:20px;"></div>
+      <div style="border-top:1px solid #ddd;padding-top:5px;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#ccc;">Date</div>
+    </td>
+  </tr></table>
+  <div style="text-align:center;font-size:8px;color:#ccc;margin-top:18px;padding-top:10px;border-top:1px solid #eee;letter-spacing:.14em;text-transform:uppercase;">Camera West &nbsp;·&nbsp; camerawest.com</div>
 </div>`;
 }
 
-
-// ─── AUTO-BRAND ───
-const BRANDS = ['Henri Cartier-Bresson Prints', 'University Of Texas Press', 'Breakthrough Photography', 'Fred Lyon Noir Prints', 'California Sunbounce', 'Leica Store SF Books', 'Colorado Tripod Co', 'Really Right Stuff', 'Capturing Couture', 'DAPR Distributors', 'Light Impressions', 'Artisan & Artist', 'Bright Tangerine', 'Fred Lyon Prints', 'Insight Editions', 'Light and Motion', 'Custom Brackets', 'Photo Solutions', 'White Lightning', '3 Legged Thing', 'Audio Technica', 'Creative Light', 'DAVID B STRAPS', 'Gretag Macbeth', 'Patek Philippe', 'pro media gear', 'Visual Apparel', 'Bausch & Lomb', 'Burke & James', 'CRAIG SEMETKO', 'Depaolapparel', 'Lange & Sohne', 'Maggie Steber', 'Pocket Wizard', 'Sound Devices', 'Tokyo Optical', 'Andre Debrie', 'Angelo Pelle', 'Arte Di Mano', 'Canson Paper', 'Digital Foci', 'Melles Griot', 'ProMediaGear', 'Sailor Strap', 'Tether Tools', 'Venus Optics', 'Visible Dust', 'Aliens Bees', 'Atlas Packs', 'Barber Shop', 'Bell & Ross', 'Black Label', 'Black Rapid', 'Capture One', 'Cub and Co.', 'Fourtsquare', 'Gowlandflex', 'handevision', 'Kinetronics', 'Lite Panels', 'Lock Circle', 'Meyer Optik', 'Montegrappa', 'Oak & Oscar', 'Peak Design', 'Rapid Omega', 'Rock & Roll', 'Stroboframe', 'Studio Ball', 'Voigtlander', 'Abrahamson', 'Arca Swiss', 'Billingham', 'Blackmagic', 'Blue Crane', 'Clik Elite', 'Flashpoint', 'Foursquare', 'Hahnemuhle', 'Harry Benz', 'Hasselblad', 'Impossible', 'Litepanels', 'Lomography', 'Ming Thien', 'MS Optical', 'Multiblitz', 'Nightforce', 'Parmigiani', 'Photogenic', 'Print File', 'Rodenstock', 'Sennheiser', 'Speedotron', 'Sun Sniper', 'Think Tank', 'Viewmaster', 'Wotancraft', '7Artisans', 'Angenieux', 'Berlebach', 'Breitling', 'Broncolor', 'CamRanger', 'Ciro-Flex', 'Dallmeyer', 'Datacolor', 'Deardorff', 'Edelkrone', 'Ekelkrone', 'Elinchrom', 'Energizer', 'Gary Fong', 'Gura Gear', 'Hatchette', 'Lastolite', 'Lumiquest', 'Manfrotto', 'Metabones', 'Micromega', 'Microsync', 'Mindshift', 'Misc View', 'Montblanc', 'Oberwerth', 'Panasonic', 'Paramount', 'Pentaflex', 'Phase One', 'Photoflex', 'Pictorico', 'Power2000', 'Pro Photo', 'Promaster', 'Rectaflex', 'Roadwired', 'Rotolight', 'Schneider', 'Silvestri', 'Singh-Ray', 'SmartDisk', 'Steadicam', 'Steinhart', 'Steinheil', 'Swarovski', 'Tachihara', 'Tag Heuer', 'Thumbs Up', 'Transcend', 'Watameter', 'Wimberley', 'Wollensak', 'Workshops', 'Acratech', 'agiflite', 'Arriflex', 'Beaulieu', 'BosStrap', 'Brandess', 'Chamonix', 'Cognisys', 'Computar', 'Crumpler', 'Dynalite', 'Expodisc', 'Fidelity', 'Flexaret', 'Fotodiox', 'Fujifilm', 'Gary Soo', 'Glidecam', 'Gundlach', 'Hamilton', 'Hartblei', 'Heliopan', 'Horizont', 'Horseman', 'Industar', 'Inkpress', 'Inovativ', 'Interfit', 'Kinoflow', 'Kinoptik', 'Lensbaby', 'Leonardo', 'Lordomat', 'Majestic', 'Matthews', 'Mitchell', 'Nitecore', 'Novoflex', 'Pana-Vue', 'Pentacon', 'Pictools', 'Polaroid', 'Pro Tech', 'Rotatrim', 'Sachtler', 'Saunders', 'Shanghai', 'Shen Hao', 'Smallrig', 'Strobies', 'TrekTech', 'Vacheron', 'Vanguard', 'Visconti', 'Westcott', 'woodblak', 'Ansmann', 'Aputure', 'arsenal', 'Bronica', 'Calumet', 'Cecilia', 'Chimera', 'Chiyoko', 'Citizen', 'Clayton', 'Contour', 'Cullman', 'Dunhill', 'Formatt', 'fotoman', 'Fotopro', 'GigaPan', 'Gigapan', 'Giottos', 'Graflex', 'Graphic', 'Graslon', 'Hoffman', 'Hoodman', 'Horizon', 'Jupiter', 'Kamerar', 'Kapture', 'Kilfitt', 'Liliput', 'Littman', 'Lowepro', 'Minolta', 'Mitakon', 'Netopil', 'Olympus', 'Op Tech', 'Panerai', 'Paxette', 'Pelican', 'Petzval', 'Phottix', 'Piesker', 'Plaubel', 'Polaris', 'Profoto', 'Prontor', 'Quantum', 'Questar', 'RedRock', 'Riteway', 'Rokform', 'Rokinon', 'Sachler', 'Samsung', 'Samyang', 'SanDisk', 'Schoeps', 'Sekonic', 'Shimoda', 'Soligor', 'Spectra', 'Stipula', 'Sto-Fen', 'Techart', 'Tessina', 'Viltrox', 'Vivitar', 'Vue All', 'Widelux', 'Yashica', 'Yongnuo', 'zenmuse', 'Arches', 'Artpan', 'Atomos', 'Aurora', 'Beauty', 'Belkin', 'Bowens', 'brooks', 'Canham', 'Clarus', 'Contax', 'Dayled', 'Debrie', 'Delkin', 'Delsey', 'DSPTCH', 'Elgeet', 'Ensign', 'Exakta', 'Eye-Fi', 'EZ PnP', 'Feisol', 'Filson', 'Fortis', 'Gossen', 'Hahnel', 'Hakuba', 'Harman', 'Helios', 'Helson', 'Hensel', 'Hitech', 'Ilford', 'Imacon', 'Impact', 'Induro', 'Ingram', 'Innova', 'IoSafe', 'Jill-E', 'Jos-PE', 'Kaiser', 'Komaru', 'Konica', 'Legion', 'leitax', 'leotax', 'Linhof', 'Lowell', 'Magmod', 'Mamiya', 'Mefoto', 'Meopta', 'Mikamo', 'Monaco', 'Nissin', 'Noblex', 'Norman', 'Opteka', 'Pentax', 'Pierce', 'Ridata', 'Rimowa', 'Rollei', 'Savage', 'Shanny', 'Shoten', 'stereo', 'Tamrac', 'Tamron', 'Tanack', 'Tiffen', 'Tokina', 'Topcon', 'Turner', 'Twaipo', 'Vidpro', 'Walker', 'Wisner', 'Wooden', 'X-Rite', 'Zacuto', 'Zenith', 'Zoomar', 'Aries', 'Benro', 'Boker', 'Bolex', 'Bower', 'Busch', 'Cambo', 'Canon', 'Casio', 'Cooke', 'Delta', 'Domke', 'Drobo', 'Ebony', 'Edwal', 'Epson', 'Faber', 'Gitzo', 'Godox', 'Goerz', 'GoPro', 'Haoge', 'Heuer', 'Hugen', 'Itoya', 'Kenko', 'Kipon', 'Kiron', 'Kodak', 'Kopil', 'LaCie', 'Laowa', 'Leica', 'Lexar', 'Light', 'Lisco', 'Luigi', 'Minox', 'Naneu', 'Nanuk', 'Nicca', 'Nikon', 'Nodal', 'omega', 'Orion', 'Petri', 'Pratt', 'Print', 'Rhino', 'Ricoh', 'Robot', 'Rogue', 'Rolex', 'Rosco', 'Ruige', 'Sanho', 'Seiko', 'Seitz', 'Sigma', 'Sinar', 'Sirui', 'Tenba', 'Tilta', 'Tudor', 'Varta', 'Wacom', 'Werra', 'Wista', 'Zeiss', 'Zenit', 'Zorki', '3pod', 'Agfa', 'Alpa', 'Asus', 'BRNO', 'Core', 'Eizo', 'Foba', 'Fogg', 'Gepe', 'Hoya', 'HPRC', 'Ilex', 'iPro', 'Isco', 'Jobo', 'Joby', 'Kalt', 'Kata', 'Kiev', 'Kirk', 'Kowa', 'Kupo', 'Leaf', 'Lupo', 'Mack', 'Metz', 'Misc', 'Moab', 'Mola', 'Nisi', 'Omas', 'Osco', 'Pixo', 'Ries', 'Rode', 'Seal', 'Slik', 'Sony', 'Toyo', 'U.N.', 'Used', 'Wein', 'Yard', 'Zoom', 'AKG', 'B+W', 'CTA', 'DJI', 'DLC', 'DXO', 'Fed', 'IDC', 'IWC', 'Jag', 'Lee', 'LFI', 'MOD', 'MPP', 'New', 'NKI', 'Ona', 'Red', 'STX', '4V', 'XP'];
-// Sort longest first so multi-word brands ("Shen Hao", "Phase One") match before single words
-
-function autoBrand(name) {
-  if (!name) return;
-  const lower = name.toLowerCase();
-  const match = BRANDS.find(b => lower.startsWith(b.toLowerCase()));
-  const vendorEl = document.getElementById('m-vendor');
-  if (match && (!vendorEl.dataset.userEdited || vendorEl.dataset.userEdited === 'false')) {
-    vendorEl.value = match;
-  }
-}
-
-
-// ─── FORMAT INFERENCE ───
-const FORMAT_MAP = {
-  // By System ID prefix/exact
-  'Leica M': 'Rangefinder', 'Leica M10': 'Rangefinder', 'Leica SM': 'Rangefinder',
-  'Leica CL': 'Mirrorless', 'Leica SL': 'Mirrorless', 'Leica TL': 'Mirrorless',
-  'Leica APS-C': 'Mirrorless', 'Leica R': 'SLR', 'Leica S': 'Medium Format',
-  'Leica Q': 'Fixed Lens', 'Leica Compacts': 'Compact', 'Leica X': 'Fixed Lens',
-  'Leica Sofort': 'Film', 'Leica Sport Optics': 'Binoculars', 'Leica Cine': 'Video',
-  'Fujifilm X': 'Mirrorless', 'Fujifilm GFX': 'Medium Format', 'Fujifilm Medium Format': 'Medium Format',
-  'Nikon Z': 'Mirrorless', 'Nikon AF': 'SLR', 'Nikon AI': 'SLR', 'Nikon AI-S': 'SLR',
-  'Nikon Non AI': 'SLR', 'Nikon RF': 'Rangefinder', 'Nikon 1': 'Mirrorless',
-  'Nikon Coolpix': 'Compact', 'Nikon Keymission': 'Action Cam', 'Nikonos': 'Video',
-  'Canon RF': 'Mirrorless', 'Canon EF': 'SLR', 'Canon FD': 'SLR', 'Canon M': 'Mirrorless',
-  'Canon R': 'Mirrorless', 'Canon Powershot': 'Compact', 'Canon Cine': 'Video',
-  'Sony E': 'Mirrorless', 'Sony A': 'SLR', 'Sony RX': 'Fixed Lens',
-  'Hasselblad XCD': 'Medium Format', 'Hasselblad H': 'Medium Format',
-  'Hasselblad V': 'Medium Format', 'Hasselblad X-Pan': 'Panoramic',
-  'Hasselblad Flextight': 'Printing',
-  'Panasonic Lumix S': 'Mirrorless', 'Panasonic Lumix G': 'Mirrorless',
-  'Panasonic Compacts': 'Compact', 'Panasonic Video': 'Video',
-  'Olympus M 4/3': 'Mirrorless', 'Olympus 43rds': 'SLR', 'Olympus Compacts': 'Compact',
-  'Olympus 35mm': '35mm', 'Phase One': 'Medium Format',
-  'Mamiya 645': 'Medium Format', 'Mamiya 7': 'Rangefinder', 'Mamiya RB': 'Medium Format',
-  'Mamiya RZ': 'Medium Format', 'Mamiya TLR': 'Medium Format', 'Mamiya Press': 'Medium Format',
-  'Bronica ETR': 'Medium Format', 'Bronica SQ': 'Medium Format', 'Bronica GS': 'Medium Format',
-  'Bronica RF': 'Rangefinder', 'Contax 645': 'Medium Format', 'Contax G': 'Rangefinder',
-  'Contax RF': 'Rangefinder', 'Contax SLR': 'SLR', 'Contax YC': 'SLR',
-  'Contax Compact': 'Compact', 'Rollei 35mm': '35mm', 'Rollei SLR': 'SLR',
-  'Rollei 6000': 'Medium Format', 'Rollieflex TLR': 'Medium Format',
-  'Pentax SLR': 'SLR', 'Pentax 645': 'Medium Format', 'Pentax 67': 'Medium Format',
-  'Pentax SM': 'SLR', 'Large Format': 'Large Format', 'Large Format Cine': 'Video',
-  'Gopro': 'Action Cam', 'Ricoh GR': 'Fixed Lens', 'Alpa 35mm': '35mm',
-  'Alpa Technical': 'Large Format', 'Exakta 35mm': '35mm',
-  'Exakta Medium Format': 'Medium Format', 'Misc 35mm': '35mm',
-  'Misc Compact': 'Compact', 'Misc Medium': 'Medium Format',
-  'Minox 35mm': '35mm', 'Minox Subminiature': 'Subminiature',
-  'Tessina Subminiature': 'Subminiature', 'Kodak 35mm': '35mm',
-  'Kodak Medium Format': 'Medium Format', 'Zeiss Ikon': '35mm',
-  'Zeiss Ikon Contaflex': '35mm', 'Zeiss Ikon Contarex': '35mm',
-  'Zeiss Ikon Folding': '35mm', 'Zeiss Ikon TCR': '35mm',
-  'M42': 'SLR', 'Panoramic': 'Panoramic', 'TLR': 'Medium Format',
-  'Watches': 'Wearables', 'Workshops': 'Gallery',
-  'Nikon 1': 'Mirrorless', 'Super 8mm': 'Video', 'Super 16mm': 'Video', 'Super 35mm': 'Video',
-  '0.95 Edition': 'Mirrorless',
-};
-
-// By item type fallbacks
-const FORMAT_BY_TYPE = {
-  'Lenses': 'Filters', 'Filters': 'Filters', 'UV Filters': 'Filters',
-  'ND Filters': 'Filters', 'C-Pol Filters': 'Filters', 'IR Filters': 'Filters',
-  'Color Filters': 'Filters', 'Square Filters': 'Filters',
-  'Flash': 'Lighting', 'Strobe': 'Lighting', 'Modifiers': 'Lighting',
-  'Stands': 'Lighting', 'Continous': 'Lighting',
-  'Heads': 'Tripod', 'Legs': 'Tripod', 'Tripod Plates': 'Tripod', 'Sliders': 'Tripod',
-  'Backpacks': 'Bags', 'Messenger Bags': 'Bags', 'Cases': 'Bags', 'Rolling Cases': 'Bags',
-  'Sling': 'Bags', 'Tents': 'Bags',
-  'Neck Straps': 'Straps', 'Wrist Straps': 'Straps',
-  'SD Cards': 'Memory', 'CF Cards': 'Memory', 'XQD Cards': 'Memory',
-  'C Fast Cards': 'Memory', 'CFast 2.0 Cards': 'Memory', 'Readers': 'Memory', 'Backup': 'Memory',
-  'Scanners': 'Printing', 'Printer': 'Printing', 'Paper': 'Printing', 'Ink': 'Printing',
-  'Canvas': 'Printing', 'Sheet': 'Printing', 'Muslin': 'Backdrops',
-  'Prints': 'Gallery', 'Gallery Prints': 'Gallery',
-  'Monitors': 'Video', 'External Recorders': 'Video', 'Video': 'Video',
-  'Meters': 'Lighting', 'Finders': 'Rangefinder',
-  'Microphones': 'Video', 'Stabilzers': 'Video',
-  'Shirts': 'Wearables', 'T-Shirt': 'Wearables', 'Wearables': 'Wearables', 'Vinyl': 'Wearables',
-  'Books': 'Gallery', 'Magazines': 'Gallery', 'Seminars': 'Gallery', 'Manuals': 'Gallery',
-  'DVD': 'Gallery', 'Chargers': 'Memory', 'Batteries': 'Memory',
-  'Hand Grip': 'Mirrorless', 'Thumbs Up': 'Rangefinder', 'Soft Release': 'Rangefinder',
-  'Triggers': 'Lighting', 'Close Up': 'Filters', 'Teleconverters': 'Filters',
-  'Lens Mount Adapters': 'Filters', 'Stepping Rings': 'Filters',
-  'Instant': 'Film', 'Chemistry': 'Darkroom', '120': 'Medium Format', '35mm': '35mm',
-  'Backs': 'Medium Format', 'Magazines': 'Medium Format',
-};
-
-function inferFormat(systemId, itemType) {
-  if (systemId && FORMAT_MAP[systemId]) return FORMAT_MAP[systemId];
-  if (itemType && FORMAT_BY_TYPE[itemType]) return FORMAT_BY_TYPE[itemType];
-  return '';
-}
-
-function setSelectVal(id, val) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  // Try exact match first, then case-insensitive
-  for (const opt of el.options) {
-    if (opt.value === val) { el.value = val; return; }
-  }
-  const lower = (val||'').toLowerCase();
-  for (const opt of el.options) {
-    if (opt.value.toLowerCase() === lower) { el.value = opt.value; return; }
-  }
-}
-
-// ─── MISC ───
+// ════════════════════════════════════════════
+// MISC
+// ════════════════════════════════════════════
 function goExport() {
   if (!sessionItems.length) { alert('No items in session yet.'); return; }
-  document.getElementById('exp-sec').scrollIntoView({behavior:'smooth'});
+  document.getElementById('exp-sec').scrollIntoView({ behavior: 'smooth' });
 }
 function clrSession() {
   if (!confirm('Clear all items and start a new session?')) return;
@@ -1370,6 +1008,87 @@ function clrSession() {
   document.querySelectorAll('.loc').forEach(b => b.classList.remove('on'));
   selLoc = '';
   document.getElementById('ship-box').classList.remove('vis');
+}
+
+// ════════════════════════════════════════════
+// FORMAT INFERENCE
+// ════════════════════════════════════════════
+const FORMAT_MAP = {
+  'Leica M':'Rangefinder','Leica M10':'Rangefinder','Leica SM':'Rangefinder',
+  'Leica CL':'Mirrorless','Leica SL':'Mirrorless','Leica TL':'Mirrorless','Leica APS-C':'Mirrorless',
+  'Leica R':'SLR','Leica S':'Medium Format','Leica Q':'Fixed Lens','Leica Compacts':'Compact',
+  'Leica X':'Fixed Lens','Leica Sofort':'Film','Leica Sport Optics':'Binoculars','Leica Cine':'Video',
+  'Fujifilm X':'Mirrorless','Fujifilm GFX':'Medium Format','Fujifilm Medium Format':'Medium Format',
+  'Nikon Z':'Mirrorless','Nikon AF':'SLR','Nikon AI':'SLR','Nikon AI-S':'SLR','Nikon Non AI':'SLR',
+  'Nikon RF':'Rangefinder','Nikon 1':'Mirrorless','Nikon Coolpix':'Compact','Nikon Keymission':'Action Cam',
+  'Canon RF':'Mirrorless','Canon EF':'SLR','Canon FD':'SLR','Canon M':'Mirrorless',
+  'Canon R':'Mirrorless','Canon Powershot':'Compact','Canon Cine':'Video',
+  'Sony E':'Mirrorless','Sony A':'SLR','Sony RX':'Fixed Lens',
+  'Hasselblad XCD':'Medium Format','Hasselblad H':'Medium Format','Hasselblad V':'Medium Format',
+  'Hasselblad X-Pan':'Panoramic','Hasselblad Flextight':'Printing',
+  'Panasonic Lumix S':'Mirrorless','Panasonic Lumix G':'Mirrorless','Panasonic Compacts':'Compact','Panasonic Video':'Video',
+  'Olympus M 4/3':'Mirrorless','Olympus 43rds':'SLR','Olympus Compacts':'Compact','Olympus 35mm':'35mm',
+  'Phase One':'Medium Format',
+  'Mamiya 645':'Medium Format','Mamiya 7':'Rangefinder','Mamiya RB':'Medium Format',
+  'Mamiya RZ':'Medium Format','Mamiya TLR':'Medium Format','Mamiya Press':'Medium Format',
+  'Bronica ETR':'Medium Format','Bronica SQ':'Medium Format','Bronica GS':'Medium Format','Bronica RF':'Rangefinder',
+  'Contax 645':'Medium Format','Contax G':'Rangefinder','Contax RF':'Rangefinder',
+  'Contax SLR':'SLR','Contax YC':'SLR','Contax Compact':'Compact',
+  'Rollei 35mm':'35mm','Rollei SLR':'SLR','Rollei 6000':'Medium Format','Rollieflex TLR':'Medium Format',
+  'Pentax SLR':'SLR','Pentax 645':'Medium Format','Pentax 67':'Medium Format','Pentax SM':'SLR',
+  'Large Format':'Large Format','Large Format Cine':'Video',
+  'Gopro':'Action Cam','Ricoh GR':'Fixed Lens','Alpa 35mm':'35mm','Alpa Technical':'Large Format',
+  'Exakta 35mm':'35mm','Exakta Medium Format':'Medium Format',
+  'Misc 35mm':'35mm','Misc Compact':'Compact','Misc Medium':'Medium Format',
+  'Minox 35mm':'35mm','Minox Subminiature':'Subminiature','Tessina Subminiature':'Subminiature',
+  'Kodak 35mm':'35mm','Kodak Medium Format':'Medium Format',
+  'Zeiss Ikon':'35mm','Zeiss Ikon Contaflex':'35mm','Zeiss Ikon Contarex':'35mm',
+  'Zeiss Ikon Folding':'35mm','Zeiss Ikon TCR':'35mm',
+  'M42':'SLR','Panoramic':'Panoramic','TLR':'Medium Format',
+  'Watches':'Wearables','Workshops':'Gallery',
+  'Super 8mm':'Video','Super 16mm':'Video','Super 35mm':'Video','0.95 Edition':'Mirrorless',
+};
+const FORMAT_BY_TYPE = {
+  'Lenses':'Filters','Filters':'Filters','UV Filters':'Filters','ND Filters':'Filters',
+  'C-Pol Filters':'Filters','IR Filters':'Filters','Color Filters':'Filters','Square Filters':'Filters',
+  'Flash':'Lighting','Strobe':'Lighting','Modifiers':'Lighting','Stands':'Lighting','Continous':'Lighting',
+  'Heads':'Tripod','Legs':'Tripod','Tripod Plates':'Tripod','Sliders':'Tripod',
+  'Backpacks':'Bags','Messenger Bags':'Bags','Cases':'Bags','Rolling Cases':'Bags','Sling':'Bags','Tents':'Bags',
+  'Neck Straps':'Straps','Wrist Straps':'Straps',
+  'SD Cards':'Memory','CF Cards':'Memory','XQD Cards':'Memory','C Fast Cards':'Memory',
+  'CFast 2.0 Cards':'Memory','Readers':'Memory','Backup':'Memory',
+  'Scanners':'Printing','Printer':'Printing','Paper':'Printing','Ink':'Printing','Canvas':'Printing',
+  'Monitors':'Video','External Recorders':'Video','Video':'Video','Microphones':'Video','Stabilzers':'Video',
+  'Meters':'Lighting','Finders':'Rangefinder','Triggers':'Lighting',
+  'Close Up':'Filters','Teleconverters':'Filters','Lens Mount Adapters':'Filters','Stepping Rings':'Filters',
+  'Instant':'Film','Chemistry':'Darkroom','120':'Medium Format','35mm':'35mm',
+  'Backs':'Medium Format','Hand Grip':'Mirrorless','Thumbs Up':'Rangefinder','Soft Release':'Rangefinder',
+  'Books':'Gallery','Magazines':'Gallery','Seminars':'Gallery','Manuals':'Gallery','DVD':'Gallery',
+  'Chargers':'Memory','Batteries':'Memory','Shirts':'Wearables','T-Shirt':'Wearables','Vinyl':'Wearables',
+};
+function inferFormat(si, it) {
+  if (si && FORMAT_MAP[si]) return FORMAT_MAP[si];
+  if (it && FORMAT_BY_TYPE[it]) return FORMAT_BY_TYPE[it];
+  return '';
+}
+function setSelectVal(id, val) {
+  const el = document.getElementById(id); if (!el) return;
+  for (const opt of el.options) { if (opt.value === val) { el.value = val; return; } }
+  const lower = (val||'').toLowerCase();
+  for (const opt of el.options) { if (opt.value.toLowerCase() === lower) { el.value = opt.value; return; } }
+}
+
+// ════════════════════════════════════════════
+// AUTO-BRAND
+// ════════════════════════════════════════════
+const BRANDS = ['Henri Cartier-Bresson Prints','University Of Texas Press','Breakthrough Photography','Fred Lyon Noir Prints','California Sunbounce','Leica Store SF Books','Colorado Tripod Co','Really Right Stuff','Capturing Couture','DAPR Distributors','Light Impressions','Artisan & Artist','Bright Tangerine','Fred Lyon Prints','Insight Editions','Light and Motion','Custom Brackets','Photo Solutions','White Lightning','3 Legged Thing','Audio Technica','Creative Light','DAVID B STRAPS','Gretag Macbeth','Patek Philippe','pro media gear','Visual Apparel','Bausch & Lomb','Burke & James','CRAIG SEMETKO','Depaolapparel','Lange & Sohne','Maggie Steber','Pocket Wizard','Sound Devices','Tokyo Optical','Andre Debrie','Angelo Pelle','Arte Di Mano','Canson Paper','Digital Foci','Melles Griot','ProMediaGear','Sailor Strap','Tether Tools','Venus Optics','Visible Dust','Aliens Bees','Atlas Packs','Barber Shop','Bell & Ross','Black Label','Black Rapid','Capture One','Cub and Co.','Fourtsquare','Gowlandflex','handevision','Kinetronics','Lite Panels','Lock Circle','Meyer Optik','Montegrappa','Oak & Oscar','Peak Design','Rapid Omega','Rock & Roll','Stroboframe','Studio Ball','Voigtlander','Abrahamson','Arca Swiss','Billingham','Blackmagic','Blue Crane','Clik Elite','Flashpoint','Foursquare','Hahnemuhle','Harry Benz','Hasselblad','Impossible','Litepanels','Lomography','Ming Thien','MS Optical','Multiblitz','Nightforce','Parmigiani','Photogenic','Print File','Rodenstock','Sennheiser','Speedotron','Sun Sniper','Think Tank','Viewmaster','Wotancraft','7Artisans','Angenieux','Berlebach','Breitling','Broncolor','CamRanger','Ciro-Flex','Dallmeyer','Datacolor','Deardorff','Edelkrone','Ekelkrone','Elinchrom','Energizer','Gary Fong','Gura Gear','Hatchette','Lastolite','Lumiquest','Manfrotto','Metabones','Micromega','Microsync','Mindshift','Misc View','Montblanc','Oberwerth','Panasonic','Paramount','Pentaflex','Phase One','Photoflex','Pictorico','Power2000','Pro Photo','Promaster','Rectaflex','Roadwired','Rotolight','Schneider','Silvestri','Singh-Ray','SmartDisk','Steadicam','Steinhart','Steinheil','Swarovski','Tachihara','Tag Heuer','Thumbs Up','Transcend','Watameter','Wimberley','Wollensak','Workshops','Acratech','agiflite','Arriflex','Beaulieu','BosStrap','Brandess','Chamonix','Cognisys','Computar','Crumpler','Dynalite','Expodisc','Fidelity','Flexaret','Fotodiox','Fujifilm','Gary Soo','Glidecam','Gundlach','Hamilton','Hartblei','Heliopan','Horizont','Horseman','Industar','Inkpress','Inovativ','Interfit','Kinoflow','Kinoptik','Lensbaby','Leonardo','Lordomat','Majestic','Matthews','Mitchell','Nitecore','Novoflex','Pana-Vue','Pentacon','Pictools','Polaroid','Pro Tech','Rotatrim','Sachtler','Saunders','Shanghai','Shen Hao','Smallrig','Strobies','TrekTech','Vacheron','Vanguard','Visconti','Westcott','woodblak','Ansmann','Aputure','arsenal','Bronica','Calumet','Cecilia','Chimera','Chiyoko','Citizen','Clayton','Contour','Cullman','Dunhill','Formatt','fotoman','Fotopro','GigaPan','Gigapan','Giottos','Graflex','Graphic','Graslon','Hoffman','Hoodman','Horizon','Jupiter','Kamerar','Kapture','Kilfitt','Liliput','Littman','Lowepro','Minolta','Mitakon','Netopil','Olympus','Op Tech','Panerai','Paxette','Pelican','Petzval','Phottix','Piesker','Plaubel','Polaris','Profoto','Prontor','Quantum','Questar','RedRock','Riteway','Rokform','Rokinon','Sachler','Samsung','Samyang','SanDisk','Schoeps','Sekonic','Shimoda','Soligor','Spectra','Stipula','Sto-Fen','Techart','Tessina','Viltrox','Vivitar','Vue All','Widelux','Yashica','Yongnuo','zenmuse','Arches','Artpan','Atomos','Aurora','Beauty','Belkin','Bowens','brooks','Canham','Clarus','Contax','Dayled','Debrie','Delkin','Delsey','DSPTCH','Elgeet','Ensign','Exakta','Eye-Fi','EZ PnP','Feisol','Filson','Fortis','Gossen','Hahnel','Hakuba','Harman','Helios','Helson','Hensel','Hitech','Ilford','Imacon','Impact','Induro','Ingram','Innova','IoSafe','Jill-E','Jos-PE','Kaiser','Komaru','Konica','Legion','leitax','leotax','Linhof','Lowell','Magmod','Mamiya','Mefoto','Meopta','Mikamo','Monaco','Nissin','Noblex','Norman','Opteka','Pentax','Pierce','Ridata','Rimowa','Rollei','Savage','Shanny','Shoten','stereo','Tamrac','Tamron','Tanack','Tiffen','Tokina','Topcon','Turner','Twaipo','Vidpro','Walker','Wisner','Wooden','X-Rite','Zacuto','Zenith','Zoomar','Aries','Benro','Boker','Bolex','Bower','Busch','Cambo','Canon','Casio','Cooke','Delta','Domke','Drobo','Ebony','Edwal','Epson','Faber','Gitzo','Godox','Goerz','GoPro','Haoge','Heuer','Hugen','Itoya','Kenko','Kipon','Kiron','Kodak','Kopil','LaCie','Laowa','Leica','Lexar','Light','Lisco','Luigi','Minox','Naneu','Nanuk','Nicca','Nikon','Nodal','omega','Orion','Petri','Pratt','Print','Rhino','Ricoh','Robot','Rogue','Rolex','Rosco','Ruige','Sanho','Seiko','Seitz','Sigma','Sinar','Sirui','Tenba','Tilta','Tudor','Varta','Wacom','Werra','Wista','Zeiss','Zenit','Zorki','3pod','Agfa','Alpa','Asus','BRNO','Core','Eizo','Foba','Fogg','Gepe','Hoya','HPRC','Ilex','iPro','Isco','Jobo','Joby','Kalt','Kata','Kiev','Kirk','Kowa','Kupo','Leaf','Lupo','Mack','Metz','Misc','Moab','Mola','Nisi','Omas','Osco','Pixo','Ries','Rode','Seal','Slik','Sony','Toyo','U.N.','Used','Wein','Yard','Zoom','AKG','B+W','CTA','DJI','DLC','DXO','Fed','IDC','IWC','Jag','Lee','LFI','MOD','MPP','New','NKI','Ona','Red','STX','4V','XP'];
+
+function autoBrand(name) {
+  if (!name) return;
+  const lower = name.toLowerCase();
+  const match = BRANDS.find(b => lower.startsWith(b.toLowerCase()));
+  const ve = document.getElementById('m-vendor');
+  if (match && (!ve.dataset.userEdited || ve.dataset.userEdited === 'false')) ve.value = match;
 }
 </script>
 
