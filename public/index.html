@@ -436,7 +436,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
 // ════════════════════════════════════════════
 // CONFIG
 // ════════════════════════════════════════════
-const CSV_URL = '/api/catalog'; // proxied through Cloudflare to avoid CORS
+const CSV_URL = 'https://storage.ablestar.app/export/70932562235/535d66f56fbd462e809fd8a8ff2f91a3/Product_Titles.csv';
 
 // ════════════════════════════════════════════
 // STATE
@@ -532,6 +532,7 @@ async function loadCSV() {
     console.log('CSV loaded:', PRODUCTS.length, 'items');
   } catch(e) {
     console.error('CSV load failed:', e);
+    window._csvError = e.message || String(e);
   }
 }
 
@@ -563,7 +564,7 @@ async function runSearch(q) {
   const el = document.getElementById('srch-res');
   if (!productsLoaded) await loadCSV();
   if (!PRODUCTS.length) {
-    el.innerHTML = '<div class="no-res" style="color:#e07070;">Catalog unavailable — use Manual Entry</div>';
+    el.innerHTML = `<div class="no-res" style="color:#e07070;">Catalog unavailable — ${window._csvError || 'unknown error'}</div>`;
     return;
   }
 
