@@ -1,36 +1,17 @@
 /**
  * GET /api/search?q=leica&limit=20
  *
- * Validates session cookie, then proxies search to Shopify Admin API.
+ * Searches Shopify products by title.
+ * Auth handled by Cloudflare Access.
  *
  * Environment variables:
- *   SHOPIFY_STORE    — camerawest.myshopify.com
- *   SHOPIFY_TOKEN    — shpat_xxx (Admin API token, set as secret)
- *   COLLECTION_ID    — numeric ID of your pre-owned collection
+ *   SHOPIFY_STORE  â€” camerawest.myshopify.com
+ *   SHOPIFY_TOKEN  â€” shpat_xxx (Admin API token, set as secret)
  */
 
 export async function onRequestGet({ request, env }) {
   const corsHeaders = { 'Content-Type': 'application/json' };
 
-  // ── Validate session ──────────────────────────────────────────────
-  const cookieHeader = request.headers.get('Cookie') || '';
-  const sessionId = parseCookie(cookieHeader, 'cw_session');
-
-  if (!sessionId) {
-    return Response.json({ error: 'Not authenticated', products: [] }, { status: 401 });
-  }
-
-  const sessionRaw = await env.AUTH_KV.get(`session:${sessionId}`);
-  if (!sessionRaw) {
-    return Response.json({ error: 'Session expired', products: [] }, { status: 401 });
-  }
-
-  const session = JSON.parse(sessionRaw);
-  if (Date.now() > session.expires) {
-    return Response.json({ error: 'Session expired', products: [] }, { status: 401 });
-  }
-
-  // ── Parse query ───────────────────────────────────────────────────
   const url   = new URL(request.url);
   const query = (url.searchParams.get('q') || '').trim();
   const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
@@ -39,26 +20,21 @@ export async function onRequestGet({ request, env }) {
     return Response.json({ products: [] }, { headers: corsHeaders });
   }
 
-  // ── Query Shopify ─────────────────────────────────────────────────
-  const collectionGid = `gid://shopify/Collection/${env.COLLECTION_ID}`;
-
   const graphql = `
     query SearchProducts($query: String!, $limit: Int!) {
-      collection(id: "${collectionGid}") {
-        products(first: $limit, query: $query, sortKey: RELEVANCE) {
-          edges {
-            node {
-              id
-              title
-              vendor
-              productType
-              priceRangeV2 { minVariantPrice { amount } }
-              metafields(identifiers: [
-                {namespace: "custom", key: "system_id"},
-                {namespace: "custom", key: "item_type"},
-                {namespace: "custom", key: "medium"}
-              ]) { key value }
-            }
+      products(first: $limit, query: $query, sortKey: RELEVANCE) {
+        edges {
+          node {
+            id
+            title
+            vendor
+            productType
+            priceRangeV2 { minVariantPrice { amount } }
+            metafields(identifiers: [
+              {namespace: "custom", key: "system_id"},
+              {namespace: "custom", key: "item_type"},
+              {namespace: "custom", key: "medium"}
+            ]) { key value }
           }
         }
       }
@@ -91,7 +67,7 @@ export async function onRequestGet({ request, env }) {
       throw new Error(data.errors[0]?.message || 'GraphQL error');
     }
 
-    const edges = data?.data?.collection?.products?.edges || [];
+    const edges = data?.data?.products?.edges || [];
 
     const CAM_T = new Set(['Bodies','Instant','Cine','Video','Scanners']);
     const LEN_T = new Set(['Lenses','Filters','UV Filters','ND Filters','Close Up',
@@ -128,10 +104,4 @@ export async function onRequestGet({ request, env }) {
       { status: 502, headers: corsHeaders }
     );
   }
-}
-
-function parseCookie(cookieStr, name) {
-  const match = cookieStr.split(';').map(c => c.trim())
-    .find(c => c.startsWith(`${name}=`));
-  return match ? match.split('=').slice(1).join('=') : null;
 }
