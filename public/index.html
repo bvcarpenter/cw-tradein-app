@@ -1115,13 +1115,13 @@ function exportXLSX() {
   const cust = [document.getElementById('c-first').value.trim(), document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || 'Unknown';
   const wb   = XLSX.utils.book_new();
 
-  const H1 = ['Item Name/Number','Vendor Name/Code','MPN','System Identifier','Brand',
+  const H1 = ['Item Name/Number','Item Display Name','Vendor Name/Code','MPN','System Identifier','Brand',
     'Cosmetic Condition','Main Department','Sub Department','Sublet Department',
     'Purchase Price','Item Pricing 1 : Price (Req)','Item Vendors 1 : Vendor (Req)',
-    'Buy It Now','Auto Accept','Item Display Name',null,'Item Name/Number',
+    'Buy It Now','Auto Accept',null,'Item Name/Number',
     'Amazon Shipping','Amazon Condition','Best offer','Best offer Minimum','Type'];
-  const H2 = ['Description','Serial Number','Catalog Number','System ID','Brand','Grade',
-    'Main','Sub','Sublet','Net','Retail','Origin Store','BIN','AA','Display Name','margin',
+  const H2 = ['Item #','Display Name','Serial Number','Catalog Number','System ID','Brand','Grade',
+    'Main','Sub','Sublet','Net','Retail','Origin Store','BIN','AA','margin',
     'Do Not Modify','Do Not Modify','Do Not Modify','Do Not Modify','Do Not Modify',null];
 
   const rows = [H1, H2];
@@ -1133,7 +1133,7 @@ function exportXLSX() {
     const lineNum = String(i + 1).padStart(2, '0');
     const itemNum = cm !== 'PENDING' ? cm + '-' + lineNum : 'PENDING-' + lineNum;
     rows.push([
-      itemNum, it.serial||null, it.catalog||null, it.systemId||null, it.vendor||null,
+      itemNum, it.name + acStr, it.serial||null, it.catalog||null, it.systemId||null, it.vendor||null,
       it.grade, mainD, subD, it.itemType||null,
       it.net, it.retail, 'Camera West RM',
       {f:`K${r}*1.1`}, {f:`K${r}*1.05`}, it.name + acStr, 0.6,
@@ -1149,7 +1149,7 @@ function exportXLSX() {
   XLSX.utils.book_append_sheet(wb, ws1, 'Main Sheet');
 
   const outRows = [['Item','Grade','Credit']];
-  sessionItems.forEach((_,i) => { const r=i+3; outRows.push([{f:`'Main Sheet'!A${r}`},{f:`'Main Sheet'!G${r}`},{f:`'Main Sheet'!K${r}`}]); });
+  sessionItems.forEach((_,i) => { const r=i+3; outRows.push([{f:`'Main Sheet'!A${r}`},{f:`'Main Sheet'!H${r}`},{f:`'Main Sheet'!K${r}`}]); });
   const ws2 = XLSX.utils.aoa_to_sheet(outRows);
   ws2['!cols'] = [{wch:50},{wch:10},{wch:12}];
   XLSX.utils.book_append_sheet(wb, ws2, 'Output');
