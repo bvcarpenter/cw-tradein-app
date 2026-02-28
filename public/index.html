@@ -1138,18 +1138,18 @@ function exportXLSX() {
       it.net, it.retail, 'Camera West RM',
       {f:`K${r}*1.1`}, {f:`K${r}*1.05`}, it.name + acStr, 0.6,
       {f:`IF(B${r}="",A${r}&" ("&F${r}&")",A${r}&" "&B${r})`},
-      {f:`IF(M${r}>500,"Prime Nationwide","Purely Free Shipping")`},
-      {f:`IF(F${r}="10-","Used - Like New",IF(F${r}="9+","Used - Very Good",IF(F${r}="8+","Used - Good",IF(F${r}=9,"Used - Very Good","Used - Acceptable"))))`},
-      {f:`IF(N${r}<>"","Yes","No")`}, {f:`N${r}-0.01`}, {f:`G${r}&" "&H${r}`}
+      {f:`IF(N${r}>500,"Prime Nationwide","Purely Free Shipping")`},
+      {f:`IF(G${r}="10-","Used - Like New",IF(G${r}="9+","Used - Very Good",IF(G${r}="8+","Used - Good",IF(G${r}=9,"Used - Very Good","Used - Acceptable"))))`},
+      {f:`IF(O${r}<>"","Yes","No")`}, {f:`O${r}-0.01`}, {f:`H${r}&" "&I${r}`}
     ]);
   });
   const ws1 = XLSX.utils.aoa_to_sheet(rows);
-  ws1['!cols'] = [{wch:50},{wch:15},{wch:15},{wch:20},{wch:15},{wch:8},{wch:10},{wch:14},{wch:16},
+  ws1['!cols'] = [{wch:20},{wch:50},{wch:15},{wch:15},{wch:20},{wch:15},{wch:8},{wch:10},{wch:14},{wch:16},
     {wch:12},{wch:12},{wch:18},{wch:12},{wch:12},{wch:8},{wch:50},{wch:20},{wch:20},{wch:10},{wch:12},{wch:20}];
   XLSX.utils.book_append_sheet(wb, ws1, 'Main Sheet');
 
   const outRows = [['Item','Grade','Credit']];
-  sessionItems.forEach((_,i) => { const r=i+3; outRows.push([{f:`'Main Sheet'!A${r}`},{f:`'Main Sheet'!F${r}`},{f:`'Main Sheet'!J${r}`}]); });
+  sessionItems.forEach((_,i) => { const r=i+3; outRows.push([{f:`'Main Sheet'!A${r}`},{f:`'Main Sheet'!G${r}`},{f:`'Main Sheet'!K${r}`}]); });
   const ws2 = XLSX.utils.aoa_to_sheet(outRows);
   ws2['!cols'] = [{wch:50},{wch:10},{wch:12}];
   XLSX.utils.book_append_sheet(wb, ws2, 'Output');
@@ -1477,7 +1477,7 @@ async function saveSession() {
   }
 }
 
-async async function loadSession(key) {
+async async async function loadSession(key) {
   if (!confirm('Load this session? Current session data will be replaced.')) return;
   try {
     const { sessions } = await ghReadSessions();
