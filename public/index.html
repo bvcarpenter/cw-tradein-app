@@ -293,7 +293,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
         </div>
         <div class="ship-lbl" style="margin-top:4px;">Destination Store</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
-          <button class="loc" id="dst-none"  onclick="setDestStore('',this)"                    style="font-size:9px;padding:6px 12px;">None</button>
+          
           <button class="loc" id="dst-leica" onclick="setDestStore('Leica SF',this)"             style="font-size:9px;padding:6px 12px;">Leica SF</button>
           <button class="loc" id="dst-sf"    onclick="setDestStore('San Francisco',this)"        style="font-size:9px;padding:6px 12px;">San Francisco</button>
           <button class="loc" id="dst-soho"  onclick="setDestStore('SoHo — New York',this)" style="font-size:9px;padding:6px 12px;">SoHo — NYC</button>
@@ -388,7 +388,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
         <button class="btn-chg" onclick="clrItem()">Change Item</button>
       </div>
       <div class="fg" style="margin-bottom:18px;">
-        <div class="fld"><label>Serial Number</label><input type="text" id="serial" placeholder="Optional" oninput="valAdd()"></div>
+        <div class="fld"><label id="serial-label">Serial Number</label><input type="text" id="serial" placeholder="Optional" oninput="valAdd()"></div>
         <div class="fld"><label>Catalog Number (MPN)</label><input type="text" id="catalog" placeholder="Optional"></div>
       </div>
       <span class="sl">Cosmetic Grade *</span>
@@ -1309,6 +1309,8 @@ function buildPrint() {
 </div>`;
 }
 
+
+function openPrint() { buildPrint(); }
 // ════════════════════════════════════════════
 // MISC
 // ════════════════════════════════════════════
@@ -1370,6 +1372,21 @@ function restoreSessionData(d) {
 }
 
 
+
+function openSessionsMgr() {
+  document.getElementById('sessions-mgr').style.display = 'flex';
+  _smTab = 'draft';
+  document.querySelectorAll('.sm-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'draft'));
+  renderSessionsMgr();
+}
+function closeSessionsMgr() {
+  document.getElementById('sessions-mgr').style.display = 'none';
+}
+function smSetTab(tab) {
+  _smTab = tab;
+  document.querySelectorAll('.sm-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  renderSessionsMgr();
+}
 // ════════════════════════════════════════════
 // SHARED SESSION STORAGE (Cloudflare KV via /api/sessions)
 // ════════════════════════════════════════════
