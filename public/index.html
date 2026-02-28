@@ -633,6 +633,12 @@ async function autoFillAssociate() {
   } catch(e) { /* not behind Access or anonymous */ }
 }
 
+function doLogout() {
+  if (confirm('Sign out of Camera West Trade-In?')) {
+    window.location.href = '/cdn-cgi/access/logout';
+  }
+}
+
 // ════════════════════════════════════════════
 // TITLE CLEANING
 // Strip serial numbers and grade suffixes from product titles
@@ -1630,16 +1636,7 @@ function showSavedSessions() {
   panel.style.display = 'block';
 }
 
-function loadSession(key) {
-  try {
-    const data = JSON.parse(localStorage.getItem(key));
-    if (!data) { alert('Session not found.'); return; }
-    if (!confirm('Load this session? Current session will be replaced.')) return;
-    restoreSessionData(data);
-    document.getElementById('saved-sessions-panel').style.display = 'none';
-    showToast('Session loaded.');
-  } catch(e) { alert('Error loading session.'); }
-}
+// loadSession (stale localStorage version removed)
 
 function deleteSession(key) {
   if (!confirm('Delete this saved session?')) return;
