@@ -357,7 +357,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
             </select>
           </div>
           <div class="fld"><label>Item Type</label>
-            <select id="m-type">
+            <select id="m-type" onchange="valAdd()">
               <option value="">— Select —</option>
               <option>120</option><option>35mm</option><option>Accessories</option><option>Backpacks</option><option>Backs</option><option>Backup</option><option>Batteries</option><option>Bodies</option><option>Books</option><option>C Fast Cards</option><option>C-Pol Filters</option><option>Canvas</option><option>Cases</option><option>CF Cards</option><option>CFast 2.0 Cards</option><option>Chargers</option><option>Chemistry</option><option>Close Up</option><option>Color Calibration</option><option>Color Filters</option><option>Continous</option><option>DVD</option><option>External Recorders</option><option>Filters</option><option>Finders</option><option>Flash</option><option>Flashlight</option><option>Gallery Prints</option><option>Hand Grip</option><option>Heads</option><option>Ink</option><option>Instant</option><option>IR Filters</option><option>Legs</option><option>Lens Mount Adapters</option><option>Lenses</option><option>Magazines</option><option>Manuals</option><option>Messenger Bags</option><option>Meters</option><option>Microphones</option><option>Modifiers</option><option>Monitors</option><option>Muslin</option><option>ND Filters</option><option>Neck Straps</option><option>Paper</option><option>Parts</option><option>Printer</option><option>Prints</option><option>Readers</option><option>Rolling Cases</option><option>Scanners</option><option>Screen Protectors</option><option>SD Cards</option><option>Seminars</option><option>Sheet</option><option>Shirts</option><option>Sliders</option><option>Sling</option><option>Soft Release</option><option>Square Filters</option><option>Stabilzers</option><option>Stands</option><option>Stepping Rings</option><option>Strobe</option><option>T-Shirt</option><option>Teleconverters</option><option>Tents</option><option>Thumbs Up</option><option>Triggers</option><option>Tripod Plates</option><option>UV Filters</option><option>Video</option><option>Vinyl</option><option>Wearables</option><option>Wrist Straps</option><option>XQD Cards</option>
             </select>
@@ -805,6 +805,7 @@ function selProduct(p) {
   setSelectVal('m-type', p.it||'');
   setSelectVal('m-med', p.m||'');
   setSelectVal('m-format', fmt);
+  valAdd();
   // Pre-select the grade from catalog if available
   if (p.grade) {
     const gBtn = [...document.querySelectorAll('.gbtn')].find(b => b.textContent === p.grade);
@@ -1374,13 +1375,13 @@ function restoreSessionData(d) {
 
 
 function openSessionsMgr() {
-  document.getElementById('sessions-mgr').style.display = 'flex';
+  document.getElementById('mo-sessions').style.display = 'flex';
   _smTab = 'draft';
   document.querySelectorAll('.sm-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'draft'));
   renderSessionsMgr();
 }
 function closeSessionsMgr() {
-  document.getElementById('sessions-mgr').style.display = 'none';
+  document.getElementById('mo-sessions').style.display = 'none';
 }
 function smSetTab(tab) {
   _smTab = tab;
