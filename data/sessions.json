@@ -19,7 +19,7 @@
           "st": "",
           "zip": ""
         },
-        "cmNum": "",
+        "cmNum": "CM1234",
         "tracking": "",
         "finalTot": "",
         "assoc": "ben@camerawest.com",
@@ -52,7 +52,9 @@
           }
         ],
         "name": "Ben Carpenter",
-        "key": "cwti_1772312975812"
+        "key": "cwti_1772312975812",
+        "finalized": true,
+        "finalizedAt": "2026-02-28T22:25:19.938Z"
       }
     },
     {
