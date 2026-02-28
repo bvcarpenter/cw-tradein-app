@@ -7,7 +7,7 @@
 <title>Trade // Sell — Camera West</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ─── RESET & TOKENS ─── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -35,7 +35,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
 .sb{width:310px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
 .sb-head{padding:22px 20px 14px;border-bottom:1px solid var(--border)}
 .sb-head .lbl{font-size:9px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin-bottom:3px}
-.sb-head h2{font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:300}
+.sb-head h2{font-family:'Palatino Linotype',serif;font-size:19px;font-weight:300}
 .cart{flex:1;overflow-y:auto;padding:12px}
 .cart-empty{color:var(--dim);font-size:11px;text-align:center;padding:36px 14px;line-height:2.1;letter-spacing:.05em}
 .ci{background:var(--bg3);border:1px solid var(--border);padding:11px 13px;margin-bottom:7px;position:relative;transition:border-color .15s}
@@ -55,14 +55,14 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
 /* MAIN */
 .main{flex:1;overflow-y:auto;padding:32px 34px}
 .pg-title{margin-bottom:34px}
-.pg-title h1{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;letter-spacing:.04em;line-height:1.1}
+.pg-title h1{font-family:'Palatino Linotype',serif;font-size:32px;font-weight:300;letter-spacing:.04em;line-height:1.1}
 .pg-title p{font-size:11px;color:var(--dim);margin-top:7px;letter-spacing:.08em}
 
 /* SECTION */
 .sec{border-top:1px solid var(--border);padding:26px 0}
 .sec:last-child{border-bottom:1px solid var(--border)}
 .sec-hd{display:flex;align-items:baseline;gap:13px;margin-bottom:20px}
-.sec-n{font-family:'Cormorant Garamond',serif;font-size:13px;font-style:italic;color:var(--dim);letter-spacing:.07em;min-width:18px}
+.sec-n{font-family:'Palatino Linotype',serif;font-size:13px;font-style:italic;color:var(--dim);letter-spacing:.07em;min-width:18px}
 .sec-hd h3{font-size:9px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--white)}
 
 /* FIELDS */
@@ -145,13 +145,13 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
 .pgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);margin-bottom:14px}
 .pbox{background:var(--bg3);padding:13px 14px;text-align:center}
 .pbox-l{font-size:8px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:5px}
-.pbox-v{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:400;color:var(--white)}
+.pbox-v{font-family:'Palatino Linotype',serif;font-size:20px;font-weight:400;color:var(--white)}
 .pbox-p{font-size:9px;color:var(--dim);margin-top:2px}
 
 /* NET BAR */
 .net-bar{background:var(--acc-dim);border:1px solid var(--acc-mid);padding:13px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
 .net-lbl{font-size:8px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:3px}
-.net-v{font-family:'Cormorant Garamond',serif;font-size:27px;font-weight:400;color:var(--accent)}
+.net-v{font-family:'Palatino Linotype',serif;font-size:27px;font-weight:400;color:var(--accent)}
 .net-r{font-size:9px;color:var(--dim);text-align:right;line-height:1.7}
 
 /* RETAIL OVERRIDE */
@@ -183,7 +183,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
 .mo.open{display:flex}
 .mod{background:var(--bg2);border:1px solid var(--border-l);max-width:680px;width:100%;max-height:90vh;display:flex;flex-direction:column}
 .mod-h{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-.mod-h h3{font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:300}
+.mod-h h3{font-family:'Palatino Linotype',serif;font-size:19px;font-weight:300}
 .mod-x{background:none;border:none;color:var(--dim);cursor:pointer;font-size:20px;line-height:1;transition:color .15s}
 .mod-x:hover{color:var(--white)}
 .mod-b{padding:0;overflow-y:auto;flex:1}
@@ -268,10 +268,10 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
     <section class="sec">
       <div class="sec-hd"><span class="sec-n">i.</span><h3>Customer Details</h3></div>
       <div class="fg t3" style="margin-bottom:16px;">
-        <div class="fld"><label>First Name *</label><input type="text" id="c-first" placeholder="Jane"></div>
-        <div class="fld"><label>Last Name *</label><input type="text" id="c-last" placeholder="Smith"></div>
+        <div class="fld"><label><span>First Name</span> <span style="color:var(--accent)">*</span></label><input type="text" id="c-first" placeholder="Jane" required></div>
+        <div class="fld"><label><span>Last Name</span> <span style="color:var(--accent)">*</span></label><input type="text" id="c-last" placeholder="Smith" required></div>
         <div class="fld"><label>Phone</label><input type="tel" id="c-phone" placeholder="(760) 555-0100"></div>
-        <div class="fld ff"><label>Email</label><input type="email" id="c-email" placeholder="jane@email.com"></div>
+        <div class="fld ff"><label>Email <span style="color:var(--accent)">*</span></label><input type="email" id="c-email" placeholder="jane@email.com" required></div>
       </div>
       <span class="sl">Preferred Location *</span>
       <div class="loc-row">
@@ -575,7 +575,19 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
   buildGrades();
   loadCSV();
+  autoFillAssociate();
 });
+
+async function autoFillAssociate() {
+  const el = document.getElementById('assoc');
+  if (!el || el.value) return;
+  try {
+    const res = await fetch('/cdn-cgi/access/get-identity');
+    if (!res.ok) throw new Error('not available');
+    const data = await res.json();
+    if (data.email) { el.value = data.email; el.placeholder = data.email; }
+  } catch(e) { /* not behind Access or anonymous */ }
+}
 
 // ════════════════════════════════════════════
 // TITLE CLEANING
@@ -1052,6 +1064,10 @@ function exportXLSX() {
 // PRINT
 // ════════════════════════════════════════════
 function openPrint() {
+  if (!document.getElementById('c-first').value.trim()) { alert('Customer first name is required.'); document.getElementById('c-first').focus(); return; }
+  if (!document.getElementById('c-last').value.trim()) { alert('Customer last name is required.'); document.getElementById('c-last').focus(); return; }
+  if (!document.getElementById('c-email').value.trim()) { alert('Customer email is required.'); document.getElementById('c-email').focus(); return; }
+  if (!selLoc) { alert('Please select a preferred location.'); return; }
   if (!sessionItems.length) { alert('No items to print.'); return; }
   document.getElementById('prev').innerHTML = `<div class="print-prev">${buildPrint()}</div>`;
   document.getElementById('mo').classList.add('open');
@@ -1061,7 +1077,7 @@ function doPrint() {
   const w = window.open('','_blank','width=820,height=720');
   w.document.write(`<!DOCTYPE html><html><head>
   <title>Camera West — Credit Memo</title><meta charset="UTF-8">
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>body{font-family:'Jost',sans-serif;color:#111;margin:0;padding:0;font-size:12px;font-weight:300;-webkit-font-smoothing:antialiased;}@page{margin:18mm 14mm;}</style>
   </head><body>${buildPrint()}</body></html>`);
   w.document.close(); w.focus();
@@ -1110,7 +1126,7 @@ function buildPrint() {
     </td>
     <td style="text-align:right;vertical-align:top;">
       <div style="font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#aaa;margin-bottom:3px;">Credit Memo</div>
-      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;color:#d95e00;">${esc(cm)}</div>
+      <div style="font-family:'Palatino Linotype',serif;font-size:22px;font-weight:300;color:#d95e00;">${esc(cm)}</div>
       <div style="font-size:10px;color:#666;margin-top:3px;line-height:1.8;">${dt}<br>Associate: ${esc(asc)}</div>
     </td>
   </tr></table>
@@ -1144,11 +1160,11 @@ function buildPrint() {
         <td colspan="3" style="padding:9px 7px;font-size:9px;color:#999;">${sessionItems.length} item${sessionItems.length!==1?'s':''}</td>
         <td style="padding:9px 7px;text-align:right;font-size:11px;">${ff(sessionItems.reduce((s,i)=>s+i.retail,0))}</td>
         <td style="padding:9px 7px;text-align:right;font-size:11px;color:#2a7a4a;">${ff(sessionItems.reduce((s,i)=>s+i.tradein,0))}</td>
-        <td style="padding:9px 7px;text-align:right;font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:300;color:#d95e00;">Net: ${ff(totNet)}</td>
+        <td style="padding:9px 7px;text-align:right;font-family:'Palatino Linotype',serif;font-size:15px;font-weight:300;color:#d95e00;">Net: ${ff(totNet)}</td>
       </tr>
       ${taxRate>0?`<tr style="background:#fafafa;"><td colspan="5" style="padding:6px 7px;text-align:right;font-size:10px;color:#777;">Est. Tax (${(taxRate*100).toFixed(3).replace(/\.?0+$/,'')}%)</td><td style="padding:6px 7px;text-align:right;font-size:11px;color:#555;">${ff(estTax)}</td></tr>`:''}
-      ${taxRate>0?`<tr style="background:#fafafa;border-top:1px solid #ddd;"><td colspan="5" style="padding:7px 7px;text-align:right;font-size:10px;color:#777;letter-spacing:.05em;">Est. Grand Total</td><td style="padding:7px 7px;text-align:right;font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:300;color:#d95e00;">${ff(estGrand)}</td></tr>`:''}
-      ${finalTot?`<tr style="background:#0e0e0e;"><td colspan="5" style="padding:9px 7px;text-align:right;font-size:10px;color:#aaa;letter-spacing:.1em;text-transform:uppercase;">Final Total After Tax</td><td style="padding:9px 7px;text-align:right;font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:300;color:#fff;">$${esc(finalTot)}</td></tr>`:''}
+      ${taxRate>0?`<tr style="background:#fafafa;border-top:1px solid #ddd;"><td colspan="5" style="padding:7px 7px;text-align:right;font-size:10px;color:#777;letter-spacing:.05em;">Est. Grand Total</td><td style="padding:7px 7px;text-align:right;font-family:'Palatino Linotype',serif;font-size:16px;font-weight:300;color:#d95e00;">${ff(estGrand)}</td></tr>`:''}
+      ${finalTot?`<tr style="background:#0e0e0e;"><td colspan="5" style="padding:9px 7px;text-align:right;font-size:10px;color:#aaa;letter-spacing:.1em;text-transform:uppercase;">Final Total After Tax</td><td style="padding:9px 7px;text-align:right;font-family:'Palatino Linotype',serif;font-size:18px;font-weight:300;color:#fff;">$${esc(finalTot)}</td></tr>`:''}
     </tfoot>
   </table>
   <div style="border-left:2px solid #d95e00;padding:8px 13px;font-size:10px;color:#777;margin-bottom:20px;line-height:1.8;letter-spacing:.02em;">
@@ -1254,8 +1270,8 @@ function showSavedSessions() {
   const panel = document.getElementById('saved-sessions-panel');
   const list  = getSavedList();
   if (!list.length) {
-    panel.innerHTML = '<div style="font-size:11px;color:#666;padding:6px 0;">No saved sessions.</div>';
-    panel.style.display = '';
+    panel.innerHTML = '<div style="font-size:11px;color:#888;padding:8px 4px;">No saved sessions yet.<br>Use 💾 Save to store the current session.</div>';
+    panel.style.display = 'block';
     return;
   }
   panel.innerHTML = list.map(s => `
@@ -1267,7 +1283,7 @@ function showSavedSessions() {
       <button class="btn-sm" onclick="loadSession('${s.key}')">Load</button>
       <button class="btn-sm" onclick="deleteSession('${s.key}')" style="color:#c44;">✕</button>
     </div>`).join('');
-  panel.style.display = panel.style.display === 'none' ? '' : 'none';
+  panel.style.display = 'block';
 }
 
 function loadSession(key) {
@@ -1328,6 +1344,10 @@ async function updTax() {
   }
 }
 function goExport() {
+  if (!document.getElementById('c-first').value.trim()) { alert('Customer first name is required.'); document.getElementById('c-first').focus(); return; }
+  if (!document.getElementById('c-last').value.trim()) { alert('Customer last name is required.'); document.getElementById('c-last').focus(); return; }
+  if (!document.getElementById('c-email').value.trim()) { alert('Customer email is required.'); document.getElementById('c-email').focus(); return; }
+  if (!selLoc) { alert('Please select a preferred location.'); return; }
   if (!sessionItems.length) { alert('No items in session yet.'); return; }
   document.getElementById('exp-sec').scrollIntoView({ behavior: 'smooth' });
 }
