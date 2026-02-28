@@ -388,7 +388,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
         <button class="btn-chg" onclick="clrItem()">Change Item</button>
       </div>
       <div class="fg" style="margin-bottom:18px;">
-        <div class="fld"><label>Serial Number</label><input type="text" id="serial" placeholder="Optional"></div>
+        <div class="fld"><label>Serial Number</label><input type="text" id="serial" placeholder="Optional" oninput="valAdd()"></div>
         <div class="fld"><label>Catalog Number (MPN)</label><input type="text" id="catalog" placeholder="Optional"></div>
       </div>
       <span class="sl">Cosmetic Grade *</span>
@@ -1051,8 +1051,10 @@ function renderCart() {
       <div class="ci-sub">${[it.systemId, it.itemType].filter(Boolean).join(' · ')}</div>
       <div class="ci-row">
         <span class="gpill">${it.grade}</span>
-        <span class="ci-price">${it.priceType==='tradein'?'TI':'OR'} ${ff(it.net)}</span>
+        <span class="ci-price">${it.priceType==='tradein'?'TI':'OR'} ${ff(it.net)}${(it.svcCharge||0)>0?` <span style="font-size:9px;color:#e07070;opacity:.85">&#8722;${ff(it.svcCharge)} svc</span>`:''}</span>
       </div>
+      ${(it.svcCharge||0)>0&&it.svcReason?`<div style="font-size:9px;color:#e07070;opacity:.7;margin-top:1px;">${esc(it.svcReason)}</div>`:''}
+      <button class="ci-edit" onclick="editItem(${it.id})">&#9998; Edit</button>
     </div>`).join('');
 }
 function rmItem(id) {
@@ -1210,6 +1212,7 @@ function buildPrint() {
     ? [document.getElementById('s-str').value, document.getElementById('s-city').value,
        document.getElementById('s-st').value,  document.getElementById('s-zip').value].filter(Boolean).join(', ') : '';
   const totNet   = sessionItems.reduce((s,i) => s+i.net, 0);
+  const svcGrand = sessionItems.reduce((s,i) => s+(i.svcCharge||0), 0);
   const tracking = document.getElementById('tracking-num').value.trim();
   const finalTot = document.getElementById('final-total').value.trim();
   const taxRate  = getTaxRate();
@@ -1228,7 +1231,7 @@ function buildPrint() {
       <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:center;font-weight:500;vertical-align:top;">${it.grade}</td>
       <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:right;vertical-align:top;">${ff(it.retail)}</td>
       <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:right;color:#2a7a4a;vertical-align:top;">${ff(it.tradein)}</td>
-      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:right;font-weight:500;vertical-align:top;">${ff(it.net)}</td>
+      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:right;font-weight:500;vertical-align:top;">${ff(it.net)}${(it.svcCharge||0)>0?`<br><span style="font-size:9px;color:#c44;font-weight:400;">&#8722;${ff(it.svcCharge)} svc${it.svcReason?' ('+it.svcReason+')':''}</span>`:''}</td>
     </tr>`;
   }).join('');
 
@@ -1277,6 +1280,7 @@ function buildPrint() {
         <td style="padding:9px 7px;text-align:right;font-size:11px;color:#2a7a4a;">${ff(sessionItems.reduce((s,i)=>s+i.tradein,0))}</td>
         <td style="padding:9px 7px;text-align:right;font-family:'Palatino Linotype',serif;font-size:15px;font-weight:300;color:#d95e00;">Net: ${ff(totNet)}</td>
       </tr>
+      ${svcGrand>0?`<tr style="background:#fff5f5;"><td colspan="5" style="padding:6px 7px;text-align:right;font-size:10px;color:#c44;">Total Service Charges</td><td style="padding:6px 7px;text-align:right;font-size:11px;color:#c44;">&#8722;${ff(svcGrand)}</td></tr>`:''}
       ${taxRate>0?`<tr style="background:#fafafa;"><td colspan="5" style="padding:6px 7px;text-align:right;font-size:10px;color:#777;">Est. Tax (${(taxRate*100).toFixed(3).replace(/\.?0+$/,'')}%)</td><td style="padding:6px 7px;text-align:right;font-size:11px;color:#555;">${ff(estTax)}</td></tr>`:''}
       ${taxRate>0?`<tr style="background:#fafafa;border-top:1px solid #ddd;"><td colspan="5" style="padding:7px 7px;text-align:right;font-size:10px;color:#777;letter-spacing:.05em;">Est. Grand Total</td><td style="padding:7px 7px;text-align:right;font-family:'Palatino Linotype',serif;font-size:16px;font-weight:300;color:#d95e00;">${ff(estGrand)}</td></tr>`:''}
       ${finalTot?`<tr style="background:#0e0e0e;"><td colspan="5" style="padding:9px 7px;text-align:right;font-size:10px;color:#aaa;letter-spacing:.1em;text-transform:uppercase;">Final Total After Tax</td><td style="padding:9px 7px;text-align:right;font-family:'Palatino Linotype',serif;font-size:18px;font-weight:300;color:#fff;">$${esc(finalTot)}</td></tr>`:''}
@@ -1365,69 +1369,161 @@ function restoreSessionData(d) {
   renderCart();
 }
 
-function saveSession() {
+
+// ════════════════════════════════════════════
+// SHARED SESSION STORAGE (Cloudflare KV via /api/sessions)
+// ════════════════════════════════════════════
+const API = '/api/sessions';
+
+async function apiGetSessions() {
+  try {
+    const r = await fetch(API); 
+    if (!r.ok) throw new Error(r.status);
+    return await r.json(); // [{key, data}]
+  } catch(e) { 
+    console.warn('Sessions API unavailable, using localStorage', e);
+    return getSavedList().map(s => {
+      try { return { key:s.key, data: JSON.parse(localStorage.getItem(s.key)) }; } catch(e) { return null; }
+    }).filter(Boolean);
+  }
+}
+
+async function saveSession() {
   const data = getSessionData();
   const name = (data.customer.first + ' ' + data.customer.last).trim()
     || 'Session ' + new Date().toLocaleDateString();
   const key = 'cwti_session_' + Date.now();
-  const all = getSavedList();
-  all.push({ key, name, savedAt: data.savedAt });
-  localStorage.setItem('cwti_sessions', JSON.stringify(all));
-  localStorage.setItem(key, JSON.stringify(data));
-  showToast('Session saved: ' + name);
+  data.name = name;
+  try {
+    const r = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, data })
+    });
+    if (!r.ok) throw new Error(r.status);
+    showToast('Session saved ✓');
+  } catch(e) {
+    // Fallback to localStorage
+    const all = JSON.parse(localStorage.getItem('cwti_sessions') || '[]');
+    all.push({ key, name, savedAt: data.savedAt });
+    localStorage.setItem('cwti_sessions', JSON.stringify(all));
+    localStorage.setItem(key, JSON.stringify(data));
+    showToast('Session saved (local) ✓');
+  }
 }
 
-// Sessions Manager
-let _smTab='draft';
-function openSessionsMgr(){document.getElementById('mo-sessions').classList.add('open');renderSessionsMgr();}
-function closeSessionsMgr(){document.getElementById('mo-sessions').classList.remove('open');}
-function smTab(t,btn){_smTab=t;document.querySelectorAll('#mo-sessions .tnav').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderSessionsMgr();}
-function finalizeSession(key){
-  if(!confirm('Mark as Finalized?'))return;
-  try{const d=JSON.parse(localStorage.getItem(key));d.finalized=true;d.finalizedAt=new Date().toISOString();localStorage.setItem(key,JSON.stringify(d));renderSessionsMgr();showToast('Session finalized.');}catch(e){alert('Error.');}
+async function loadSession(key) {
+  if (!confirm('Load this session? Current session data will be replaced.')) return;
+  try {
+    let data;
+    try {
+      const r = await fetch(API + '?key=' + encodeURIComponent(key));
+      if (!r.ok) throw new Error(r.status);
+      const j = await r.json();
+      data = j.data;
+    } catch(e) {
+      data = JSON.parse(localStorage.getItem(key));
+    }
+    if (!data) { alert('Session not found.'); return; }
+    restoreSessionData(data);
+    showToast('Session loaded.');
+  } catch(e) { alert('Failed to load session.'); }
 }
-function renderSessionsMgr(){
-  const el=document.getElementById('sm-list');
-  const rows=getSavedList().filter(s=>{try{const d=JSON.parse(localStorage.getItem(s.key))||{};return _smTab==='final'?!!d.finalized:!d.finalized;}catch(e){return false;}});
-  if(!rows.length){el.innerHTML=`<div style="font-size:12px;color:var(--dim);padding:28px;text-align:center;">No ${_smTab==='final'?'finalized':'draft'} sessions yet.</div>`;return;}
-  el.innerHTML=rows.map(s=>{
-    let d={};try{d=JSON.parse(localStorage.getItem(s.key))||{};}catch(e){}
-    const cust=d.customer?[d.customer.first,d.customer.last].filter(Boolean).join(' ')||'Unknown':'Unknown';
-    const email=d.customer?.email||'';
-    const loc=d.location||'—';
-    const items=d.items||[];
-    const net=items.reduce((sum,i)=>sum+(i.net||0),0);
-    const svc=items.reduce((sum,i)=>sum+(i.svcCharge||0),0);
-    const dt=d.savedAt?new Date(d.savedAt).toLocaleString():'';
-    const finDt=d.finalizedAt?new Date(d.finalizedAt).toLocaleDateString():'';
-    const chips=items.slice(0,4).map(i=>`<span style="background:var(--bg3);padding:1px 7px;border:1px solid var(--border);font-size:9px;border-radius:2px;">${esc(i.name)}</span>`).join('')+(items.length>4?`<span style="font-size:9px;color:var(--dim);"> +${items.length-4} more</span>`:'');
+
+async function deleteSession(key) {
+  if (!confirm('Delete this saved session?')) return;
+  try {
+    await fetch(API + '?key=' + encodeURIComponent(key), { method: 'DELETE' });
+  } catch(e) {}
+  // Also clean local
+  localStorage.removeItem(key);
+  const all = JSON.parse(localStorage.getItem('cwti_sessions') || '[]').filter(s => s.key !== key);
+  localStorage.setItem('cwti_sessions', JSON.stringify(all));
+  renderSessionsMgr();
+}
+
+async function finalizeSession(key) {
+  if (!confirm('Mark this session as Finalized?')) return;
+  try {
+    let data;
+    try {
+      const r = await fetch(API + '?key=' + encodeURIComponent(key));
+      const j = await r.json(); data = j.data;
+    } catch(e) {
+      data = JSON.parse(localStorage.getItem(key)) || {};
+    }
+    data.finalized = true;
+    data.finalizedAt = new Date().toISOString();
+    try {
+      await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({key, data}) });
+    } catch(e) {
+      localStorage.setItem(key, JSON.stringify(data));
+    }
+    renderSessionsMgr();
+    showToast('Session finalized ✓');
+  } catch(e) { alert('Error finalizing.'); }
+}
+
+async function renderSessionsMgr() {
+  const el = document.getElementById('sm-list');
+  if (!el) return;
+  el.innerHTML = '<div style="font-size:11px;color:var(--dim);padding:16px 0;text-align:center;">Loading…</div>';
+  
+  let sessions = [];
+  try { sessions = await apiGetSessions(); } catch(e) {}
+  
+  const q = (document.getElementById('sm-search')?.value||'').toLowerCase().trim();
+  const rows = sessions.filter(s => {
+    const d = s.data || {};
+    if (_smTab==='final' ? !d.finalized : !!d.finalized) return false;
+    if (!q) return true;
+    const cust = ((d.customer?.first||'')+' '+(d.customer?.last||'')).toLowerCase();
+    const email = (d.customer?.email||'').toLowerCase();
+    const items = d.items || [];
+    const inames = items.map(i=>(i.name||'').toLowerCase()).join(' ');
+    const sers = items.map(i=>(i.serial||'').toLowerCase()).join(' ');
+    return cust.includes(q)||email.includes(q)||inames.includes(q)||sers.includes(q);
+  });
+
+  if (!rows.length) {
+    el.innerHTML = `<div style="font-size:12px;color:var(--dim);padding:28px;text-align:center;">No ${_smTab==='final'?'finalized':'draft'} sessions${q?' matching "'+q+'"':''}.</div>`;
+    return;
+  }
+
+  el.innerHTML = rows.map(s => {
+    const d = s.data || {};
+    const cust  = d.customer ? [d.customer.first, d.customer.last].filter(Boolean).join(' ') || 'Unknown' : 'Unknown';
+    const email = d.customer?.email || '';
+    const loc   = d.location || '—';
+    const items = d.items || [];
+    const net   = items.reduce((sum,i) => sum+(i.net||0), 0);
+    const svc   = items.reduce((sum,i) => sum+(i.svcCharge||0), 0);
+    const dt    = d.savedAt    ? new Date(d.savedAt).toLocaleString() : '';
+    const finDt = d.finalizedAt ? new Date(d.finalizedAt).toLocaleDateString() : '';
+    const chips = items.slice(0,4).map(i =>
+      `<span style="background:var(--bg3);padding:1px 7px;border:1px solid var(--border);font-size:9px;border-radius:2px;">${esc(i.name)}</span>`
+    ).join('') + (items.length>4 ? `<span style="font-size:9px;color:var(--dim);"> +${items.length-4} more</span>` : '');
     return `<div style="padding:14px 0;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr auto;gap:14px;align-items:start;">
       <div>
         <div style="font-size:13px;font-weight:500;margin-bottom:3px;">${esc(cust)}${email?` <span style="font-size:10px;color:var(--dim);font-weight:300;">&lt;${esc(email)}&gt;</span>`:''}</div>
-        <div style="font-size:10px;color:var(--dim);margin-bottom:7px;line-height:1.9;">${esc(loc)} &nbsp;&middot;&nbsp; ${items.length} item${items.length!==1?'s':''} &nbsp;&middot;&nbsp; Net: <strong style="color:var(--accent);">${ff(net)}</strong>${svc>0?` &nbsp;&middot;&nbsp; <span style="color:#e07070;">Svc: &minus;${ff(svc)}</span>`:''} &nbsp;&middot;&nbsp; ${dt}${finDt?` &nbsp;&middot;&nbsp; <span style="color:#70d090;">&#10003; Finalized ${finDt}</span>`:''}</div>
+        <div style="font-size:10px;color:var(--dim);margin-bottom:7px;line-height:1.9;">
+          ${esc(loc)} &nbsp;&middot;&nbsp; ${items.length} item${items.length!==1?'s':''}
+          &nbsp;&middot;&nbsp; Net: <strong style="color:var(--accent);">${ff(net)}</strong>
+          ${svc>0?`&nbsp;&middot;&nbsp; <span style="color:#e07070;">Svc: &#8722;${ff(svc)}</span>`:''}
+          &nbsp;&middot;&nbsp; ${dt}
+          ${finDt?`&nbsp;&middot;&nbsp; <span style="color:#70d090;">&#10003; Finalized ${finDt}</span>`:''}
+        </div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;">${chips}</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;min-width:88px;">
         <button class="btn-sm" onclick="loadSession('${s.key}');closeSessionsMgr();" style="text-align:center;">&#8629; Load</button>
         ${_smTab==='draft'?`<button class="btn-sm" onclick="finalizeSession('${s.key}')" style="color:#70d090;border-color:#2a5a3a;text-align:center;">&#10003; Finalize</button>`:''}
-        <button class="btn-sm" onclick="deleteSession('${s.key}');renderSessionsMgr();" style="color:#e07070;border-color:#5a2a2a;text-align:center;">&#215; Delete</button>
+        <button class="btn-sm" onclick="deleteSession('${s.key}')" style="color:#e07070;border-color:#5a2a2a;text-align:center;">&#215; Delete</button>
       </div>
     </div>`;
   }).join('');
 }
 
-function doLogout(){if(!confirm('Sign out?'))return;window.location.href='/cdn-cgi/access/logout';}
-function onCmInput(el){
-  const val=el.value.trim();if(!val||val.length<2)return;
-  const list=getSavedList();
-  const cust=(document.getElementById('c-first').value.trim()+' '+document.getElementById('c-last').value.trim()).trim();
-  for(let i=list.length-1;i>=0;i--){try{
-    const d=JSON.parse(localStorage.getItem(list[i].key));
-    if(!d||d.finalized)continue;
-    const dc=((d.customer?.first||'')+' '+(d.customer?.last||'')).trim();
-    if(!cust||dc===cust){d.finalized=true;d.finalizedAt=new Date().toISOString();d.cmNum=val;localStorage.setItem(list[i].key,JSON.stringify(d));showToast('Session auto-finalized ✓');break;}
-  }catch(e){}}
-}
 function getSavedList() {
   try { return JSON.parse(localStorage.getItem('cwti_sessions') || '[]'); } catch(e) { return []; }
 }
