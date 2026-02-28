@@ -262,7 +262,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
   <!-- MAIN -->
   <main class="main">
     <div class="pg-title">
-      <h1>Trade <em style="font-style:italic;color:var(--accent)">//</em> Sell<br>Your Gear</h1>
+      <h1>Trade <em style="font-style:italic;color:var(--accent)">//</em> Sell<br></h1>
       <p>Internal Trade-In Manager</p>
     </div>
 
@@ -1477,7 +1477,7 @@ async function saveSession() {
   }
 }
 
-async async async function loadSession(key) {
+async function loadSession(key) {
   if (!confirm('Load this session? Current session data will be replaced.')) return;
   try {
     const { sessions } = await ghReadSessions();
