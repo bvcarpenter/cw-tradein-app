@@ -44,7 +44,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
 .ci-sub{font-size:9px;color:var(--dim);letter-spacing:.05em;margin-bottom:5px}
 .ci-row{display:flex;align-items:center;gap:6px}
 .gpill{font-size:9px;font-weight:500;letter-spacing:.08em;padding:2px 7px;background:var(--acc-dim);border:1px solid var(--acc-mid);color:var(--accent)}
-.ci-price{font-size:11px;color:var(--accent);margin-left:auto}
+.ci-price{font-size:11px;color:var(--accent);margin-left:auto}.ci-edit{display:block;width:100%;margin-top:6px;background:transparent;border:1px solid var(--border);color:var(--dim);font-family:'Jost',sans-serif;font-size:9px;letter-spacing:.1em;padding:4px 0;cursor:pointer;text-transform:uppercase;transition:all .15s;text-align:center}.ci-edit:hover{border-color:var(--dim);color:var(--white)}
 .ci-rm{position:absolute;top:9px;right:9px;background:none;border:none;color:var(--border-l);cursor:pointer;font-size:14px;transition:color .15s}
 .ci-rm:hover{color:var(--white)}
 .sb-tot{border-top:1px solid var(--border);padding:14px 20px}
@@ -132,7 +132,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
 .achip{display:flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid var(--border-l);cursor:pointer;background:transparent;color:var(--dim);font-family:'Jost',sans-serif;font-size:11px;font-weight:300;letter-spacing:.03em;transition:all .15s;user-select:none}
 .achip:hover{border-color:var(--dim);color:var(--white)}
 .achip.on{border-color:var(--acc-mid);color:var(--accent);background:var(--acc-dim)}
-.achk{width:12px;height:12px;border:1px solid currentColor;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:8px}
+.achk{width:13px;height:13px;border:1px solid currentColor;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px}.achip.on .achk::after{content:"\2713";line-height:1}
 .div{height:1px;background:var(--border);margin:18px 0}
 
 /* PRICE TYPE */
@@ -233,6 +233,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
   </a>
   <div class="hdr-r">
     <span class="badge" id="badge">0 Items</span>
+    <button class="btn-hdr" onclick="doLogout()" style="background:transparent;border:1px solid rgba(245,245,240,.2);color:var(--dim);" title="Sign out">⏻</button>
     <button class="btn-hdr" onclick="openSessionsMgr()" style="background:transparent;border:1px solid rgba(245,245,240,.3);color:var(--white);">Sessions</button><button class="btn-hdr" onclick="saveSession()">Save Session</button><button class="btn-hdr" onclick="goExport()">Export Session</button>
   </div>
 </header>
@@ -284,12 +285,21 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
       </div>
       <div class="ship-box" id="ship-box">
         <div class="ship-lbl">Shipping Address</div>
-        <div class="fg" style="margin-bottom:0;">
+        <div class="fg" style="margin-bottom:12px;">
           <div class="fld ff"><label>Street Address</label><input type="text" id="s-str" placeholder="123 Main Street"></div>
           <div class="fld"><label>City</label><input type="text" id="s-city" placeholder="Palm Springs"></div>
           <div class="fld"><label>State</label><input type="text" id="s-st" placeholder="CA" maxlength="2" oninput="updTax()"></div>
           <div class="fld"><label>ZIP</label><input type="text" id="s-zip" placeholder="92262" maxlength="10"></div>
         </div>
+        <div class="ship-lbl" style="margin-top:4px;">Destination Store</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+          <button class="loc" id="dst-none"  onclick="setDestStore('',this)"                    style="font-size:9px;padding:6px 12px;">None</button>
+          <button class="loc" id="dst-leica" onclick="setDestStore('Leica SF',this)"             style="font-size:9px;padding:6px 12px;">Leica SF</button>
+          <button class="loc" id="dst-sf"    onclick="setDestStore('San Francisco',this)"        style="font-size:9px;padding:6px 12px;">San Francisco</button>
+          <button class="loc" id="dst-soho"  onclick="setDestStore('SoHo — New York',this)" style="font-size:9px;padding:6px 12px;">SoHo — NYC</button>
+          <button class="loc" id="dst-ps"    onclick="setDestStore('Palm Springs',this)"         style="font-size:9px;padding:6px 12px;">Palm Springs</button>
+        </div>
+        <div id="dst-addr" style="font-size:10px;color:var(--dim);margin-top:8px;padding:6px 10px;background:var(--bg);border-left:2px solid var(--border);display:none;"></div>
       </div>
     </section>
 
@@ -439,7 +449,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
     <section class="sec exp" id="exp-sec">
       <div class="sec-hd"><span class="sec-n">iv.</span><h3>Export <em style="font-style:italic;color:var(--accent)">//</em> Print</h3></div>
       <div class="fg t3" style="margin-bottom:0;">
-        <div class="fld"><label>Credit Memo # (from ERP)</label><input type="text" id="cm-num" placeholder="CM00000"></div>
+        <div class="fld"><label>Credit Memo # (from ERP)</label><input type="text" id="cm-num" placeholder="CM00000" oninput="onCmInput(this)"></div>
         <div class="fld"><label>Tracking # (if shipping)</label><input type="text" id="tracking-num" placeholder="1Z999AA10123456784"></div>
         <div class="fld"><label>Final Total After Tax (from ERP)</label><input type="text" id="final-total" placeholder="e.g. 1,245.00"></div>
         <div style="grid-column:1/-1;background:#1a1a1a;border-left:2px solid #d95e00;padding:8px 12px;font-size:11px;color:#aaa;line-height:1.6;margin-top:4px;">
@@ -466,7 +476,8 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
         <button class="tnav on" id="sm-tab-draft" onclick="smTab('draft',this)">Drafts</button>
         <button class="tnav" id="sm-tab-final" onclick="smTab('final',this)">Finalized</button>
       </div>
-      <div style="padding:16px 20px;overflow-y:auto;max-height:60vh;" id="sm-list"></div>
+      <div style="padding:12px 20px 0;"><input id="sm-search" type="text" placeholder="Search by name, email, item, serial…" oninput="renderSessionsMgr()" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--white);font-family:'Jost',sans-serif;font-size:12px;padding:9px 12px;outline:none;box-sizing:border-box;"></div>
+      <div style="padding:12px 20px;overflow-y:auto;max-height:55vh;" id="sm-list"></div>
     </div>
     <div class="mod-f"><button class="btn btn-ol" onclick="closeSessionsMgr()">Close</button></div>
   </div>
@@ -857,7 +868,17 @@ function setLoc(btn, loc) {
   else {
     sb.classList.remove('vis');
     ['s-str','s-city','s-st','s-zip'].forEach(id => document.getElementById(id).value = '');
+    setDestStore('',null);
   }
+}
+let _destStore='';
+function setDestStore(store,btn) {
+  _destStore=store;
+  document.querySelectorAll('[id^="dst-"]').forEach(b=>{if(b.tagName==='BUTTON')b.classList.remove('on');});
+  if(btn)btn.classList.add('on');
+  const el=document.getElementById('dst-addr');
+  if(store&&STORE_INFO[store]){el.textContent=STORE_INFO[store].address+' · '+STORE_INFO[store].phone;el.style.display='block';}
+  else el.style.display='none';
 }
 
 // ════════════════════════════════════════════
@@ -943,7 +964,11 @@ function updPricing() {
 }
 function valAdd() {
   const ret = parseFloat(document.getElementById('r-override').value) || (selItem ? selItem.price : 0);
-  document.getElementById('add-btn').disabled = !(selItem && selGrade && ret > 0);
+  const needsSerial = selItem && (selItem.category === 'camera' || selItem.category === 'lens');
+  const hasSerial   = (document.getElementById('serial').value||'').trim().length > 0;
+  const lbl = document.getElementById('serial-label');
+  if (lbl) { lbl.textContent=needsSerial?'Serial Number *':'Serial Number'; lbl.style.color=(needsSerial&&!hasSerial)?'var(--accent)':''; }
+  document.getElementById('add-btn').disabled = !(selItem && selGrade && ret > 0 && (!needsSerial || hasSerial));
 }
 
 // ════════════════════════════════════════════
@@ -951,6 +976,27 @@ function valAdd() {
 // ════════════════════════════════════════════
 function addItem() {
   if (!selItem || !selGrade) return;
+  if (_editingId !== null) {
+    const idx=sessionItems.findIndex(i=>i.id===_editingId);
+    const ov=parseFloat(document.getElementById('r-override').value);
+    const ret=ov>0?ov:selItem.price;
+    const ti=_tiManual>0?_tiManual:roundToFive(ret*0.70);
+    const or=_orManual>0?_orManual:roundToFive(ret*0.50);
+    clearOverrides();
+    const svcCharge=roundToFive(parseFloat(document.getElementById('svc-charge')?.value)||0);
+    const svcReason=(document.getElementById('svc-reason')?.value||'').trim();
+    const net=Math.max(0,(selPT==='tradein'?ti:or)-svcCharge);
+    const accs=[...document.querySelectorAll('.achip.on')].map(c=>c.querySelector('span').textContent);
+    const upd={id:_editingId,name:selItem.name,vendor:selItem.vendor,systemId:selItem.systemId,
+      itemType:selItem.itemType,medium:selItem.medium,format:selItem.format||'',category:selItem.category,sku:selItem.sku,
+      serial:document.getElementById('serial').value.trim(),catalog:document.getElementById('catalog').value.trim(),
+      grade:selGrade,accessories:accs,notes:document.getElementById('notes').value.trim(),
+      retail:ret,tradein:ti,outright:or,net,priceType:selPT,svcCharge,svcReason};
+    if(idx>=0)sessionItems[idx]=upd;else sessionItems.push(upd);
+    _editingId=null;
+    document.getElementById('add-btn').textContent='Add to Session';
+    clrItem();renderCart();showToast('Item updated.');return;
+  }
   const ov   = parseFloat(document.getElementById('r-override').value);
   const ret  = ov > 0 ? ov : selItem.price;
   const ti   = _tiManual > 0 ? _tiManual : roundToFive(ret * 0.70);
@@ -1013,6 +1059,34 @@ function rmItem(id) {
   sessionItems = sessionItems.filter(i => i.id !== id);
   renderCart();
   if (!sessionItems.length) document.getElementById('exp-sec').classList.remove('vis');
+}
+
+let _editingId = null;
+function editItem(id) {
+  const it = sessionItems.find(i => i.id === id);
+  if (!it) return;
+  _editingId = id;
+  selItem = {name:it.name,vendor:it.vendor,systemId:it.systemId,itemType:it.itemType,medium:it.medium,format:it.format||'',category:it.category,sku:it.sku,price:it.retail};
+  selGrade=it.grade; selPT=it.priceType;
+  showDet();
+  document.getElementById('serial').value=it.serial||'';
+  document.getElementById('catalog').value=it.catalog||'';
+  document.getElementById('notes').value=it.notes||'';
+  document.getElementById('r-override').value='';
+  document.getElementById('svc-charge').value=it.svcCharge||'';
+  document.getElementById('svc-reason').value=it.svcReason||'';
+  document.querySelectorAll('.gbtn').forEach(b=>b.classList.toggle('on',b.textContent===it.grade));
+  document.getElementById('pt-ti').classList.toggle('on',it.priceType==='tradein');
+  document.getElementById('pt-or').classList.toggle('on',it.priceType==='outright');
+  document.querySelectorAll('.achip').forEach(chip=>{
+    const lbl=chip.querySelector('span')?.textContent;
+    chip.classList.toggle('on',(it.accessories||[]).includes(lbl));
+  });
+  _tiManual=it.tradein||0; _orManual=it.outright||0;
+  updPricing();
+  const btn=document.getElementById('add-btn');
+  btn.textContent='↩ Update Item'; btn.disabled=false;
+  document.getElementById('det-sec').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 // ════════════════════════════════════════════
@@ -1079,6 +1153,8 @@ function exportXLSX() {
   const shipTo = selLoc === 'shipping'
     ? [document.getElementById('s-str').value, document.getElementById('s-city').value,
        document.getElementById('s-st').value,  document.getElementById('s-zip').value].filter(Boolean).join(', ') : '';
+  const destStore = (selLoc==='shipping'&&typeof _destStore!=='undefined'&&_destStore&&STORE_INFO[_destStore])
+    ? _destStore+' — '+STORE_INFO[_destStore].address : '';
   const info = [
     ['CAMERA WEST — TRADE-IN SESSION'],[],
     ['Credit Memo',cm],['Date',dt],['Associate',asc],['Customer',cust],
@@ -1176,6 +1252,7 @@ function buildPrint() {
       ${phone?`<div style="font-size:10px;color:#555;">${esc(phone)}</div>`:''}
       ${loc!=='—'?`<div style="font-size:10px;color:#777;margin-top:3px;">Location: ${esc(loc)}</div>`:''}
       ${shipTo?`<div style="font-size:10px;color:#777;">Ship To: ${esc(shipTo)}</div>`:''}
+      ${destStore?`<div style="font-size:10px;color:#d95e00;margin-top:2px;font-weight:500;">Destination Store: ${esc(destStore)}</div>`:''}
       ${tracking?`<div style="font-size:10px;color:#d95e00;margin-top:2px;">Tracking: ${esc(tracking)}</div>`:''}
     </td>
     <td style="vertical-align:top;text-align:right;">
@@ -1339,6 +1416,18 @@ function renderSessionsMgr(){
   }).join('');
 }
 
+function doLogout(){if(!confirm('Sign out?'))return;window.location.href='/cdn-cgi/access/logout';}
+function onCmInput(el){
+  const val=el.value.trim();if(!val||val.length<2)return;
+  const list=getSavedList();
+  const cust=(document.getElementById('c-first').value.trim()+' '+document.getElementById('c-last').value.trim()).trim();
+  for(let i=list.length-1;i>=0;i--){try{
+    const d=JSON.parse(localStorage.getItem(list[i].key));
+    if(!d||d.finalized)continue;
+    const dc=((d.customer?.first||'')+' '+(d.customer?.last||'')).trim();
+    if(!cust||dc===cust){d.finalized=true;d.finalizedAt=new Date().toISOString();d.cmNum=val;localStorage.setItem(list[i].key,JSON.stringify(d));showToast('Session auto-finalized ✓');break;}
+  }catch(e){}}
+}
 function getSavedList() {
   try { return JSON.parse(localStorage.getItem('cwti_sessions') || '[]'); } catch(e) { return []; }
 }
