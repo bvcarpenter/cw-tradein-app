@@ -8,7 +8,7 @@
   "kv_namespaces": [
     {
       "binding": "SESSIONS_KV",
-      "id": "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+      "id": "7a8bdbe04afe44a09ffbf6336ea178c3"
     }
   ]
 }
