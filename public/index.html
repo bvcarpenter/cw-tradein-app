@@ -1483,7 +1483,7 @@ async function saveSession() {
   }
 }
 
-async function loadSession(key) {
+async async function loadSession(key) {
   if (!confirm('Load this session? Current session data will be replaced.')) return;
   try {
     const { sessions } = await ghReadSessions();
