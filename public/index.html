@@ -531,13 +531,15 @@ async function fetchAvaTaxRate(line1, city, region, postalCode) {
   }
 }
 
+const NEXUS_STATES = new Set(['AZ','CA','CO','FL','IL','MA','NV','NJ','NY','PA','TX','VA','WA']);
+
 async function getAvaTaxRate() {
   if (selLoc === 'shipping') {
     const region = (document.getElementById('s-st').value   || '').trim().toUpperCase();
     const zip    = (document.getElementById('s-zip').value  || '').trim();
     const city   = (document.getElementById('s-city').value || '').trim();
     const line1  = (document.getElementById('s-str').value  || '').trim();
-    if (!region) return 0;
+    if (!region || !NEXUS_STATES.has(region)) return 0;
     return fetchAvaTaxRate(line1, city, region, zip);
   }
   const addr = STORE_ADDRS[selLoc];
@@ -549,7 +551,7 @@ async function getAvaTaxRate() {
 function getTaxRate() {
   if (selLoc === 'shipping') {
     const st = (document.getElementById('s-st').value || '').trim().toUpperCase();
-    return STATE_TAX[st] || 0;
+    return (typeof NEXUS_STATES !== 'undefined' && NEXUS_STATES.has(st)) ? (STATE_TAX[st] || 0) : 0;
   }
   return STORE_TAX[selLoc] || 0;
 }
