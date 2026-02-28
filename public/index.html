@@ -384,7 +384,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
     <section class="sec det" id="det-sec">
       <div class="sec-hd"><span class="sec-n">iii.</span><h3>Item Details</h3></div>
       <div class="sel-bar">
-        <div><h4 id="sel-name">—</h4><p id="sel-meta">—</p></div>
+        <div><input type="text" id="sel-name" style="background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--white);font-family:'Jost',sans-serif;font-size:14px;font-weight:500;width:100%;outline:none;padding:2px 0;" oninput="if(selItem)selItem.name=this.value;valAdd();"><p id="sel-meta">—</p></div>
         <button class="btn-chg" onclick="clrItem()">Change Item</button>
       </div>
       <div class="fg" style="margin-bottom:18px;">
@@ -834,7 +834,7 @@ function useManual() {
 }
 
 function showDet() {
-  document.getElementById('sel-name').textContent = selItem.name;
+  document.getElementById('sel-name').value = selItem.name;
   document.getElementById('sel-meta').textContent =
     [selItem.systemId, selItem.itemType, selItem.medium, selItem.format].filter(Boolean).join(' · ');
   document.getElementById('p-src').textContent = selItem.price > 0 ? 'From catalog' : 'Enter retail price';
@@ -1118,10 +1118,10 @@ function exportXLSX() {
   const H1 = ['Item Name/Number','Vendor Name/Code','MPN','System Identifier','Brand',
     'Cosmetic Condition','Main Department','Sub Department','Sublet Department',
     'Purchase Price','Item Pricing 1 : Price (Req)','Item Vendors 1 : Vendor (Req)',
-    'Buy It Now','Auto Accept',null,'Item Name/Number',
+    'Buy It Now','Auto Accept','Item Display Name',null,'Item Name/Number',
     'Amazon Shipping','Amazon Condition','Best offer','Best offer Minimum','Type'];
   const H2 = ['Description','Serial Number','Catalog Number','System ID','Brand','Grade',
-    'Main','Sub','Sublet','Net','Retail','Origin Store','BIN','AA','margin',
+    'Main','Sub','Sublet','Net','Retail','Origin Store','BIN','AA','Display Name','margin',
     'Do Not Modify','Do Not Modify','Do Not Modify','Do Not Modify','Do Not Modify',null];
 
   const rows = [H1, H2];
@@ -1130,11 +1130,13 @@ function exportXLSX() {
     const mainD = it.medium === 'Digital' ? 'Digital' : it.medium === 'Film' ? 'Film' : (it.medium || 'Other');
     const subD  = it.format || (it.category === 'lens' ? 'Lenses' : it.category === 'camera' ? 'Mirrorless' : 'Accessories');
     const acStr = it.accessories.length ? `, ${it.accessories.join(', ')}` : '';
+    const lineNum = String(i + 1).padStart(2, '0');
+    const itemNum = cm !== 'PENDING' ? cm + '-' + lineNum : 'PENDING-' + lineNum;
     rows.push([
-      it.name + acStr, it.serial||null, it.catalog||null, it.systemId||null, it.vendor||null,
+      itemNum, it.serial||null, it.catalog||null, it.systemId||null, it.vendor||null,
       it.grade, mainD, subD, it.itemType||null,
       it.net, it.retail, 'Camera West RM',
-      {f:`K${r}*1.1`}, {f:`K${r}*1.05`}, 0.6,
+      {f:`K${r}*1.1`}, {f:`K${r}*1.05`}, it.name + acStr, 0.6,
       {f:`IF(B${r}="",A${r}&" ("&F${r}&")",A${r}&" "&B${r})`},
       {f:`IF(M${r}>500,"Prime Nationwide","Purely Free Shipping")`},
       {f:`IF(F${r}="10-","Used - Like New",IF(F${r}="9+","Used - Very Good",IF(F${r}="8+","Used - Good",IF(F${r}=9,"Used - Very Good","Used - Acceptable"))))`},
@@ -1217,7 +1219,7 @@ function buildPrint() {
   const destStore = (selLoc === 'shipping' && _destStore && STORE_INFO[_destStore])
     ? _destStore + ' — ' + STORE_INFO[_destStore].address : '';
   const tracking = document.getElementById('tracking-num').value.trim();
-  const finalTot = document.getElementById('final-total').value.trim();
+  const finalTot = ''; // field removed
   const taxRate  = getTaxRate();
   const estTax   = taxRate > 0 ? totNet * taxRate : 0;
   const estGrand = totNet + estTax;
@@ -1475,7 +1477,7 @@ async function saveSession() {
   }
 }
 
-async function loadSession(key) {
+async async function loadSession(key) {
   if (!confirm('Load this session? Current session data will be replaced.')) return;
   try {
     const { sessions } = await ghReadSessions();
