@@ -138,6 +138,61 @@
         "name": "ben carpenter",
         "key": "cwti_1772313448451"
       }
+    },
+    {
+      "key": "cwti_1772313927647",
+      "name": "Ben Carpenter",
+      "savedAt": "2026-02-28T21:25:27.647Z",
+      "data": {
+        "savedAt": "2026-02-28T21:25:27.647Z",
+        "customer": {
+          "first": "Ben",
+          "last": "Carpenter",
+          "email": "ben@camerawest.com",
+          "phone": "864-230-6928"
+        },
+        "loc": "San Francisco",
+        "shipping": {
+          "str": "",
+          "city": "",
+          "st": "",
+          "zip": ""
+        },
+        "cmNum": "",
+        "tracking": "",
+        "finalTot": "",
+        "assoc": "ben@camerawest.com",
+        "txnDate": "2026-02-28",
+        "items": [
+          {
+            "id": 1772313922072,
+            "name": "Leica M2 Self Timer DAG Serviced",
+            "vendor": "",
+            "systemId": "Leica M",
+            "itemType": "Bodies",
+            "medium": "Film",
+            "format": "Rangefinder",
+            "category": "camera",
+            "sku": "1275423",
+            "serial": "1234567",
+            "catalog": "",
+            "grade": "9",
+            "accessories": [
+              "Battery"
+            ],
+            "notes": "Test",
+            "retail": 2495,
+            "tradein": 1745,
+            "outright": 1250,
+            "net": 1745,
+            "priceType": "tradein",
+            "svcCharge": 0,
+            "svcReason": ""
+          }
+        ],
+        "name": "Ben Carpenter",
+        "key": "cwti_1772313927647"
+      }
     }
   ]
 }
