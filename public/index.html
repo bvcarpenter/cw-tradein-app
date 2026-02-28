@@ -964,7 +964,7 @@ function updPricing() {
 }
 function valAdd() {
   const ret = parseFloat(document.getElementById('r-override').value) || (selItem ? selItem.price : 0);
-  const needsSerial = selItem && (selItem.category === 'camera' || selItem.category === 'lens');
+  const needsSerial = selItem && (selItem.category === 'camera' || selItem.category === 'lens' || CAM_T.has(selItem.itemType) || LEN_T.has(selItem.itemType));
   const hasSerial   = (document.getElementById('serial').value||'').trim().length > 0;
   const lbl = document.getElementById('serial-label');
   if (lbl) { lbl.textContent=needsSerial?'Serial Number *':'Serial Number'; lbl.style.color=(needsSerial&&!hasSerial)?'var(--accent)':''; }
