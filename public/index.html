@@ -233,7 +233,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
   </a>
   <div class="hdr-r">
     <span class="badge" id="badge">0 Items</span>
-    <button class="btn-hdr" onclick="saveSession()">Save Session</button><button class="btn-hdr" onclick="goExport()">Export Session</button>
+    <button class="btn-hdr" onclick="openSessionsMgr()" style="background:transparent;border:1px solid rgba(245,245,240,.3);color:var(--white);">Sessions</button><button class="btn-hdr" onclick="saveSession()">Save Session</button><button class="btn-hdr" onclick="goExport()">Export Session</button>
   </div>
 </header>
 
@@ -251,6 +251,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
       <div class="tr"><span>Total Retail</span><span id="t-ret">—</span></div>
       <div class="tr"><span>Trade-In Value</span><span id="t-ti">—</span></div>
       <div class="tr"><span>Outright Value</span><span id="t-or">—</span></div>
+      <div class="tr" id="t-svc-row" style="display:none;"><span style="color:#e07070;">Service Charges</span><span id="t-svc" style="color:#e07070;"></span></div>
       <div class="tr main"><span>Net to Customer</span><span id="t-net">—</span></div>
       <div class="tr" id="t-tax-row" style="display:none;"><span id="t-tax-lbl">Est. Tax (—%)</span><span id="t-tax">—</span></div>
       <div class="tr main" id="t-grand-row" style="display:none;"><span>Est. Grand Total</span><span id="t-grand">—</span></div>
@@ -275,6 +276,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
       </div>
       <span class="sl">Preferred Location *</span>
       <div class="loc-row">
+        <button class="loc" onclick="setLoc(this,'Leica SF')">Leica SF</button>
         <button class="loc" onclick="setLoc(this,'Palm Springs')">Palm Springs</button>
         <button class="loc" onclick="setLoc(this,'San Francisco')">San Francisco</button>
         <button class="loc" onclick="setLoc(this,'SoHo — New York')">SoHo — New York</button>
@@ -420,6 +422,16 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
         <div><div class="net-lbl">Net to Customer — NetSuite</div><div class="net-v" id="p-net">—</div></div>
         <div class="net-r" id="net-r">Trade-In<br>selected</div>
       </div>
+      <div class="fg" style="margin-top:4px;margin-bottom:14px;">
+        <div class="fld">
+          <label>Service Charge <span style="font-size:9px;font-weight:300;color:var(--dim);">(deducted from net)</span></label>
+          <input type="number" id="svc-charge" min="0" step="5" placeholder="0.00" oninput="updPricing()">
+        </div>
+        <div class="fld">
+          <label>Service Charge Reason</label>
+          <input type="text" id="svc-reason" placeholder="e.g. Cleaning, sensor repair…">
+        </div>
+      </div>
       <button class="btn btn-w btn-full" id="add-btn" onclick="addItem()" disabled>Add to Session</button>
     </section>
 
@@ -445,6 +457,20 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
   </main>
 </div>
 
+<!-- SESSIONS MANAGER MODAL -->
+<div class="mo" id="mo-sessions">
+  <div class="mod" style="max-width:860px;width:100%;">
+    <div class="mod-h"><h3>Session Manager</h3><button class="mod-x" onclick="closeSessionsMgr()">&#215;</button></div>
+    <div class="mod-b" style="padding:0;">
+      <div style="display:flex;border-bottom:1px solid var(--border);padding:0 20px;">
+        <button class="tnav on" id="sm-tab-draft" onclick="smTab('draft',this)">Drafts</button>
+        <button class="tnav" id="sm-tab-final" onclick="smTab('final',this)">Finalized</button>
+      </div>
+      <div style="padding:16px 20px;overflow-y:auto;max-height:60vh;" id="sm-list"></div>
+    </div>
+    <div class="mod-f"><button class="btn btn-ol" onclick="closeSessionsMgr()">Close</button></div>
+  </div>
+</div>
 <!-- PRINT MODAL -->
 <div class="mo" id="mo">
   <div class="mod">
@@ -498,9 +524,16 @@ const AVATAX_LICENSE = '4138ABD54E446A68';
 let _taxCache = {};
 
 const STORE_ADDRS = {
-  'Palm Springs':    { line1:'70-177 Hwy 111 Ste 100', city:'Rancho Mirage', region:'CA', postalCode:'92270' },
-  'San Francisco':   { line1:'2001 Union St',           city:'San Francisco', region:'CA', postalCode:'94123' },
-  'SoHo — New York': { line1:'161 Grand St',            city:'New York',      region:'NY', postalCode:'10013' },
+  'Leica SF':        { line1:'463 Bush St',    city:'San Francisco', region:'CA', postalCode:'94108' },
+  'Palm Springs':    { line1:'70177 CA-111',   city:'Rancho Mirage', region:'CA', postalCode:'92270' },
+  'San Francisco':   { line1:'120 Maiden Ln',  city:'San Francisco', region:'CA', postalCode:'94108' },
+  'SoHo — New York': { line1:'460 W Broadway', city:'New York', region:'NY', postalCode:'10012' },
+};
+const STORE_INFO = {
+  'Leica SF':        { address:'463 Bush St, San Francisco, CA 94108',   phone:'(415) 801-5066' },
+  'San Francisco':   { address:'120 Maiden Ln, San Francisco, CA 94108', phone:'(925) 935-1424' },
+  'SoHo — New York': { address:'460 W Broadway, New York, NY 10012',     phone:'(646) 476-2308' },
+  'Palm Springs':    { address:'70177 CA-111, Rancho Mirage, CA 92270',  phone:'(760) 992-5422' },
 };
 
 async function fetchAvaTaxRate(line1, city, region, postalCode) {
@@ -903,7 +936,9 @@ function updPricing() {
   if (tiEl && tiEl.style.display !== 'none') tiEl.textContent = fd(ti);
   const orEl = document.getElementById('p-or');
   if (orEl && orEl.style.display !== 'none') orEl.textContent = fd(or);
-  document.getElementById('p-net').textContent = fd(net);
+  const svc = roundToFive(parseFloat(document.getElementById('svc-charge')?.value)||0);
+  const netDisplay = Math.max(0, net - svc);
+  document.getElementById('p-net').textContent = fd(netDisplay);
   valAdd();
 }
 function valAdd() {
@@ -921,7 +956,10 @@ function addItem() {
   const ti   = _tiManual > 0 ? _tiManual : roundToFive(ret * 0.70);
   const or   = _orManual > 0 ? _orManual : roundToFive(ret * 0.50);
   clearOverrides();
-  const net  = selPT === 'tradein' ? ti : or;
+  const svcCharge = roundToFive(parseFloat(document.getElementById('svc-charge')?.value)||0);
+  const svcReason = (document.getElementById('svc-reason')?.value||'').trim();
+  const netRaw = selPT === 'tradein' ? ti : or;
+  const net = Math.max(0, netRaw - svcCharge);
   const accs = [...document.querySelectorAll('.achip.on')].map(c => c.querySelector('span').textContent);
   sessionItems.push({
     id: Date.now(),
@@ -932,7 +970,7 @@ function addItem() {
     catalog: document.getElementById('catalog').value.trim(),
     grade: selGrade, accessories: accs,
     notes: document.getElementById('notes').value.trim(),
-    retail: ret, tradein: ti, outright: or, net, priceType: selPT
+    retail: ret, tradein: ti, outright: or, net, priceType: selPT, svcCharge, svcReason
   });
   clrItem();
   renderCart();
@@ -1122,7 +1160,7 @@ function buildPrint() {
   <table width="100%" style="margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #111;"><tr>
     <td style="vertical-align:top;">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 75" style="height:32px;width:auto;display:block;"><g><path d="M27.4,43c-.2,3.6-1.2,6.3-3.1,8.2s-4.5,2.8-7.9,2.8-6.3-1.2-8.3-3.5c-1.9-2.4-2.9-5.7-2.9-10.1v-5.3c0-4.4,1-7.7,3-10.1,2-2.4,4.7-3.5,8.2-3.5s6.1,1,7.9,2.9,2.8,4.7,3.1,8.3h-6.4c0-2.2-.4-3.8-1-4.6-.6-.8-1.8-1.3-3.5-1.3s-2.9.6-3.6,1.8c-.7,1.2-1.1,3.2-1.1,5.9v6c0,3.2.4,5.3,1.1,6.5.7,1.2,1.9,1.8,3.6,1.8s2.8-.4,3.5-1.2c.6-.8,1-2.3,1.1-4.5h6.4-.1Z"/><path d="M49.8,47.1h-8.7l-1.7,6.5h-6.8l9.9-31.7h5.9l10,31.7h-6.8l-1.7-6.5h0ZM42.5,41.8h5.9l-3-11.3-3,11.3h0Z"/><path d="M73,21.9l6,22.9,6-22.9h8.4v31.7h-6.4v-8.6l.6-13.2-6.3,21.8h-4.4l-6.3-21.8.6,13.2v8.6h-6.4v-31.7h8.4-.2Z"/><path d="M118.2,39.9h-10v8.4h11.8v5.3h-18.2v-31.7h18.2v5.3h-11.8v7.5h10v5.2Z"/><path d="M136.6,42h-3.2v11.6h-6.4v-31.7h10.2c3.2,0,5.7.8,7.4,2.5,1.8,1.7,2.6,4,2.6,7.1s-1.5,7.2-4.6,8.9l5.5,13v.3h-6.9l-4.8-11.6h.2ZM133.4,36.7h3.6c1.3,0,2.2-.4,2.9-1.3.6-.8,1-2,1-3.4,0-3.2-1.2-4.8-3.7-4.8h-3.7v9.4h-.1Z"/><path d="M170.2,47.1h-8.7l-1.7,6.5h-6.8l9.9-31.7h5.9l10,31.7h-6.8l-1.7-6.5h0ZM162.8,41.8h5.9l-3-11.3-3,11.3h.1Z"/><path d="M205.6,41.8l3-19.9h6.3l-5.6,31.7h-6.4l-3.7-18.7-3.7,18.7h-6.4l-5.7-31.7h6.4l3,19.9,3.7-19.9h5.4s3.7,19.9,3.7,19.9Z"/><path d="M238.1,39.9h-10v8.4h11.8v5.3h-18.2v-31.7h18.2v5.3h-11.8v7.5h10v5.2Z"/><path d="M260.3,45.3c0-1.3-.3-2.3-1-2.9-.7-.7-1.9-1.4-3.6-2.1-3.2-1.2-5.5-2.6-6.9-4.2s-2.1-3.5-2.1-5.8.9-4.8,2.8-6.4c1.9-1.6,4.3-2.4,7.2-2.4s3.7.4,5.2,1.2,2.7,2,3.5,3.5,1.2,3.2,1.2,5.1h-6.4c0-1.5-.3-2.6-1-3.4-.6-.8-1.5-1.2-2.7-1.2s-2,.3-2.6,1-.9,1.5-.9,2.6.3,1.7,1,2.4c.7.7,1.9,1.4,3.7,2.2,3.1,1.1,5.3,2.5,6.7,4.1,1.4,1.6,2.1,3.7,2.1,6.2s-.9,4.9-2.6,6.5c-1.8,1.6-4.1,2.3-7.1,2.3s-3.9-.4-5.6-1.3c-1.7-.8-3-2.1-4-3.6-.9-1.6-1.4-3.4-1.4-5.6h6.4c0,1.8.4,3.2,1.1,4,.7.8,1.9,1.2,3.5,1.2s3.4-1.2,3.4-3.5h0Z"/><path d="M294.9,27.2h-7.9v26.4h-6.4v-26.4h-7.7v-5.3h22v5.3Z"/></g></svg>
-      <div style="font-size:10px;color:#666;margin-top:6px;letter-spacing:.04em;line-height:1.8;">70-177 Hwy 111 Ste 100, Rancho Mirage, CA 92270<br>760-992-5422 &nbsp;·&nbsp; support@camerawest.com</div>
+      <div style="font-size:10px;color:#666;margin-top:6px;letter-spacing:.04em;line-height:1.8;">${(STORE_INFO[selLoc]?.address)||'camerawest.com'}<br>${(STORE_INFO[selLoc]?.phone)||''} &nbsp;·&nbsp; support@camerawest.com</div>
     </td>
     <td style="text-align:right;vertical-align:top;">
       <div style="font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#aaa;margin-bottom:3px;">Credit Memo</div>
@@ -1260,6 +1298,45 @@ function saveSession() {
   localStorage.setItem('cwti_sessions', JSON.stringify(all));
   localStorage.setItem(key, JSON.stringify(data));
   showToast('Session saved: ' + name);
+}
+
+// Sessions Manager
+let _smTab='draft';
+function openSessionsMgr(){document.getElementById('mo-sessions').classList.add('open');renderSessionsMgr();}
+function closeSessionsMgr(){document.getElementById('mo-sessions').classList.remove('open');}
+function smTab(t,btn){_smTab=t;document.querySelectorAll('#mo-sessions .tnav').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderSessionsMgr();}
+function finalizeSession(key){
+  if(!confirm('Mark as Finalized?'))return;
+  try{const d=JSON.parse(localStorage.getItem(key));d.finalized=true;d.finalizedAt=new Date().toISOString();localStorage.setItem(key,JSON.stringify(d));renderSessionsMgr();showToast('Session finalized.');}catch(e){alert('Error.');}
+}
+function renderSessionsMgr(){
+  const el=document.getElementById('sm-list');
+  const rows=getSavedList().filter(s=>{try{const d=JSON.parse(localStorage.getItem(s.key))||{};return _smTab==='final'?!!d.finalized:!d.finalized;}catch(e){return false;}});
+  if(!rows.length){el.innerHTML=`<div style="font-size:12px;color:var(--dim);padding:28px;text-align:center;">No ${_smTab==='final'?'finalized':'draft'} sessions yet.</div>`;return;}
+  el.innerHTML=rows.map(s=>{
+    let d={};try{d=JSON.parse(localStorage.getItem(s.key))||{};}catch(e){}
+    const cust=d.customer?[d.customer.first,d.customer.last].filter(Boolean).join(' ')||'Unknown':'Unknown';
+    const email=d.customer?.email||'';
+    const loc=d.location||'—';
+    const items=d.items||[];
+    const net=items.reduce((sum,i)=>sum+(i.net||0),0);
+    const svc=items.reduce((sum,i)=>sum+(i.svcCharge||0),0);
+    const dt=d.savedAt?new Date(d.savedAt).toLocaleString():'';
+    const finDt=d.finalizedAt?new Date(d.finalizedAt).toLocaleDateString():'';
+    const chips=items.slice(0,4).map(i=>`<span style="background:var(--bg3);padding:1px 7px;border:1px solid var(--border);font-size:9px;border-radius:2px;">${esc(i.name)}</span>`).join('')+(items.length>4?`<span style="font-size:9px;color:var(--dim);"> +${items.length-4} more</span>`:'');
+    return `<div style="padding:14px 0;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr auto;gap:14px;align-items:start;">
+      <div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:3px;">${esc(cust)}${email?` <span style="font-size:10px;color:var(--dim);font-weight:300;">&lt;${esc(email)}&gt;</span>`:''}</div>
+        <div style="font-size:10px;color:var(--dim);margin-bottom:7px;line-height:1.9;">${esc(loc)} &nbsp;&middot;&nbsp; ${items.length} item${items.length!==1?'s':''} &nbsp;&middot;&nbsp; Net: <strong style="color:var(--accent);">${ff(net)}</strong>${svc>0?` &nbsp;&middot;&nbsp; <span style="color:#e07070;">Svc: &minus;${ff(svc)}</span>`:''} &nbsp;&middot;&nbsp; ${dt}${finDt?` &nbsp;&middot;&nbsp; <span style="color:#70d090;">&#10003; Finalized ${finDt}</span>`:''}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;">${chips}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;min-width:88px;">
+        <button class="btn-sm" onclick="loadSession('${s.key}');closeSessionsMgr();" style="text-align:center;">&#8629; Load</button>
+        ${_smTab==='draft'?`<button class="btn-sm" onclick="finalizeSession('${s.key}')" style="color:#70d090;border-color:#2a5a3a;text-align:center;">&#10003; Finalize</button>`:''}
+        <button class="btn-sm" onclick="deleteSession('${s.key}');renderSessionsMgr();" style="color:#e07070;border-color:#5a2a2a;text-align:center;">&#215; Delete</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function getSavedList() {
