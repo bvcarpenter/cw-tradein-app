@@ -451,7 +451,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
       <div class="fg t3" style="margin-bottom:0;">
         <div class="fld"><label>Credit Memo # (from ERP)</label><input type="text" id="cm-num" placeholder="CM00000" oninput="onCmInput(this)"></div>
         <div class="fld"><label>Tracking # (if shipping)</label><input type="text" id="tracking-num" placeholder="1Z999AA10123456784"></div>
-        <div class="fld"><label>Final Total After Tax (from ERP)</label><input type="text" id="final-total" placeholder="e.g. 1,245.00"></div>
+        
         <div style="grid-column:1/-1;background:#1a1a1a;border-left:2px solid #d95e00;padding:8px 12px;font-size:11px;color:#aaa;line-height:1.6;margin-top:4px;">
           ⚠ Credit Memo # will be assigned once this trade-in is finalized in the ERP. Enter the CM# above before printing the final receipt.
         </div>
@@ -1109,7 +1109,7 @@ function exportXLSX() {
   if (!sessionItems.length) { alert('No items to export.'); return; }
   const cm   = document.getElementById('cm-num').value.trim() || 'PENDING';
   const tracking = document.getElementById('tracking-num').value.trim();
-  const finalTot = document.getElementById('final-total').value.trim();
+  const finalTot = '';
   const asc  = document.getElementById('assoc').value.trim();
   const dt   = document.getElementById('txn-date').value || new Date().toISOString().split('T')[0];
   const cust = [document.getElementById('c-first').value.trim(), document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || 'Unknown';
@@ -1212,6 +1212,8 @@ function buildPrint() {
   const shipTo = selLoc === 'shipping'
     ? [document.getElementById('s-str').value, document.getElementById('s-city').value,
        document.getElementById('s-st').value,  document.getElementById('s-zip').value].filter(Boolean).join(', ') : '';
+  const destStore = (selLoc==='shipping' && typeof _destStore!=='undefined' && _destStore && STORE_INFO[_destStore])
+    ? _destStore + ' — ' + STORE_INFO[_destStore].address : '';
   const totNet   = sessionItems.reduce((s,i) => s+i.net, 0);
   const svcGrand = sessionItems.reduce((s,i) => s+(i.svcCharge||0), 0);
   const tracking = document.getElementById('tracking-num').value.trim();
