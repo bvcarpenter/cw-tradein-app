@@ -187,6 +187,8 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
 .mod-x:hover{color:var(--white)}
 .mod-b{padding:0;overflow-y:auto;flex:1}
 .mod-f{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:7px}
+.btn-sm{background:#1a1a1a;color:#bbb;border:1px solid #333;padding:3px 8px;font-size:10px;letter-spacing:.05em;cursor:pointer;border-radius:2px;font-family:inherit;}
+.btn-sm:hover{background:#2a2a2a;color:#fff;}
 .print-prev{background:#fff;color:#111;padding:22px 26px;font-family:'Jost',sans-serif;font-size:12px}
 
 /* SCROLLBAR */
@@ -230,7 +232,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
   </a>
   <div class="hdr-r">
     <span class="badge" id="badge">0 Items</span>
-    <button class="btn-hdr" onclick="goExport()">Export Session</button>
+    <button class="btn-hdr" onclick="saveSession()">Save Session</button><button class="btn-hdr" onclick="goExport()">Export Session</button>
   </div>
 </header>
 
@@ -407,6 +409,11 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
       <div class="sec-hd"><span class="sec-n">iv.</span><h3>Export <em style="font-style:italic;color:var(--accent)">//</em> Print</h3></div>
       <div class="fg t3" style="margin-bottom:0;">
         <div class="fld"><label>Credit Memo # (from ERP)</label><input type="text" id="cm-num" placeholder="CM00000"></div>
+        <div class="fld"><label>Tracking # (if shipping)</label><input type="text" id="tracking-num" placeholder="1Z999AA10123456784"></div>
+        <div class="fld"><label>Final Total After Tax (from ERP)</label><input type="text" id="final-total" placeholder="e.g. 1,245.00"></div>
+        <div style="grid-column:1/-1;background:#1a1a1a;border-left:2px solid #d95e00;padding:8px 12px;font-size:11px;color:#aaa;line-height:1.6;margin-top:4px;">
+          &#9888; Credit Memo # will be assigned once this trade-in is finalized in the ERP. Enter the CM# above before printing the final receipt.
+        </div>
         <div class="fld"><label>Associate</label><input type="text" id="assoc" placeholder="Your name"></div>
         <div class="fld"><label>Date</label><input type="date" id="txn-date"></div>
       </div>
@@ -912,7 +919,12 @@ function buildPrint() {
   const shipTo = selLoc === 'shipping'
     ? [document.getElementById('s-str').value, document.getElementById('s-city').value,
        document.getElementById('s-st').value,  document.getElementById('s-zip').value].filter(Boolean).join(', ') : '';
-  const totNet = sessionItems.reduce((s,i) => s+i.net, 0);
+  const totNet   = sessionItems.reduce((s,i) => s+i.net, 0);
+  const tracking = (document.getElementById('tracking-num')||{value:''}).value.trim();
+  const finalTot = (document.getElementById('final-total')||{value:''}).value.trim();
+  const taxRate  = getTaxRate();
+  const estTax   = taxRate > 0 ? totNet * taxRate : 0;
+  const estGrand = totNet + estTax;
   const rows = sessionItems.map(it => {
     const ac = it.accessories.length ? `<br><span style="color:#777;font-size:10px;">Includes: ${it.accessories.join(', ')}</span>` : '';
     const nt = it.notes ? `<br><span style="color:#999;font-size:10px;font-style:italic;">${esc(it.notes)}</span>` : '';
@@ -933,8 +945,8 @@ function buildPrint() {
   return `<div style="max-width:760px;margin:0 auto;padding:22px 18px;font-family:'Jost',sans-serif;color:#111;">
   <table width="100%" style="margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #111;"><tr>
     <td style="vertical-align:top;">
-      <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;letter-spacing:.1em;text-transform:uppercase;">Camera West</div>
-      <div style="font-size:10px;color:#666;margin-top:4px;letter-spacing:.04em;line-height:1.8;">70-177 Hwy 111 Ste 100, Rancho Mirage, CA 92270<br>760-992-5422 &nbsp;·&nbsp; support@camerawest.com</div>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 75" style="height:32px;width:auto;display:block;"><g><path d="M27.4,43c-.2,3.6-1.2,6.3-3.1,8.2s-4.5,2.8-7.9,2.8-6.3-1.2-8.3-3.5c-1.9-2.4-2.9-5.7-2.9-10.1v-5.3c0-4.4,1-7.7,3-10.1,2-2.4,4.7-3.5,8.2-3.5s6.1,1,7.9,2.9,2.8,4.7,3.1,8.3h-6.4c0-2.2-.4-3.8-1-4.6-.6-.8-1.8-1.3-3.5-1.3s-2.9.6-3.6,1.8c-.7,1.2-1.1,3.2-1.1,5.9v6c0,3.2.4,5.3,1.1,6.5.7,1.2,1.9,1.8,3.6,1.8s2.8-.4,3.5-1.2c.6-.8,1-2.3,1.1-4.5h6.4-.1Z"/><path d="M49.8,47.1h-8.7l-1.7,6.5h-6.8l9.9-31.7h5.9l10,31.7h-6.8l-1.7-6.5h0ZM42.5,41.8h5.9l-3-11.3-3,11.3h0Z"/><path d="M73,21.9l6,22.9,6-22.9h8.4v31.7h-6.4v-8.6l.6-13.2-6.3,21.8h-4.4l-6.3-21.8.6,13.2v8.6h-6.4v-31.7h8.4-.2Z"/><path d="M118.2,39.9h-10v8.4h11.8v5.3h-18.2v-31.7h18.2v5.3h-11.8v7.5h10v5.2Z"/><path d="M136.6,42h-3.2v11.6h-6.4v-31.7h10.2c3.2,0,5.7.8,7.4,2.5,1.8,1.7,2.6,4,2.6,7.1s-1.5,7.2-4.6,8.9l5.5,13v.3h-6.9l-4.8-11.6h.2ZM133.4,36.7h3.6c1.3,0,2.2-.4,2.9-1.3.6-.8,1-2,1-3.4,0-3.2-1.2-4.8-3.7-4.8h-3.7v9.4h-.1Z"/><path d="M170.2,47.1h-8.7l-1.7,6.5h-6.8l9.9-31.7h5.9l10,31.7h-6.8l-1.7-6.5h0ZM162.8,41.8h5.9l-3-11.3-3,11.3h.1Z"/><path d="M205.6,41.8l3-19.9h6.3l-5.6,31.7h-6.4l-3.7-18.7-3.7,18.7h-6.4l-5.7-31.7h6.4l3,19.9,3.7-19.9h5.4s3.7,19.9,3.7,19.9Z"/><path d="M238.1,39.9h-10v8.4h11.8v5.3h-18.2v-31.7h18.2v5.3h-11.8v7.5h10v5.2Z"/><path d="M260.3,45.3c0-1.3-.3-2.3-1-2.9-.7-.7-1.9-1.4-3.6-2.1-3.2-1.2-5.5-2.6-6.9-4.2s-2.1-3.5-2.1-5.8.9-4.8,2.8-6.4c1.9-1.6,4.3-2.4,7.2-2.4s3.7.4,5.2,1.2,2.7,2,3.5,3.5,1.2,3.2,1.2,5.1h-6.4c0-1.5-.3-2.6-1-3.4-.6-.8-1.5-1.2-2.7-1.2s-2,.3-2.6,1-.9,1.5-.9,2.6.3,1.7,1,2.4c.7.7,1.9,1.4,3.7,2.2,3.1,1.1,5.3,2.5,6.7,4.1,1.4,1.6,2.1,3.7,2.1,6.2s-.9,4.9-2.6,6.5c-1.8,1.6-4.1,2.3-7.1,2.3s-3.9-.4-5.6-1.3c-1.7-.8-3-2.1-4-3.6-.9-1.6-1.4-3.4-1.4-5.6h6.4c0,1.8.4,3.2,1.1,4,.7.8,1.9,1.2,3.5,1.2s3.4-1.2,3.4-3.5h0Z"/><path d="M294.9,27.2h-7.9v26.4h-6.4v-26.4h-7.7v-5.3h22v5.3Z"/></g></svg>
+      <div style="font-size:10px;color:#666;margin-top:6px;letter-spacing:.04em;line-height:1.8;">70-177 Hwy 111 Ste 100, Rancho Mirage, CA 92270<br>760-992-5422 &nbsp;·&nbsp; support@camerawest.com</div>
     </td>
     <td style="text-align:right;vertical-align:top;">
       <div style="font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#aaa;margin-bottom:3px;">Credit Memo</div>
@@ -950,6 +962,7 @@ function buildPrint() {
       ${phone?`<div style="font-size:10px;color:#555;">${esc(phone)}</div>`:''}
       ${loc!=='—'?`<div style="font-size:10px;color:#777;margin-top:3px;">Location: ${esc(loc)}</div>`:''}
       ${shipTo?`<div style="font-size:10px;color:#777;">Ship To: ${esc(shipTo)}</div>`:''}
+      ${tracking?`<div style="font-size:10px;color:#d95e00;margin-top:2px;">Tracking: ${esc(tracking)}</div>`:''}
     </td>
     <td style="vertical-align:top;text-align:right;">
       <div style="font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#aaa;margin-bottom:4px;">Transaction</div>
@@ -966,15 +979,21 @@ function buildPrint() {
       <th style="padding:8px 7px;text-align:right;font-size:8px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;">Net Price</th>
     </tr></thead>
     <tbody>${rows}</tbody>
-    <tfoot><tr style="background:#f5f5f0;">
+    <tfoot>
+      <tr style="background:#f5f5f0;">
       <td colspan="3" style="padding:9px 7px;font-size:9px;color:#999;">${sessionItems.length} item${sessionItems.length!==1?'s':''}</td>
       <td style="padding:9px 7px;text-align:right;font-size:11px;">${ff(sessionItems.reduce((s,i)=>s+i.retail,0))}</td>
       <td style="padding:9px 7px;text-align:right;font-size:11px;color:#2a7a4a;">${ff(sessionItems.reduce((s,i)=>s+i.tradein,0))}</td>
       <td style="padding:9px 7px;text-align:right;font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:300;color:#d95e00;">${ff(totNet)}</td>
-    </tr></tfoot>
+      </tr>
+      ${taxRate>0?`<tr style="background:#fafafa;"><td colspan="5" style="padding:6px 7px;text-align:right;font-size:10px;color:#777;">Est. Tax (${(taxRate*100).toFixed(2)}%)</td><td style="padding:6px 7px;text-align:right;font-size:11px;color:#555;">${ff(estTax)}</td></tr>`:''}
+      ${taxRate>0?`<tr><td colspan="5" style="padding:7px 7px;text-align:right;font-size:10px;color:#777;">Est. Grand Total</td><td style="padding:7px 7px;text-align:right;font-family:'Cormorant Garamond',serif;font-size:16px;color:#d95e00;">${ff(estGrand)}</td></tr>`:''}
+      ${finalTot?`<tr style="background:#0e0e0e;"><td colspan="5" style="padding:9px 7px;text-align:right;font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.1em;">Final Total After Tax</td><td style="padding:9px 7px;text-align:right;font-family:'Cormorant Garamond',serif;font-size:18px;color:#fff;">${esc(finalTot)}</td></tr>`:''}
+    </tfoot>
   </table>
   <div style="border-left:2px solid #d95e00;padding:8px 13px;font-size:10px;color:#777;margin-bottom:20px;line-height:1.8;letter-spacing:.02em;">
     By signing below, the customer confirms the items above are accurately described, that they are the rightful owner, and authorizes Camera West to process this trade-in or purchase transaction. All values are estimates pending final inspection. All sales and trade-ins are final.
+    ${cm==='PENDING'?'<br><strong style="color:#d95e00;font-size:10px;">&#9888; Credit Memo Number pending — to be assigned upon finalization in ERP.</strong>':''}
   </div>
   <table width="100%"><tr>
     <td style="width:45%;vertical-align:bottom;padding-right:14px;">
@@ -998,6 +1017,62 @@ function buildPrint() {
 // ════════════════════════════════════════════
 // MISC
 // ════════════════════════════════════════════
+
+function getSessionData() {
+  return {
+    savedAt: new Date().toISOString(),
+    customer: { first: document.getElementById('c-first').value, last: document.getElementById('c-last').value, email: document.getElementById('c-email').value, phone: document.getElementById('c-phone').value },
+    loc: selLoc,
+    shipping: { str: document.getElementById('s-str').value, city: document.getElementById('s-city').value, st: document.getElementById('s-st').value, zip: document.getElementById('s-zip').value },
+    cmNum: document.getElementById('cm-num').value,
+    tracking: (document.getElementById('tracking-num')||{value:''}).value,
+    finalTot: (document.getElementById('final-total')||{value:''}).value,
+    assoc: document.getElementById('assoc').value,
+    txnDate: document.getElementById('txn-date').value,
+    items: sessionItems.slice(),
+  };
+}
+function restoreSessionData(d) {
+  ['c-first','c-last','c-email','c-phone'].forEach((id,i) => document.getElementById(id).value = [d.customer.first,d.customer.last,d.customer.email,d.customer.phone][i]||'');
+  document.getElementById('cm-num').value = d.cmNum||'';
+  if(document.getElementById('tracking-num')) document.getElementById('tracking-num').value = d.tracking||'';
+  if(document.getElementById('final-total')) document.getElementById('final-total').value = d.finalTot||'';
+  document.getElementById('assoc').value = d.assoc||'';
+  document.getElementById('txn-date').value = d.txnDate||'';
+  if(d.shipping){['s-str','s-city','s-st','s-zip'].forEach((id,i)=>document.getElementById(id).value=[d.shipping.str,d.shipping.city,d.shipping.st,d.shipping.zip][i]||'');}
+  document.querySelectorAll('.loc-btn').forEach(b=>b.classList.remove('on'));
+  if(d.loc){selLoc=d.loc;const b=document.querySelector('.loc-btn[data-loc="'+d.loc+'"]');if(b)b.classList.add('on');if(d.loc==='shipping')document.getElementById('ship-fields').style.display='';}
+  sessionItems=d.items||[];renderCart();
+}
+function saveSession() {
+  const data=getSessionData();
+  const name=(data.customer.first+' '+data.customer.last).trim()||'Session '+new Date().toLocaleDateString();
+  const key='cwti_session_'+Date.now();
+  const all=getSavedList();all.push({key,name,savedAt:data.savedAt});
+  localStorage.setItem('cwti_sessions',JSON.stringify(all));localStorage.setItem(key,JSON.stringify(data));
+  showToast('Saved: '+name);
+}
+function getSavedList(){try{return JSON.parse(localStorage.getItem('cwti_sessions')||'[]');}catch(e){return[];}}
+function showSavedSessions(){
+  const panel=document.getElementById('saved-sessions-panel');const list=getSavedList();
+  if(!list.length){panel.innerHTML='<div style="font-size:11px;color:#666;padding:6px 0;">No saved sessions.</div>';panel.style.display='';return;}
+  panel.innerHTML=list.map(s=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #222;gap:6px;"><div style="flex:1;min-width:0;"><div style="font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.name)}</div><div style="font-size:9px;color:#666;">${new Date(s.savedAt).toLocaleString()}</div></div><button class="btn-sm" onclick="loadSession('${s.key}')">Load</button><button class="btn-sm" onclick="deleteSession('${s.key}')" style="color:#c44;">✕</button></div>`).join('');
+  panel.style.display=panel.style.display==='none'?'':'none';
+}
+function loadSession(key){
+  try{const data=JSON.parse(localStorage.getItem(key));if(!data){alert('Not found.');return;}
+  if(!confirm('Load session? Current session will be replaced.'))return;
+  restoreSessionData(data);document.getElementById('saved-sessions-panel').style.display='none';showToast('Session loaded.');}catch(e){alert('Error.');}
+}
+function deleteSession(key){
+  if(!confirm('Delete this session?'))return;localStorage.removeItem(key);
+  const all=getSavedList().filter(s=>s.key!==key);localStorage.setItem('cwti_sessions',JSON.stringify(all));showSavedSessions();
+}
+function showToast(msg){
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#d95e00;color:#fff;padding:9px 20px;border-radius:4px;font-size:12px;letter-spacing:.04em;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;';document.body.appendChild(t);}
+  t.textContent=msg;t.style.opacity='1';clearTimeout(t._to);t._to=setTimeout(()=>t.style.opacity='0',2500);
+}
 function goExport() {
   if (!sessionItems.length) { alert('No items in session yet.'); return; }
   document.getElementById('exp-sec').scrollIntoView({ behavior: 'smooth' });
