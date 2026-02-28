@@ -4,11 +4,5 @@
   "compatibility_date": "2025-09-27",
   "observability": { "enabled": true },
   "assets": { "directory": "public" },
-  "compatibility_flags": ["nodejs_compat"],
-  "kv_namespaces": [
-    {
-      "binding": "SESSIONS_KV",
-      "id": "7a8bdbe04afe44a09ffbf6336ea178c3"
-    }
-  ]
+  "compatibility_flags": ["nodejs_compat"]
 }
