@@ -166,6 +166,25 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
 .exp{display:none}.exp.vis{display:block}
 .exp-acts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:14px}
 
+/* SERIAL POPUP */
+.serial-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center}
+.serial-overlay.vis{display:flex}
+.serial-modal{background:var(--bg2);border:1px solid var(--border-l);padding:28px 26px;width:440px;max-width:92vw;max-height:80vh;overflow-y:auto}
+.serial-modal h3{font-family:'Palatino Linotype',serif;font-size:18px;font-weight:300;margin-bottom:6px}
+.serial-modal p{font-size:11px;color:var(--dim);margin-bottom:18px;line-height:1.6}
+.serial-modal .sm-item{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.serial-modal .sm-item label{font-size:11px;font-weight:400;min-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.serial-modal .sm-item input{flex:1;background:var(--bg3);border:1px solid var(--border-l);color:var(--white);font-family:'Jost',sans-serif;font-size:13px;font-weight:300;padding:8px 12px;outline:none;border-radius:0;transition:border-color .15s}
+.serial-modal .sm-item input:focus{border-color:var(--acc-mid)}
+.serial-modal .sm-item input::placeholder{color:rgba(245,245,240,.2)}
+.serial-modal .sm-acts{display:flex;gap:8px;margin-top:18px;justify-content:flex-end}
+.serial-modal .sm-acts button{font-family:'Jost',sans-serif;font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;padding:9px 18px;cursor:pointer;border:1px solid var(--border-l);transition:all .15s}
+.serial-modal .sm-cancel{background:transparent;color:var(--dim)}
+.serial-modal .sm-cancel:hover{border-color:var(--dim);color:var(--white)}
+.serial-modal .sm-save{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.serial-modal .sm-save:hover{opacity:.85}
+.serial-modal .sm-save:disabled{opacity:.4;cursor:not-allowed}
+
 /* BUTTONS */
 .btn{font-family:'Jost',sans-serif;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;padding:13px 20px;border:none;cursor:pointer;transition:opacity .15s;display:inline-flex;align-items:center;justify-content:center;gap:7px}
 .btn:hover{opacity:.83}
@@ -305,7 +324,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
 
     <!-- ii. What Are You Trading In? -->
     <section class="sec">
-      <div class="sec-hd"><span class="sec-n">ii.</span><h3>What Are You Trading In?</h3></div>
+      <div class="sec-hd"><span class="sec-n">ii.</span><h3>What Are They Trading <em style="font-style:italic;color:var(--accent)">//</em> Selling?</h3></div>
       <div class="tab-nav">
         <button class="tnav on" onclick="tab('search',this)">Search Catalog</button>
         <button class="tnav" onclick="tab('manual',this)">Manual Entry</button>
@@ -388,7 +407,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
         <button class="btn-chg" onclick="clrItem()">Change Item</button>
       </div>
       <div class="fg" style="margin-bottom:18px;">
-        <div class="fld"><label id="serial-label">Serial Number</label><input type="text" id="serial" placeholder="Optional" oninput="valAdd()"></div>
+        <div class="fld"><label>Serial Number</label><input type="text" id="serial" placeholder="Optional"></div>
         <div class="fld"><label>Catalog Number (MPN)</label><input type="text" id="catalog" placeholder="Optional"></div>
       </div>
       <span class="sl">Cosmetic Grade *</span>
@@ -465,6 +484,19 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
       </div>
     </section>
   </main>
+</div>
+
+<!-- SERIAL NUMBER POPUP -->
+<div class="serial-overlay" id="serial-overlay">
+  <div class="serial-modal">
+    <h3>Serial Numbers Required</h3>
+    <p>The following items need a serial number before the session can be finalized with a Credit Memo Number.</p>
+    <div id="serial-popup-list"></div>
+    <div class="sm-acts">
+      <button class="sm-cancel" onclick="closeSerialPopup()">Cancel</button>
+      <button class="sm-save" id="serial-popup-save" onclick="saveSerialPopup()" disabled>Save &amp; Continue</button>
+    </div>
+  </div>
 </div>
 
 <!-- SESSIONS MANAGER MODAL -->
@@ -971,11 +1003,7 @@ function updPricing() {
 }
 function valAdd() {
   const ret = parseFloat(document.getElementById('r-override').value) || (selItem ? selItem.price : 0);
-  const needsSerial = selItem && (selItem.category === 'camera' || selItem.category === 'lens' || CAM_T.has(selItem.itemType) || LEN_T.has(selItem.itemType));
-  const hasSerial   = (document.getElementById('serial').value||'').trim().length > 0;
-  const lbl = document.getElementById('serial-label');
-  if (lbl) { lbl.textContent=needsSerial?'Serial Number *':'Serial Number'; lbl.style.color=(needsSerial&&!hasSerial)?'var(--accent)':''; }
-  document.getElementById('add-btn').disabled = !(selItem && selGrade && ret > 0 && (!needsSerial || hasSerial));
+  document.getElementById('add-btn').disabled = !(selItem && selGrade && ret > 0);
 }
 
 // ════════════════════════════════════════════
@@ -1002,7 +1030,9 @@ function addItem() {
     if(idx>=0)sessionItems[idx]=upd;else sessionItems.push(upd);
     _editingId=null;
     document.getElementById('add-btn').textContent='Add to Session';
-    clrItem();renderCart();showToast('Item updated.');return;
+    clrItem();renderCart();
+    document.getElementById('exp-sec').classList.add('vis');
+    showToast('Item updated.');return;
   }
   const ov   = parseFloat(document.getElementById('r-override').value);
   const ret  = ov > 0 ? ov : selItem.price;
@@ -1583,9 +1613,55 @@ async function renderSessionsMgr() {
   }).join('');
 }
 
+let _pendingCmVal = '';
+function needsSerialItems() {
+  return sessionItems.filter(it =>
+    (!it.serial || !it.serial.trim()) &&
+    (it.itemType === 'Bodies' || it.itemType === 'Lenses')
+  );
+}
+function openSerialPopup(items, cmVal) {
+  _pendingCmVal = cmVal;
+  const list = document.getElementById('serial-popup-list');
+  list.innerHTML = items.map(it => `
+    <div class="sm-item">
+      <label title="${esc(it.name)}">${esc(it.name)}</label>
+      <input type="text" data-item-id="${it.id}" placeholder="Enter serial number" oninput="valSerialPopup()">
+    </div>`).join('');
+  document.getElementById('serial-popup-save').disabled = true;
+  document.getElementById('serial-overlay').classList.add('vis');
+}
+function closeSerialPopup() {
+  document.getElementById('serial-overlay').classList.remove('vis');
+  _pendingCmVal = '';
+}
+function valSerialPopup() {
+  const inputs = document.querySelectorAll('#serial-popup-list input');
+  const allFilled = [...inputs].every(inp => inp.value.trim().length > 0);
+  document.getElementById('serial-popup-save').disabled = !allFilled;
+}
+async function saveSerialPopup() {
+  const inputs = document.querySelectorAll('#serial-popup-list input');
+  inputs.forEach(inp => {
+    const id = parseInt(inp.dataset.itemId);
+    const it = sessionItems.find(i => i.id === id);
+    if (it) it.serial = inp.value.trim();
+  });
+  renderCart();
+  closeSerialPopup();
+  await finalizeCm(_pendingCmVal);
+}
 async function onCmInput(el) {
   const val = el.value.trim();
   if (!val || val.length < 2) return;
+  const missing = needsSerialItems();
+  if (missing.length > 0) {
+    openSerialPopup(missing, val);
+    return;
+  }
+  await finalizeCm(val);
+}
+async function finalizeCm(val) {
   const cust = (document.getElementById('c-first').value.trim() + ' ' + document.getElementById('c-last').value.trim()).trim();
   try {
     const sessions = await kvReadSessions();
