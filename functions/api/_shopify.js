@@ -1,88 +1,37 @@
 /**
- * Shared Shopify API helper — OAuth token rotation
+ * Shared Shopify API helper
  *
- * Shopify no longer allows creating custom apps in the admin.
- * New apps use OAuth with rotating tokens:
- *   - Access tokens expire after ~1 hour
- *   - Refresh tokens last 90 days but are single-use
- *   - Each refresh returns a NEW access token AND refresh token
+ * Token resolution order:
+ *   1. SHOPIFY_TOKEN env var — static Admin API token (shpat_xxx)
+ *      Works for custom apps created in Shopify Admin.
+ *   2. KV "shopify_access_token" — offline OAuth token stored by the
+ *      /api/auth/shopify-install → /api/auth/shopify-callback flow.
+ *      Offline tokens never expire.
  *
- * Environment variables (set in Cloudflare Pages dashboard):
- *   SHOPIFY_STORE          – e.g. camerawest.myshopify.com
- *   SHOPIFY_CLIENT_ID      – API key from Shopify Partners / Dev Dashboard
- *   SHOPIFY_CLIENT_SECRET  – Client secret (shpss_...)
- *   SHOPIFY_REFRESH_TOKEN  – Initial refresh token (used only on first run)
- *
- * KV keys (AUTH_KV):
- *   shopify_access_token   – cached access token
- *   shopify_refresh_token  – latest refresh token (rotates on each exchange)
+ * If neither is available the user is directed to run the OAuth install.
  */
 
-const KV_ACCESS  = 'shopify_access_token';
-const KV_REFRESH = 'shopify_refresh_token';
+const KV_TOKEN = 'shopify_access_token';
 
 /**
- * Get a valid Shopify access token, refreshing if necessary.
- * Caches the token in KV with a 50-minute TTL (tokens last ~60 min).
+ * Get a valid Shopify access token.
  */
 export async function getShopifyToken(env) {
-  const kv = env.AUTH_KV;
+  // 1. Static token from env var (simplest path)
+  if (env.SHOPIFY_TOKEN) return env.SHOPIFY_TOKEN;
 
-  // 1. Check for a cached access token in KV
-  if (kv) {
-    const cached = await kv.get(KV_ACCESS);
-    if (cached) return cached;
+  // 2. OAuth offline token stored in KV
+  if (env.AUTH_KV) {
+    const token = await env.AUTH_KV.get(KV_TOKEN);
+    if (token) return token;
   }
 
-  // 2. No valid cached token — exchange the refresh token for a new one
-  const refreshToken = (kv && await kv.get(KV_REFRESH)) || env.SHOPIFY_REFRESH_TOKEN;
-
-  if (!refreshToken) {
-    const missing = ['SHOPIFY_CLIENT_ID', 'SHOPIFY_CLIENT_SECRET', 'SHOPIFY_REFRESH_TOKEN', 'SHOPIFY_STORE']
-      .filter(k => !env[k]);
-    throw new Error(
-      `Shopify auth not configured. Missing env vars: ${missing.length ? missing.join(', ') : 'none (but KV has no refresh token)'}. ` +
-      `If you just added these in Cloudflare, trigger a new deployment for them to take effect.`
-    );
-  }
-
-  const tokenRes = await fetch(
-    `https://${env.SHOPIFY_STORE}/admin/oauth/access_token`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_id:     env.SHOPIFY_CLIENT_ID,
-        client_secret: env.SHOPIFY_CLIENT_SECRET,
-        grant_type:    'refresh_token',
-        refresh_token: refreshToken,
-      }),
-    }
+  // 3. Nothing configured
+  throw new Error(
+    'Shopify API token not configured. ' +
+    'Either set SHOPIFY_TOKEN as an env var (static Admin API token), ' +
+    'or visit /api/auth/shopify-install to connect your Shopify store via OAuth.'
   );
-
-  if (!tokenRes.ok) {
-    const body = await tokenRes.text();
-    throw new Error(
-      `Shopify token refresh failed (${tokenRes.status}): ${body}`
-    );
-  }
-
-  const tokenData = await tokenRes.json();
-  const accessToken  = tokenData.access_token;
-  const newRefresh   = tokenData.refresh_token;
-
-  // 3. Cache the new tokens in KV
-  if (kv) {
-    // Cache access token for 50 minutes (tokens expire at 60 min)
-    await kv.put(KV_ACCESS, accessToken, { expirationTtl: 3000 });
-
-    // Persist the new refresh token (replaces the old single-use one)
-    if (newRefresh) {
-      await kv.put(KV_REFRESH, newRefresh);
-    }
-  }
-
-  return accessToken;
 }
 
 /**
@@ -104,14 +53,15 @@ export async function shopifyGQL(env, query, variables) {
   );
 
   if (res.status === 401 || res.status === 403) {
-    // Token may have expired between our check and the API call — clear cache
+    // Token is invalid — clear cached KV token so the next request
+    // doesn't keep using it
     if (env.AUTH_KV) {
-      await env.AUTH_KV.delete(KV_ACCESS);
+      await env.AUTH_KV.delete(KV_TOKEN);
     }
     throw new Error(
-      `Shopify ${res.status} — token may be invalid. Check your app scopes ` +
-      `(read_customers, write_customers, read_products, read_collections) ` +
-      `and environment variables.`
+      `Shopify ${res.status} — token is invalid or lacks required scopes. ` +
+      `Visit /api/auth/shopify-install to reconnect, or check your app scopes ` +
+      `(read_customers, write_customers, read_products, read_collections).`
     );
   }
 
