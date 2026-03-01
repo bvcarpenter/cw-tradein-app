@@ -1420,7 +1420,11 @@ async function kvSaveSession(key, data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ key, data })
   });
-  if (!r.ok) throw new Error('Save failed: ' + r.status);
+  if (!r.ok) {
+    const body = await r.text().catch(() => '');
+    console.error('kvSaveSession failed:', r.status, body);
+    throw new Error('Save failed: ' + r.status);
+  }
   return await r.json();
 }
 
@@ -1484,12 +1488,24 @@ async function deleteSession(key) {
 async function finalizeSession(key) {
   if (!confirm('Mark this session as Finalized?')) return;
   try {
-    const r = await fetch('/api/sessions?key=' + encodeURIComponent(key));
-    if (!r.ok) { alert('Session not found.'); return; }
-    const { data } = await r.json();
+    let data = null;
+    try {
+      const r = await fetch('/api/sessions?key=' + encodeURIComponent(key));
+      if (r.ok) { data = (await r.json()).data; }
+    } catch(e) { /* fall through to localStorage */ }
+    if (!data) {
+      const raw = localStorage.getItem(key);
+      if (raw) data = JSON.parse(raw);
+    }
+    if (!data) { alert('Session not found.'); return; }
     data.finalized = true;
     data.finalizedAt = new Date().toISOString();
-    await kvSaveSession(key, data);
+    try {
+      await kvSaveSession(key, data);
+    } catch(e) {
+      // Save finalized state to localStorage
+      localStorage.setItem(key, JSON.stringify(data));
+    }
     renderSessionsMgr();
     showToast('Session finalized ✓');
   } catch(e) { alert('Error finalizing: ' + e.message); }
