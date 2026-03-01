@@ -336,7 +336,7 @@ body {
   </a>
   <div class="hdr-r">
     <span class="badge" id="badge">0 Items</span>
-    <button class="btn-hdr" onclick="goExport()">Export Session</button>
+    <button class="btn-hdr" onclick="saveAndNew()">Save <em style="font-style:italic">//</em> New</button>
   </div>
 </header>
 
@@ -1360,12 +1360,7 @@ function setSelectVal(id, val) {
 }
 
 // ─── MISC ───
-function goExport() {
-  if (!sessionItems.length) { alert('No items in session yet.'); return; }
-  document.getElementById('exp-sec').scrollIntoView({behavior:'smooth'});
-}
-function clrSession() {
-  if (!confirm('Clear all items and start a new session?')) return;
+function resetSessionForm() {
   sessionItems = []; selItem = null; selGrade = null;
   renderCart(); clrItem();
   document.getElementById('exp-sec').classList.remove('vis');
@@ -1374,6 +1369,14 @@ function clrSession() {
   document.querySelectorAll('.loc').forEach(b => b.classList.remove('on'));
   selLoc = '';
   document.getElementById('ship-box').classList.remove('vis');
+  document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
+}
+function clrSession() {
+  if (!confirm('Clear all items and start a new session?')) return;
+  resetSessionForm();
+}
+function saveAndNew() {
+  resetSessionForm();
 }
 </script>
 </body>
