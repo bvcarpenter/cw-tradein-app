@@ -21,6 +21,7 @@ async function shopifyGQL(env, query, variables) {
       body: JSON.stringify({ query, variables }),
     }
   );
+  if (res.status === 403) throw new Error('Shopify 403 Forbidden – reinstall your app to activate the read_customers / write_customers scopes, then update SHOPIFY_TOKEN');
   if (!res.ok) throw new Error(`Shopify returned ${res.status}`);
   const data = await res.json();
   if (data.errors) throw new Error(data.errors[0]?.message || 'GraphQL error');
