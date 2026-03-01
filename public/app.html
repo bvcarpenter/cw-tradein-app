@@ -678,7 +678,7 @@ body {
       </div>
 
       <div class="sel-bar">
-        <div><h4 id="sel-name">—</h4><p id="sel-meta">—</p></div>
+        <div><input type="text" id="sel-name" style="background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--white);font-family:'Jost',sans-serif;font-size:14px;font-weight:500;width:100%;outline:none;padding:2px 0;" oninput="if(selItem)selItem.name=this.value;valAdd();"><p id="sel-meta">—</p></div>
         <button class="btn-chg" onclick="clrItem()">Change Item</button>
       </div>
 
@@ -925,7 +925,7 @@ function useManual() {
   showDet();
 }
 function showDet() {
-  document.getElementById('sel-name').textContent = selItem.name;
+  document.getElementById('sel-name').value = selItem.name;
   document.getElementById('sel-meta').textContent =
     [selItem.systemId, selItem.itemType, selItem.medium, selItem.format, selItem.vendor].filter(Boolean).join(' · ');
   document.getElementById('p-src').textContent = selItem.price > 0 ? 'From catalog' : 'Enter retail price';

@@ -288,11 +288,20 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
     <!-- i. Customer Details -->
     <section class="sec">
       <div class="sec-hd"><span class="sec-n">i.</span><h3>Customer Details</h3></div>
+      <div style="position:relative;margin-bottom:14px;">
+        <span class="srch-icon">&#x1F50D;</span>
+        <input type="text" class="srch-input" id="cust-search" placeholder="Search Shopify customers by name or email…" oninput="dCustSearch(this.value)" autocomplete="off">
+        <div class="srch-res" id="cust-res"></div>
+      </div>
       <div class="fg t3" style="margin-bottom:16px;">
         <div class="fld"><label><span>First Name</span> <span style="color:var(--accent)">*</span></label><input type="text" id="c-first" placeholder="Jane" required></div>
         <div class="fld"><label><span>Last Name</span> <span style="color:var(--accent)">*</span></label><input type="text" id="c-last" placeholder="Smith" required></div>
         <div class="fld"><label>Phone</label><input type="tel" id="c-phone" placeholder="(760) 555-0100"></div>
         <div class="fld ff"><label>Email <span style="color:var(--accent)">*</span></label><input type="email" id="c-email" placeholder="jane@email.com" required></div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <button class="btn btn-ol" id="shopify-cust-btn" onclick="saveCustomerToShopify()" style="font-size:10px;padding:6px 14px;">Save New Customer to Shopify</button>
+        <span id="shopify-cust-msg" style="font-size:10px;color:var(--dim);margin-left:8px;"></span>
       </div>
       <span class="sl">Preferred Location *</span>
       <div class="loc-row">
@@ -839,8 +848,79 @@ async function runSearch(q) {
 
 function pickResult(i) { const p = searchResultsCache[i]; if (p) selProduct(p); }
 function closeRes() { document.getElementById('srch-res').style.display = 'none'; }
-document.addEventListener('click', e => { if (!e.target.closest('.srch-wrap')) closeRes(); });
+document.addEventListener('click', e => { if (!e.target.closest('.srch-wrap')) closeRes(); if (!e.target.closest('#cust-search') && !e.target.closest('#cust-res')) closeCustRes(); });
 function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ════════════════════════════════════════════
+// SHOPIFY CUSTOMER SEARCH / CREATE
+// ════════════════════════════════════════════
+let custSearchT = null;
+function dCustSearch(v) {
+  clearTimeout(custSearchT);
+  const el = document.getElementById('cust-res');
+  v = v.trim();
+  if (v.length < 2) { closeCustRes(); return; }
+  el.innerHTML = '<div class="no-res">Searching…</div>';
+  el.style.display = 'block';
+  custSearchT = setTimeout(() => fetchCustSearch(v), 300);
+}
+async function fetchCustSearch(q) {
+  const el = document.getElementById('cust-res');
+  try {
+    const r = await fetch('/api/customers?q=' + encodeURIComponent(q));
+    const d = await r.json();
+    const custs = d.customers || [];
+    if (!custs.length) {
+      el.innerHTML = '<div class="no-res">No customers found</div>';
+    } else {
+      el.innerHTML = custs.map((c, i) =>
+        `<div class="ri" onclick="pickCustomer(${i})">
+          <div style="flex:1;min-width:0;">
+            <div class="ri-n">${esc(c.first)} ${esc(c.last)}</div>
+            <div class="ri-m">${esc(c.email)}${c.phone ? ' · ' + esc(c.phone) : ''}</div>
+          </div>
+        </div>`
+      ).join('');
+      window._custCache = custs;
+    }
+    el.style.display = 'block';
+  } catch (err) {
+    el.innerHTML = '<div class="no-res">Search failed</div>';
+  }
+}
+function pickCustomer(i) {
+  const c = window._custCache?.[i];
+  if (!c) return;
+  document.getElementById('c-first').value = c.first;
+  document.getElementById('c-last').value = c.last;
+  document.getElementById('c-email').value = c.email;
+  document.getElementById('c-phone').value = c.phone;
+  document.getElementById('cust-search').value = '';
+  closeCustRes();
+}
+function closeCustRes() { document.getElementById('cust-res').style.display = 'none'; }
+
+async function saveCustomerToShopify() {
+  const first = document.getElementById('c-first').value.trim();
+  const last  = document.getElementById('c-last').value.trim();
+  const email = document.getElementById('c-email').value.trim();
+  const phone = document.getElementById('c-phone').value.trim();
+  const msg   = document.getElementById('shopify-cust-msg');
+  if (!first || !last || !email) { msg.textContent = 'First name, last name, and email are required.'; msg.style.color = '#e07070'; return; }
+  msg.textContent = 'Saving…'; msg.style.color = 'var(--dim)';
+  try {
+    const r = await fetch('/api/customers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ first, last, email, phone }),
+    });
+    const d = await r.json();
+    if (d.error) { msg.textContent = d.error; msg.style.color = '#e07070'; return; }
+    msg.textContent = 'Customer saved to Shopify!'; msg.style.color = '#2a9d4a';
+  } catch (err) {
+    msg.textContent = 'Failed to save customer.'; msg.style.color = '#e07070';
+  }
+}
 
 // ════════════════════════════════════════════
 // SELECT PRODUCT
@@ -1287,7 +1367,6 @@ function buildPrint() {
       </td>
       <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:center;white-space:nowrap;vertical-align:top;">${it.systemId||'—'}</td>
       <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:center;font-weight:500;vertical-align:top;">${it.grade}</td>
-      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:right;vertical-align:top;">${ff(it.retail)}</td>
       <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:right;color:#2a7a4a;vertical-align:top;">${ff(it.tradein)}</td>
       <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:right;font-weight:500;vertical-align:top;">${ff(it.net)}${(it.svcCharge||0)>0?`<br><span style="font-size:9px;color:#c44;font-weight:400;">&#8722;${ff(it.svcCharge)} svc${it.svcReason?' ('+it.svcReason+')':''}</span>`:''}</td>
     </tr>`;
@@ -1326,7 +1405,6 @@ function buildPrint() {
       <th style="padding:8px 7px;text-align:left;font-size:8px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;">Description</th>
       <th style="padding:8px 7px;text-align:center;font-size:8px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;">System</th>
       <th style="padding:8px 7px;text-align:center;font-size:8px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;">Grade</th>
-      <th style="padding:8px 7px;text-align:right;font-size:8px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;">Retail</th>
       <th style="padding:8px 7px;text-align:right;font-size:8px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;">Trade-In</th>
       <th style="padding:8px 7px;text-align:right;font-size:8px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;">Net Price</th>
     </tr></thead>
@@ -1334,14 +1412,13 @@ function buildPrint() {
     <tfoot>
       <tr style="background:#f5f5f0;">
         <td colspan="3" style="padding:9px 7px;font-size:9px;color:#999;">${sessionItems.length} item${sessionItems.length!==1?'s':''}</td>
-        <td style="padding:9px 7px;text-align:right;font-size:11px;">${ff(sessionItems.reduce((s,i)=>s+i.retail,0))}</td>
         <td style="padding:9px 7px;text-align:right;font-size:11px;color:#2a7a4a;">${ff(sessionItems.reduce((s,i)=>s+i.tradein,0))}</td>
         <td style="padding:9px 7px;text-align:right;font-family:'Palatino Linotype',serif;font-size:15px;font-weight:300;color:#d95e00;">Net: ${ff(totNet)}</td>
       </tr>
-      ${svcGrand>0?`<tr style="background:#fff5f5;"><td colspan="5" style="padding:6px 7px;text-align:right;font-size:10px;color:#c44;">Total Service Charges</td><td style="padding:6px 7px;text-align:right;font-size:11px;color:#c44;">&#8722;${ff(svcGrand)}</td></tr>`:''}
-      ${taxRate>0?`<tr style="background:#fafafa;"><td colspan="5" style="padding:6px 7px;text-align:right;font-size:10px;color:#777;">Est. Tax (${(taxRate*100).toFixed(3).replace(/\.?0+$/,'')}%)</td><td style="padding:6px 7px;text-align:right;font-size:11px;color:#555;">${ff(estTax)}</td></tr>`:''}
-      ${taxRate>0?`<tr style="background:#fafafa;border-top:1px solid #ddd;"><td colspan="5" style="padding:7px 7px;text-align:right;font-size:10px;color:#777;letter-spacing:.05em;">Est. Grand Total</td><td style="padding:7px 7px;text-align:right;font-family:'Palatino Linotype',serif;font-size:16px;font-weight:300;color:#d95e00;">${ff(estGrand)}</td></tr>`:''}
-      ${finalTot?`<tr style="background:#0e0e0e;"><td colspan="5" style="padding:9px 7px;text-align:right;font-size:10px;color:#aaa;letter-spacing:.1em;text-transform:uppercase;">Final Total After Tax</td><td style="padding:9px 7px;text-align:right;font-family:'Palatino Linotype',serif;font-size:18px;font-weight:300;color:#fff;">$${esc(finalTot)}</td></tr>`:''}
+      ${svcGrand>0?`<tr style="background:#fff5f5;"><td colspan="4" style="padding:6px 7px;text-align:right;font-size:10px;color:#c44;">Total Service Charges</td><td style="padding:6px 7px;text-align:right;font-size:11px;color:#c44;">&#8722;${ff(svcGrand)}</td></tr>`:''}
+      ${taxRate>0?`<tr style="background:#fafafa;"><td colspan="4" style="padding:6px 7px;text-align:right;font-size:10px;color:#777;">Est. Tax (${(taxRate*100).toFixed(3).replace(/\.?0+$/,'')}%)</td><td style="padding:6px 7px;text-align:right;font-size:11px;color:#555;">${ff(estTax)}</td></tr>`:''}
+      ${taxRate>0?`<tr style="background:#fafafa;border-top:1px solid #ddd;"><td colspan="4" style="padding:7px 7px;text-align:right;font-size:10px;color:#777;letter-spacing:.05em;">Est. Grand Total</td><td style="padding:7px 7px;text-align:right;font-family:'Palatino Linotype',serif;font-size:16px;font-weight:300;color:#d95e00;">${ff(estGrand)}</td></tr>`:''}
+      ${finalTot?`<tr style="background:#0e0e0e;"><td colspan="4" style="padding:9px 7px;text-align:right;font-size:10px;color:#aaa;letter-spacing:.1em;text-transform:uppercase;">Final Total After Tax</td><td style="padding:9px 7px;text-align:right;font-family:'Palatino Linotype',serif;font-size:18px;font-weight:300;color:#fff;">$${esc(finalTot)}</td></tr>`:''}
     </tfoot>
   </table>
   <div style="border-left:2px solid #d95e00;padding:8px 13px;font-size:10px;color:#777;margin-bottom:20px;line-height:1.8;letter-spacing:.02em;">
