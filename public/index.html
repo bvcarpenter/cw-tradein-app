@@ -869,6 +869,11 @@ async function fetchCustSearch(q) {
   try {
     const r = await fetch('/api/customers?q=' + encodeURIComponent(q));
     const d = await r.json();
+    if (d.error) {
+      el.innerHTML = '<div class="no-res" style="color:#e07070">Error: ' + esc(d.error) + '</div>';
+      el.style.display = 'block';
+      return;
+    }
     const custs = d.customers || [];
     if (!custs.length) {
       el.innerHTML = '<div class="no-res">No customers found</div>';
@@ -885,7 +890,8 @@ async function fetchCustSearch(q) {
     }
     el.style.display = 'block';
   } catch (err) {
-    el.innerHTML = '<div class="no-res">Search failed</div>';
+    el.innerHTML = '<div class="no-res" style="color:#e07070">Search failed: ' + esc(err.message) + '</div>';
+    el.style.display = 'block';
   }
 }
 function pickCustomer(i) {
