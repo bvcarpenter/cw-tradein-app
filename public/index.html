@@ -234,7 +234,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
   <div class="hdr-r">
     <span class="badge" id="badge">0 Items</span>
     <button class="btn-hdr" onclick="doLogout()" style="background:transparent;border:1px solid rgba(245,245,240,.2);color:var(--dim);" title="Sign out">⏻</button>
-    <button class="btn-hdr" onclick="openSessionsMgr()" style="background:transparent;border:1px solid rgba(245,245,240,.3);color:var(--white);">Sessions</button><button class="btn-hdr" onclick="saveSession()">Save Session</button><button class="btn-hdr" onclick="goExport()">Export Session</button>
+    <button class="btn-hdr" onclick="openSessionsMgr()" style="background:transparent;border:1px solid rgba(245,245,240,.3);color:var(--white);">Sessions</button><button class="btn-hdr" onclick="saveAndNew()">Save <em style="font-style:italic">//</em> New</button>
   </div>
 </header>
 
@@ -1393,71 +1393,41 @@ function openSessionsMgr() {
 function closeSessionsMgr() {
   document.getElementById('mo-sessions').style.display = 'none';
 }
-function smSetTab(tab) {
+function smTab(tab, btn) {
   _smTab = tab;
-  document.querySelectorAll('.sm-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('#mo-sessions .tnav').forEach(t => t.classList.remove('on'));
+  if (btn) btn.classList.add('on');
   renderSessionsMgr();
 }
 // ════════════════════════════════════════════
 // SHARED SESSION STORAGE (Cloudflare KV via /api/sessions)
 // ════════════════════════════════════════════
 
-// ════════════════════════════════════════════
-// SHARED SESSION STORAGE — GitHub JSON backend
-// Sessions stored in data/sessions.json in the repo
-// All browsers share the same file — no KV needed
-// ════════════════════════════════════════════
-const GH_TOKEN  = ['ghp_','6OtMenuMONa1T3oB2','9iDkGj83By62D4AX4E8'].join('');
-const GH_REPO   = 'bvcarpenter/cw-tradein-app';
-const GH_FILE   = 'data/sessions.json';
-const GH_API    = 'https://api.github.com/repos/' + GH_REPO + '/contents/' + GH_FILE;
-const GH_HEADS  = { 'Authorization': 'token ' + GH_TOKEN, 'Content-Type': 'application/json' };
-
-function ghB64Enc(str) {
-  const bytes = new TextEncoder().encode(str);
-  let bin = '';
-  for (let i = 0; i < bytes.length; i += 0x8000)
-    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(bin);
-}
-
-// Read all sessions from GitHub JSON file
-async function ghReadSessions() {
+async function kvReadSessions() {
   try {
-    const r = await fetch(GH_API + '?t=' + Date.now(), { headers: GH_HEADS });
-    if (r.status === 404) return { sessions: [], sha: null };
-    const j = await r.json();
-    const content = JSON.parse(new TextDecoder().decode(
-      Uint8Array.from(atob(j.content.replace(/\n/g, '')), c => c.charCodeAt(0))
-    ));
-    return { sessions: content.sessions || [], sha: j.sha };
+    const r = await fetch('/api/sessions');
+    if (!r.ok) throw new Error('status ' + r.status);
+    return await r.json();
   } catch(e) {
-    console.warn('ghReadSessions error', e);
-    return { sessions: [], sha: null };
+    console.warn('kvReadSessions error', e);
+    return [];
   }
 }
 
-// Write all sessions back to GitHub
-async function ghWriteSessions(sessions, fileSha) {
-  const body = { message: 'Update sessions', content: ghB64Enc(JSON.stringify({ sessions }, null, 2)) };
-  if (fileSha) body.sha = fileSha;
-  const r = await fetch(GH_API, { method: 'PUT', headers: GH_HEADS, body: JSON.stringify(body) });
-  if (!r.ok) { const e = await r.json(); throw new Error(e.message || r.status); }
-  return (await r.json()).content.sha;
+async function kvSaveSession(key, data) {
+  const r = await fetch('/api/sessions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key, data })
+  });
+  if (!r.ok) throw new Error('Save failed: ' + r.status);
+  return await r.json();
 }
 
-// Retry wrapper — GitHub sometimes needs a moment after a write
-async function ghWriteWithRetry(sessions, fileSha, retries = 3) {
-  for (let i = 0; i < retries; i++) {
-    try { return await ghWriteSessions(sessions, fileSha); }
-    catch(e) {
-      if (i === retries - 1) throw e;
-      // Re-read SHA on conflict
-      const fresh = await ghReadSessions();
-      fileSha = fresh.sha;
-      await new Promise(r => setTimeout(r, 500 * (i + 1)));
-    }
-  }
+async function kvDeleteSession(key) {
+  const r = await fetch('/api/sessions?key=' + encodeURIComponent(key), { method: 'DELETE' });
+  if (!r.ok) throw new Error('Delete failed: ' + r.status);
+  return await r.json();
 }
 
 async function saveSession() {
@@ -1469,9 +1439,7 @@ async function saveSession() {
   data.key = key;
   showToast('Saving…');
   try {
-    const { sessions, sha } = await ghReadSessions();
-    sessions.push({ key, name, savedAt: data.savedAt, data });
-    await ghWriteWithRetry(sessions, sha);
+    await kvSaveSession(key, data);
     showToast('Session saved ✓');
   } catch(e) {
     // Fallback to localStorage
@@ -1486,9 +1454,13 @@ async function saveSession() {
 async function loadSession(key) {
   if (!confirm('Load this session? Current session data will be replaced.')) return;
   try {
-    const { sessions } = await ghReadSessions();
-    const s = sessions.find(s => s.key === key);
-    const data = s?.data || JSON.parse(localStorage.getItem(key));
+    const r = await fetch('/api/sessions?key=' + encodeURIComponent(key));
+    let data = null;
+    if (r.ok) {
+      const result = await r.json();
+      data = result.data;
+    }
+    if (!data) data = JSON.parse(localStorage.getItem(key));
     if (!data) { alert('Session not found.'); return; }
     restoreSessionData(data);
     showToast('Session loaded.');
@@ -1498,10 +1470,8 @@ async function loadSession(key) {
 async function deleteSession(key) {
   if (!confirm('Delete this saved session?')) return;
   try {
-    const { sessions, sha } = await ghReadSessions();
-    const updated = sessions.filter(s => s.key !== key);
-    await ghWriteWithRetry(updated, sha);
-  } catch(e) { console.warn('delete gh err', e); }
+    await kvDeleteSession(key);
+  } catch(e) { console.warn('delete kv err', e); }
   localStorage.removeItem(key);
   const all = JSON.parse(localStorage.getItem('cwti_sessions') || '[]').filter(s => s.key !== key);
   localStorage.setItem('cwti_sessions', JSON.stringify(all));
@@ -1511,12 +1481,12 @@ async function deleteSession(key) {
 async function finalizeSession(key) {
   if (!confirm('Mark this session as Finalized?')) return;
   try {
-    const { sessions, sha } = await ghReadSessions();
-    const s = sessions.find(s => s.key === key);
-    if (!s) { alert('Session not found.'); return; }
-    s.data.finalized = true;
-    s.data.finalizedAt = new Date().toISOString();
-    await ghWriteWithRetry(sessions, sha);
+    const r = await fetch('/api/sessions?key=' + encodeURIComponent(key));
+    if (!r.ok) { alert('Session not found.'); return; }
+    const { data } = await r.json();
+    data.finalized = true;
+    data.finalizedAt = new Date().toISOString();
+    await kvSaveSession(key, data);
     renderSessionsMgr();
     showToast('Session finalized ✓');
   } catch(e) { alert('Error finalizing: ' + e.message); }
@@ -1529,8 +1499,7 @@ async function renderSessionsMgr() {
 
   let sessions = [];
   try {
-    const result = await ghReadSessions();
-    sessions = result.sessions || [];
+    sessions = await kvReadSessions();
   } catch(e) { console.warn('renderSessionsMgr err', e); }
 
   const q = (document.getElementById('sm-search')?.value || '').toLowerCase().trim();
@@ -1590,8 +1559,7 @@ async function onCmInput(el) {
   if (!val || val.length < 2) return;
   const cust = (document.getElementById('c-first').value.trim() + ' ' + document.getElementById('c-last').value.trim()).trim();
   try {
-    const { sessions, sha } = await ghReadSessions();
-    let changed = false;
+    const sessions = await kvReadSessions();
     for (let i = sessions.length - 1; i >= 0; i--) {
       const s = sessions[i];
       if (s.data?.finalized) continue;
@@ -1600,51 +1568,15 @@ async function onCmInput(el) {
         s.data.finalized = true;
         s.data.finalizedAt = new Date().toISOString();
         s.data.cmNum = val;
-        changed = true;
+        await kvSaveSession(s.key, s.data);
+        showToast('Session auto-finalized ✓');
         break;
       }
-    }
-    if (changed) {
-      await ghWriteWithRetry(sessions, sha);
-      showToast('Session auto-finalized ✓');
     }
   } catch(e) { console.warn('onCmInput err', e); }
 }
 
 
-function getSavedList() {
-  try { return JSON.parse(localStorage.getItem('cwti_sessions') || '[]'); } catch(e) { return []; }
-}
-
-function showSavedSessions() {
-  const panel = document.getElementById('saved-sessions-panel');
-  const list  = getSavedList();
-  if (!list.length) {
-    panel.innerHTML = '<div style="font-size:11px;color:#888;padding:8px 4px;">No saved sessions yet.<br>Use ð¾ Save to store the current session.</div>';
-    panel.style.display = 'block';
-    return;
-  }
-  panel.innerHTML = list.map(s => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #222;gap:6px;">
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(s.name)}</div>
-        <div style="font-size:9px;color:#666;">${new Date(s.savedAt).toLocaleString()}</div>
-      </div>
-      <button class="btn-sm" onclick="loadSession('${s.key}')">Load</button>
-      <button class="btn-sm" onclick="deleteSession('${s.key}')" style="color:#c44;">✕</button>
-    </div>`).join('');
-  panel.style.display = 'block';
-}
-
-// loadSession (stale localStorage version removed)
-
-function deleteSession(key) {
-  if (!confirm('Delete this saved session?')) return;
-  localStorage.removeItem(key);
-  const all = getSavedList().filter(s => s.key !== key);
-  localStorage.setItem('cwti_sessions', JSON.stringify(all));
-  showSavedSessions();
-}
 
 function showToast(msg) {
   let t = document.getElementById('toast');
@@ -1684,24 +1616,28 @@ async function updTax() {
     grandRow.style.display = 'none';
   }
 }
-function goExport() {
-  if (!document.getElementById('c-first').value.trim()) { alert('Customer first name is required.'); document.getElementById('c-first').focus(); return; }
-  if (!document.getElementById('c-last').value.trim()) { alert('Customer last name is required.'); document.getElementById('c-last').focus(); return; }
-  if (!document.getElementById('c-email').value.trim()) { alert('Customer email is required.'); document.getElementById('c-email').focus(); return; }
-  if (!selLoc) { alert('Please select a preferred location.'); return; }
-  if (!sessionItems.length) { alert('No items in session yet.'); return; }
-  document.getElementById('exp-sec').scrollIntoView({ behavior: 'smooth' });
-}
-function clrSession() {
-  if (!confirm('Clear all items and start a new session?')) return;
+function resetSessionForm() {
   sessionItems = []; selItem = null; selGrade = null;
   renderCart(); clrItem();
   document.getElementById('exp-sec').classList.remove('vis');
-  ['c-first','c-last','c-email','c-phone','cm-num','assoc','s-str','s-city','s-st','s-zip']
+  ['c-first','c-last','c-email','c-phone','cm-num','assoc','tracking-num','final-total','s-str','s-city','s-st','s-zip']
     .forEach(id => document.getElementById(id).value = '');
   document.querySelectorAll('.loc').forEach(b => b.classList.remove('on'));
   selLoc = '';
   document.getElementById('ship-box').classList.remove('vis');
+  document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
+}
+function clrSession() {
+  if (!confirm('Clear all items and start a new session?')) return;
+  resetSessionForm();
+}
+async function saveAndNew() {
+  const hasData = sessionItems.length || document.getElementById('c-first').value.trim();
+  if (hasData) {
+    await saveSession();
+  }
+  resetSessionForm();
+  showToast(hasData ? 'Saved — new session started' : 'New session started');
 }
 
 // ════════════════════════════════════════════
