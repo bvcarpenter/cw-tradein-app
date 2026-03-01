@@ -52,7 +52,8 @@ export async function onRequestGet({ request, env }) {
   `;
 
   try {
-    const data = await shopifyGQL(env, gql, { query: q });
+    const searchQuery = `first_name:*${q}* OR last_name:*${q}* OR email:*${q}*`;
+    const data = await shopifyGQL(env, gql, { query: searchQuery });
     const customers = (data.customers?.edges || []).map(({ node }) => ({
       id: node.id,
       first: node.firstName || '',
