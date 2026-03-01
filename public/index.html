@@ -1054,7 +1054,7 @@ function renderCart() {
   cart.innerHTML = sessionItems.map(it => `
     <div class="ci">
       <button class="ci-rm" onclick="rmItem(${it.id})">×</button>
-      <div class="ci-name">${esc(it.name)}${it.serial?` <span style="font-size:10px;color:var(--dim);font-weight:300;">(${esc(it.serial)})</span>`:''}</div>
+      <div class="ci-name">${esc(it.name)}${it.serial?` <span style="font-size:10px;color:var(--dim);font-weight:300;">${esc(it.serial)}</span>`:''}</div>
       <div class="ci-sub">${[it.systemId, it.itemType].filter(Boolean).join(' · ')}</div>
       <div class="ci-row">
         <span class="gpill">${it.grade}</span>
@@ -1235,7 +1235,7 @@ function buildPrint() {
     const sn = [it.serial?`S/N: ${it.serial}`:'', it.catalog?`Cat: ${it.catalog}`:''].filter(Boolean).join(' · ');
     return `<tr>
       <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;vertical-align:top;line-height:1.45;">
-        <strong style="font-weight:500;">${esc(it.name)}${it.serial?' ('+esc(it.serial)+')':''}</strong>${ac}${nt}
+        <strong style="font-weight:500;">${esc(it.name)}${it.serial?' '+esc(it.serial):''}</strong>${ac}${nt}
         ${sn?`<br><span style="color:#aaa;font-size:10px;">${sn}</span>`:''}
       </td>
       <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:center;white-space:nowrap;vertical-align:top;">${it.systemId||'—'}</td>
