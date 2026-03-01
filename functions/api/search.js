@@ -2,12 +2,11 @@
  * GET /api/search?q=leica&limit=20
  *
  * Searches Shopify products by title.
- * Auth handled by Cloudflare Access.
- *
- * Environment variables:
- *   SHOPIFY_STORE  â€” camerawest.myshopify.com
- *   SHOPIFY_TOKEN  â€” shpat_xxx (Admin API token, set as secret)
+ * Uses OAuth token rotation via _shopify.js helper.
+ * Environment variables: see _shopify.js
  */
+
+import { shopifyGQL } from './_shopify.js';
 
 export async function onRequestGet({ request, env }) {
   const corsHeaders = { 'Content-Type': 'application/json' };
@@ -42,32 +41,9 @@ export async function onRequestGet({ request, env }) {
   `;
 
   try {
-    const shopifyRes = await fetch(
-      `https://${env.SHOPIFY_STORE}/admin/api/2024-10/graphql.json`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': env.SHOPIFY_TOKEN,
-        },
-        body: JSON.stringify({
-          query: graphql,
-          variables: { query: `title:*${query}*`, limit },
-        }),
-      }
-    );
+    const data = await shopifyGQL(env, graphql, { query: `title:*${query}*`, limit });
 
-    if (!shopifyRes.ok) {
-      throw new Error(`Shopify returned ${shopifyRes.status}`);
-    }
-
-    const data = await shopifyRes.json();
-
-    if (data.errors) {
-      throw new Error(data.errors[0]?.message || 'GraphQL error');
-    }
-
-    const edges = data?.data?.products?.edges || [];
+    const edges = data?.products?.edges || [];
 
     const CAM_T = new Set(['Bodies','Instant','Cine','Video','Scanners']);
     const LEN_T = new Set(['Lenses','Filters','UV Filters','ND Filters','Close Up',

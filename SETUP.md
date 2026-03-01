@@ -36,12 +36,19 @@ Staff flow:
 
 ## Step 1 — Get Shopify credentials
 
-### Admin API token
-1. **Shopify Admin → Settings → Apps and sales channels → Develop apps**
-2. **Create an app** → name it `Trade-In Search`
-3. **Configure Admin API scopes** → enable `read_products`, `read_collections`
-4. **Save → Install app**
-5. Copy the **Admin API access token** (`shpat_...`) — shown once only
+### Create app in Shopify Dev Dashboard
+1. Go to **partners.shopify.com** (or Shopify Dev Dashboard)
+2. **Apps → Create app** → name it `Trade-In Search`
+3. **Configure API scopes** → enable `read_products`, `read_collections`, `read_customers`, `write_customers`
+4. **Install the app** on your store
+5. After install, you'll receive:
+   - **Client ID** (API key)
+   - **Client Secret** (`shpss_...`)
+   - **Refresh Token** (from the OAuth callback)
+
+> **Note:** Shopify no longer allows creating new custom apps in the admin.
+> Apps must be created through the Dev Dashboard. These use rotating OAuth
+> tokens instead of static `shpat_...` tokens.
 
 ### Collection ID
 1. **Shopify Admin → Products → Collections** → click your pre-owned collection
@@ -117,8 +124,15 @@ In **Workers & Pages → cw-tradein-app → Settings → Environment variables**
 | `APP_URL` | `https://cw-tradein-app.pages.dev` | No |
 | `FROM_EMAIL` | `noreply@camerawest.com` | No |
 | `SHOPIFY_STORE` | `camerawest.myshopify.com` | No |
-| `SHOPIFY_TOKEN` | `shpat_xxxx...` | **Yes — click Encrypt** |
+| `SHOPIFY_CLIENT_ID` | Your app's API key | No |
+| `SHOPIFY_CLIENT_SECRET` | `shpss_xxxx...` | **Yes — click Encrypt** |
+| `SHOPIFY_REFRESH_TOKEN` | Initial refresh token | **Yes — click Encrypt** |
 | `COLLECTION_ID` | `123456789` | No |
+
+> **How token rotation works:** The app automatically exchanges the refresh
+> token for a short-lived access token (~1 hour). Both tokens are cached in
+> KV. The refresh token in the env var is only used on the very first run —
+> after that, the latest refresh token is stored in KV automatically.
 
 Click **Save and Deploy** — Cloudflare will redeploy automatically.
 
