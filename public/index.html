@@ -409,6 +409,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
       <div class="fg" style="margin-bottom:18px;">
         <div class="fld"><label>Serial Number</label><input type="text" id="serial" placeholder="Optional"></div>
         <div class="fld"><label>Catalog Number (MPN)</label><input type="text" id="catalog" placeholder="Optional"></div>
+        <div class="fld"><label>Amazon ASIN</label><input type="text" id="asin" placeholder="Auto-populated from catalog" readonly style="color:var(--dim);"></div>
       </div>
       <span class="sl">Cosmetic Grade *</span>
       <div class="grade-row" id="grade-row"></div>
@@ -732,13 +733,14 @@ async function loadCSV() {
       const it     = get('Type');
       const m      = get('Medium');
       const fmt    = get('Format');
+      const asin   = get('Amazon ASIN');
       const price  = parseFloat(get('Price')) || 0;
 
       let cat = 'accessory';
       if (CAM_T.has(it)) cat = 'camera';
       else if (LEN_T.has(it)) cat = 'lens';
 
-      return { n: cleanedTitle, rawTitle, si, it, m, fmt, grade, p: price, cat, sku };
+      return { n: cleanedTitle, rawTitle, si, it, m, fmt, asin, grade, p: price, cat, sku };
     }).filter(Boolean);
 
     productsLoaded = true;
@@ -838,7 +840,7 @@ function selProduct(p) {
   else if (LEN_T.has(p.it)) cat = 'lens';
   const fmt = p.fmt || inferFormat(p.si || '', p.it || '');
   selItem = { name: p.n, vendor: '', systemId: p.si||'', itemType: p.it||'',
-              medium: p.m||'', price: p.p||0, sku: p.sku||'', format: fmt, category: cat };
+              medium: p.m||'', price: p.p||0, sku: p.sku||'', format: fmt, category: cat, asin: p.asin||'' };
   setSelectVal('m-sys', p.si||'');
   setSelectVal('m-type', p.it||'');
   setSelectVal('m-med', p.m||'');
@@ -882,6 +884,7 @@ function showDet() {
   document.getElementById('r-override').value = '';
   document.getElementById('serial').value = '';
   document.getElementById('catalog').value = '';
+  document.getElementById('asin').value = selItem.asin || '';
   document.getElementById('notes').value = '';
   updPricing();
   document.getElementById('det-sec').classList.add('vis');
@@ -1024,6 +1027,7 @@ function addItem() {
     const accs=[...document.querySelectorAll('.achip.on')].map(c=>c.querySelector('span').textContent);
     const upd={id:_editingId,name:selItem.name,vendor:selItem.vendor,systemId:selItem.systemId,
       itemType:selItem.itemType,medium:selItem.medium,format:selItem.format||'',category:selItem.category,sku:selItem.sku,
+      asin:document.getElementById('asin').value.trim(),
       serial:document.getElementById('serial').value.trim(),catalog:document.getElementById('catalog').value.trim(),
       grade:selGrade,accessories:accs,notes:document.getElementById('notes').value.trim(),
       retail:ret,tradein:ti,outright:or,net,priceType:selPT,svcCharge,svcReason};
@@ -1048,7 +1052,7 @@ function addItem() {
     id: Date.now(),
     name: selItem.name, vendor: selItem.vendor, systemId: selItem.systemId,
     itemType: selItem.itemType, medium: selItem.medium, format: selItem.format||'',
-    category: selItem.category, sku: selItem.sku,
+    category: selItem.category, sku: selItem.sku, asin: document.getElementById('asin').value.trim(),
     serial:  document.getElementById('serial').value.trim(),
     catalog: document.getElementById('catalog').value.trim(),
     grade: selGrade, accessories: accs,
@@ -1105,11 +1109,12 @@ function editItem(id) {
   const it = sessionItems.find(i => i.id === id);
   if (!it) return;
   _editingId = id;
-  selItem = {name:it.name,vendor:it.vendor,systemId:it.systemId,itemType:it.itemType,medium:it.medium,format:it.format||'',category:it.category,sku:it.sku,price:it.retail};
+  selItem = {name:it.name,vendor:it.vendor,systemId:it.systemId,itemType:it.itemType,medium:it.medium,format:it.format||'',category:it.category,sku:it.sku,asin:it.asin||'',price:it.retail};
   selGrade=it.grade; selPT=it.priceType;
   showDet();
   document.getElementById('serial').value=it.serial||'';
   document.getElementById('catalog').value=it.catalog||'';
+  document.getElementById('asin').value=it.asin||'';
   document.getElementById('notes').value=it.notes||'';
   document.getElementById('r-override').value='';
   document.getElementById('svc-charge').value=it.svcCharge||'';
@@ -1155,10 +1160,10 @@ function exportXLSX() {
     'Cosmetic Condition','Main Department','Sub Department','Sublet Department',
     'Purchase Price','Item Pricing 1 : Price (Req)','Item Vendors 1 : Vendor (Req)',
     'Buy It Now','Auto Accept',null,'Item Name/Number',
-    'Amazon Shipping','Amazon Condition','Best offer','Best offer Minimum','Type'];
+    'Amazon Shipping','Amazon Condition','Best offer','Best offer Minimum','Type','Amazon ASIN'];
   const H2 = ['Item #','Display Name','Serial Number','Catalog Number','System ID','Brand','Grade',
     'Main','Sub','Sublet','Net','Retail','Origin Store','BIN','AA','margin',
-    'Do Not Modify','Do Not Modify','Do Not Modify','Do Not Modify','Do Not Modify',null];
+    'Do Not Modify','Do Not Modify','Do Not Modify','Do Not Modify','Do Not Modify',null,'ASIN'];
 
   const rows = [H1, H2];
   sessionItems.forEach((it, i) => {
@@ -1176,12 +1181,12 @@ function exportXLSX() {
       {f:`IF(B${r}="",A${r}&" ("&F${r}&")",A${r}&" "&B${r})`},
       {f:`IF(N${r}>500,"Prime Nationwide","Purely Free Shipping")`},
       {f:`IF(G${r}="10-","Used - Like New",IF(G${r}="9+","Used - Very Good",IF(G${r}="8+","Used - Good",IF(G${r}=9,"Used - Very Good","Used - Acceptable"))))`},
-      {f:`IF(O${r}<>"","Yes","No")`}, {f:`O${r}-0.01`}, {f:`H${r}&" "&I${r}`}
+      {f:`IF(O${r}<>"","Yes","No")`}, {f:`O${r}-0.01`}, {f:`H${r}&" "&I${r}`}, it.asin||null
     ]);
   });
   const ws1 = XLSX.utils.aoa_to_sheet(rows);
   ws1['!cols'] = [{wch:20},{wch:50},{wch:15},{wch:15},{wch:20},{wch:15},{wch:8},{wch:10},{wch:14},{wch:16},
-    {wch:12},{wch:12},{wch:18},{wch:12},{wch:12},{wch:8},{wch:50},{wch:20},{wch:20},{wch:10},{wch:12},{wch:20}];
+    {wch:12},{wch:12},{wch:18},{wch:12},{wch:12},{wch:8},{wch:50},{wch:20},{wch:20},{wch:10},{wch:12},{wch:20},{wch:14}];
   XLSX.utils.book_append_sheet(wb, ws1, 'Main Sheet');
 
   const outRows = [['Item','Grade','Credit']];
