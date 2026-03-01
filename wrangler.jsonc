@@ -1,8 +1,12 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "cw-tradein-app",
+  "main": "src/worker.js",
   "compatibility_date": "2025-09-27",
   "observability": { "enabled": true },
-  "assets": { "directory": "public" },
-  "compatibility_flags": ["nodejs_compat"]
+  "assets": { "directory": "public", "binding": "ASSETS" },
+  "compatibility_flags": ["nodejs_compat"],
+  "kv_namespaces": [
+    { "binding": "AUTH_KV", "id": "91d5bcedfb494fdda4137fdb243dfbe5" }
+  ]
 }
