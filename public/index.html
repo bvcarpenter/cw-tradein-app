@@ -163,7 +163,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
 
 /* VISIBILITY */
 .det{display:none}.det.vis{display:block}
-.exp{display:none}.exp.vis{display:block}
+.exp{display:block}
 .exp-acts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:14px}
 
 /* SERIAL POPUP */
@@ -466,7 +466,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
     </section>
 
     <!-- iv. Export // Print -->
-    <section class="sec exp" id="exp-sec">
+    <section class="sec" id="exp-sec">
       <div class="sec-hd"><span class="sec-n">iv.</span><h3>Export <em style="font-style:italic;color:var(--accent)">//</em> Print</h3></div>
       <div class="fg t3" style="margin-bottom:0;">
         <div class="fld"><label>Credit Memo # (from ERP)</label><input type="text" id="cm-num" placeholder="CM00000" oninput="onCmInput(this)"></div>
@@ -1035,7 +1035,6 @@ function addItem() {
     _editingId=null;
     document.getElementById('add-btn').textContent='Add to Session';
     clrItem();renderCart();
-    document.getElementById('exp-sec').classList.add('vis');
     showToast('Item updated.');return;
   }
   const ov   = parseFloat(document.getElementById('r-override').value);
@@ -1061,7 +1060,6 @@ function addItem() {
   });
   clrItem();
   renderCart();
-  document.getElementById('exp-sec').classList.add('vis');
   if (!document.getElementById('txn-date').value)
     document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
 }
@@ -1101,7 +1099,6 @@ function renderCart() {
 function rmItem(id) {
   sessionItems = sessionItems.filter(i => i.id !== id);
   renderCart();
-  if (!sessionItems.length) document.getElementById('exp-sec').classList.remove('vis');
 }
 
 let _editingId = null;
@@ -1729,7 +1726,6 @@ async function updTax() {
 function resetSessionForm() {
   sessionItems = []; selItem = null; selGrade = null;
   renderCart(); clrItem();
-  document.getElementById('exp-sec').classList.remove('vis');
   ['c-first','c-last','c-email','c-phone','cm-num','assoc','tracking-num','final-total','s-str','s-city','s-st','s-zip']
     .forEach(id => document.getElementById(id).value = '');
   document.querySelectorAll('.loc').forEach(b => b.classList.remove('on'));
