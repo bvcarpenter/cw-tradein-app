@@ -5,6 +5,7 @@
 import { onRequestGet as sessionsGet, onRequestPost as sessionsPost, onRequestDelete as sessionsDelete, onRequestOptions as sessionsOptions } from '../functions/api/sessions.js';
 import { onRequestGet as catalogGet } from '../functions/api/catalog.js';
 import { onRequestGet as searchGet } from '../functions/api/search.js';
+import { onRequestGet as customersGet, onRequestPost as customersPost, onRequestOptions as customersOptions } from '../functions/api/customers.js';
 import { onRequestPost as authRequestPost, onRequestOptions as authRequestOptions } from '../functions/api/auth/request.js';
 import { onRequestGet as authSessionGet, onRequestPost as authSessionPost } from '../functions/api/auth/session.js';
 import { onRequestGet as authVerifyGet } from '../functions/api/auth/verify.js';
@@ -30,6 +31,12 @@ export default {
 
     if (path === '/api/search' && method === 'GET') {
       return searchGet(c);
+    }
+
+    if (path === '/api/customers') {
+      if (method === 'OPTIONS') return customersOptions(c);
+      if (method === 'GET')     return customersGet(c);
+      if (method === 'POST')    return customersPost(c);
     }
 
     if (path === '/api/auth/request') {
