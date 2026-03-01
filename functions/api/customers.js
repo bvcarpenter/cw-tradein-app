@@ -2,31 +2,13 @@
  * GET  /api/customers?q=jane         — search Shopify customers
  * POST /api/customers                — create a new Shopify customer
  *
- * Environment variables:
- *   SHOPIFY_STORE  – camerawest.myshopify.com
- *   SHOPIFY_TOKEN  – shpat_xxx (Admin API token)
+ * Uses OAuth token rotation via _shopify.js helper.
+ * Environment variables: see _shopify.js
  */
 
-const cors = { 'Content-Type': 'application/json' };
+import { shopifyGQL } from './_shopify.js';
 
-async function shopifyGQL(env, query, variables) {
-  const res = await fetch(
-    `https://${env.SHOPIFY_STORE}/admin/api/2024-10/graphql.json`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Access-Token': env.SHOPIFY_TOKEN,
-      },
-      body: JSON.stringify({ query, variables }),
-    }
-  );
-  if (res.status === 403) throw new Error('Shopify 403 Forbidden – reinstall your app to activate the read_customers / write_customers scopes, then update SHOPIFY_TOKEN');
-  if (!res.ok) throw new Error(`Shopify returned ${res.status}`);
-  const data = await res.json();
-  if (data.errors) throw new Error(data.errors[0]?.message || 'GraphQL error');
-  return data.data;
-}
+const cors = { 'Content-Type': 'application/json' };
 
 // ── SEARCH ──────────────────────────────────────────────
 export async function onRequestGet({ request, env }) {
