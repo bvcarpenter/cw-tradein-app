@@ -38,8 +38,11 @@ export async function getShopifyToken(env) {
   const refreshToken = (kv && await kv.get(KV_REFRESH)) || env.SHOPIFY_REFRESH_TOKEN;
 
   if (!refreshToken) {
+    const missing = ['SHOPIFY_CLIENT_ID', 'SHOPIFY_CLIENT_SECRET', 'SHOPIFY_REFRESH_TOKEN', 'SHOPIFY_STORE']
+      .filter(k => !env[k]);
     throw new Error(
-      'No Shopify refresh token found. Set SHOPIFY_REFRESH_TOKEN in Cloudflare env vars.'
+      `Shopify auth not configured. Missing env vars: ${missing.length ? missing.join(', ') : 'none (but KV has no refresh token)'}. ` +
+      `If you just added these in Cloudflare, trigger a new deployment for them to take effect.`
     );
   }
 
