@@ -6,6 +6,12 @@
   "observability": { "enabled": true },
   "assets": { "directory": "public", "binding": "ASSETS" },
   "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "SHOPIFY_STORE": "camerawest.myshopify.com",
+    "SHOPIFY_CLIENT_ID": "ec3c9a2b232e7b4dfc4c573e8c594d8c",
+    "APP_URL": "https://cw-tradein-app.pages.dev",
+    "FROM_EMAIL": "noreply@camerawest.com"
+  },
   "kv_namespaces": [
     { "binding": "AUTH_KV", "id": "91d5bcedfb494fdda4137fdb243dfbe5" }
   ]
