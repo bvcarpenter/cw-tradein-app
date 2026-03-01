@@ -1441,13 +1441,16 @@ async function saveSession() {
   try {
     await kvSaveSession(key, data);
     showToast('Session saved ✓');
+    return 'kv';
   } catch(e) {
+    console.warn('KV save failed, falling back to localStorage:', e);
     // Fallback to localStorage
     const all = JSON.parse(localStorage.getItem('cwti_sessions') || '[]');
     all.push({ key, name, savedAt: data.savedAt });
     localStorage.setItem('cwti_sessions', JSON.stringify(all));
     localStorage.setItem(key, JSON.stringify(data));
     showToast('Saved locally (offline mode)');
+    return 'local';
   }
 }
 
@@ -1501,6 +1504,16 @@ async function renderSessionsMgr() {
   try {
     sessions = await kvReadSessions();
   } catch(e) { console.warn('renderSessionsMgr err', e); }
+  // Merge in any sessions saved to localStorage (offline fallback)
+  try {
+    const localIndex = JSON.parse(localStorage.getItem('cwti_sessions') || '[]');
+    const kvKeys = new Set(sessions.map(s => s.key));
+    for (const entry of localIndex) {
+      if (kvKeys.has(entry.key)) continue;
+      const raw = localStorage.getItem(entry.key);
+      if (raw) sessions.push({ key: entry.key, data: JSON.parse(raw) });
+    }
+  } catch(e) { console.warn('localStorage merge err', e); }
 
   const q = (document.getElementById('sm-search')?.value || '').toLowerCase().trim();
   const rows = sessions.filter(s => {
@@ -1633,11 +1646,14 @@ function clrSession() {
 }
 async function saveAndNew() {
   const hasData = sessionItems.length || document.getElementById('c-first').value.trim();
+  let result = null;
   if (hasData) {
-    await saveSession();
+    result = await saveSession();
   }
   resetSessionForm();
-  showToast(hasData ? 'Saved — new session started' : 'New session started');
+  if (!hasData) showToast('New session started');
+  else if (result === 'kv') showToast('Saved — new session started');
+  else showToast('Saved locally — new session started');
 }
 
 // ════════════════════════════════════════════
