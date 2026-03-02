@@ -72,6 +72,16 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
           addr.str || '',
           [addr.city || '', addr.st || '', addr.zip || ''].filter(Boolean).join(', '),
         ].filter(Boolean).join('\n') });
+
+        // Set location to the destination store (where shipped items go)
+        const destLocId = STORE_LOCATIONS[body.destStore];
+        if (destLocId) {
+          try {
+            cm.setValue({ fieldId: 'location', value: destLocId });
+          } catch (e) {
+            log.debug('location', 'Could not set shipping dest location: ' + e.message);
+          }
+        }
       } else {
         // In-store — set shipping method to "In-Store Sale"
         try {
