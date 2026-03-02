@@ -494,8 +494,10 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
       <div class="exp-acts">
         <button class="btn btn-g" onclick="exportXLSX()">Export NetSuite XLSX</button>
         <button class="btn btn-a" onclick="openPrint()">Print Credit Memo</button>
+        <button class="btn" id="sc-btn" onclick="issueStoreCredit()" disabled style="opacity:.45;background:#2a6e3f;color:#fff;border:1px solid #2a6e3f;">Issue Store Credit</button>
         <button class="btn btn-r" onclick="clrSession()">Clear Session</button>
       </div>
+      <div id="sc-msg" style="display:none;font-size:11px;padding:8px 12px;margin-top:6px;border-left:2px solid var(--border);background:var(--bg3);line-height:1.5;"></div>
     </section>
   </main>
 </div>
@@ -901,6 +903,7 @@ async function fetchCustSearch(q) {
 function pickCustomer(i) {
   const c = window._custCache?.[i];
   if (!c) return;
+  window._shopifyCustId = c.id || '';
   document.getElementById('c-first').value = c.first;
   document.getElementById('c-last').value = c.last;
   document.getElementById('c-email').value = c.email;
@@ -1494,6 +1497,7 @@ function getSessionData() {
   return {
     savedAt: new Date().toISOString(),
     customer: {
+      id:    window._shopifyCustId || '',
       first: document.getElementById('c-first').value,
       last:  document.getElementById('c-last').value,
       email: document.getElementById('c-email').value,
@@ -1516,6 +1520,7 @@ function getSessionData() {
 }
 
 function restoreSessionData(d) {
+  window._shopifyCustId = d.customer.id || '';
   document.getElementById('c-first').value = d.customer.first || '';
   document.getElementById('c-last').value  = d.customer.last  || '';
   document.getElementById('c-email').value = d.customer.email || '';
@@ -1784,7 +1789,12 @@ async function saveSerialPopup() {
 }
 async function onCmInput(el) {
   const val = el.value.trim();
-  if (!val || val.length < 2) return;
+  const scBtn = document.getElementById('sc-btn');
+  if (!val || val.length < 2) {
+    scBtn.disabled = true; scBtn.style.opacity = '.45';
+    return;
+  }
+  scBtn.disabled = false; scBtn.style.opacity = '1';
   const missing = needsSerialItems();
   if (missing.length > 0) {
     openSerialPopup(missing, val);
@@ -1814,6 +1824,40 @@ async function finalizeCm(val) {
 
 
 
+async function issueStoreCredit() {
+  const cm = document.getElementById('cm-num').value.trim();
+  if (!cm) { showToast('Enter a Credit Memo # first'); return; }
+  const custId = window._shopifyCustId;
+  if (!custId) { showToast('Select a Shopify customer first'); return; }
+  const net = sessionItems.reduce((s, i) => s + i.net, 0);
+  if (net <= 0) { showToast('No net value to credit'); return; }
+  const cust = (document.getElementById('c-first').value.trim() + ' ' + document.getElementById('c-last').value.trim()).trim();
+  if (!confirm(`Issue $${net.toFixed(2)} store credit to ${cust}?`)) return;
+  const scBtn = document.getElementById('sc-btn');
+  const scMsg = document.getElementById('sc-msg');
+  scBtn.disabled = true; scBtn.textContent = 'Issuing…';
+  scMsg.style.display = 'none';
+  try {
+    const r = await fetch('/api/store-credit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customerId: custId, amount: net, note: 'Trade-in credit — ' + cm }),
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    const gc = d.giftCard;
+    scMsg.style.color = '#6fbf73';
+    scMsg.innerHTML = 'Store credit issued — <strong>$' + esc(gc.balance) + '</strong> (ending ' + esc(gc.lastCharacters) + ')';
+    scMsg.style.display = 'block';
+    scBtn.textContent = 'Issued';
+    showToast('Store credit issued ✓');
+  } catch (err) {
+    scMsg.style.color = '#e07070';
+    scMsg.textContent = 'Failed: ' + err.message;
+    scMsg.style.display = 'block';
+    scBtn.disabled = false; scBtn.textContent = 'Issue Store Credit';
+  }
+}
 function showToast(msg) {
   let t = document.getElementById('toast');
   if (!t) {
@@ -1854,6 +1898,7 @@ async function updTax() {
 }
 function resetSessionForm() {
   sessionItems = []; selItem = null; selGrade = null;
+  window._shopifyCustId = '';
   renderCart(); clrItem();
   ['c-first','c-last','c-email','c-phone','cm-num','assoc','tracking-num','final-total','s-str','s-city','s-st','s-zip']
     .forEach(id => document.getElementById(id).value = '');
@@ -1861,6 +1906,8 @@ function resetSessionForm() {
   selLoc = '';
   document.getElementById('ship-box').classList.remove('vis');
   document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('sc-msg').textContent = '';
+  document.getElementById('sc-msg').style.display = 'none';
 }
 function clrSession() {
   if (!confirm('Clear all items and start a new session?')) return;
