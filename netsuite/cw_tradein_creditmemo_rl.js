@@ -61,10 +61,11 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
    *   items: [{ name, grade, serial, catalog, systemId, accessories, notes, net, tradein, priceType }],
    *   totalAmount, date, associate, issuedBy,
    *   location,                     // store key or "shipping"
-   *   shippingAddress: { str, city, st, zip }  // only when location === "shipping"
+   *   shippingAddress: { str, city, st, zip },  // only when location === "shipping"
+   *   createRefund                  // boolean — also create a Customer Refund
    * }
    *
-   * Returns: { success, tranId, internalId }
+   * Returns: { success, tranId, internalId, grandTotal, refundTranId, refundInternalId }
    */
   function post(body) {
     log.audit('CW Trade-In CM', JSON.stringify(body));
@@ -165,13 +166,47 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
 
       const cmId = cm.save({ enableSourcing: true, ignoreMandatoryFields: true });
 
-      // Load back to get the auto-generated tranId (CM#)
+      // Load back to get the auto-generated tranId and grand total (includes tax)
       const saved = record.load({ type: record.Type.CREDIT_MEMO, id: cmId });
-      const tranId = saved.getValue({ fieldId: 'tranid' });
+      const tranId    = saved.getValue({ fieldId: 'tranid' });
+      const grandTotal = parseFloat(saved.getValue({ fieldId: 'total' })) || 0;
 
-      log.audit('CW Trade-In CM Created', 'ID: ' + cmId + ' TranID: ' + tranId);
+      log.audit('CW Trade-In CM Created', 'ID: ' + cmId + ' TranID: ' + tranId + ' GrandTotal: ' + grandTotal);
 
-      return { success: true, tranId: tranId, internalId: cmId };
+      const result = { success: true, tranId: tranId, internalId: cmId, grandTotal: grandTotal };
+
+      // ── Optionally create Customer Refund from the Credit Memo ──
+      if (body.createRefund) {
+        try {
+          const refund = record.transform({
+            fromType: record.Type.CREDIT_MEMO,
+            fromId: cmId,
+            toType: record.Type.CUSTOMER_REFUND,
+            isDynamic: true,
+          });
+
+          refund.setValue({ fieldId: 'paymentmethod', value: 17 });
+
+          // Set location to match the credit memo
+          const cmLocation = saved.getValue({ fieldId: 'location' });
+          if (cmLocation) {
+            try { refund.setValue({ fieldId: 'location', value: cmLocation }); }
+            catch (e) { log.debug('refund location', e.message); }
+          }
+
+          const refundId = refund.save({ enableSourcing: true, ignoreMandatoryFields: true });
+          const savedRefund = record.load({ type: record.Type.CUSTOMER_REFUND, id: refundId });
+          result.refundTranId     = savedRefund.getValue({ fieldId: 'tranid' });
+          result.refundInternalId = refundId;
+
+          log.audit('Customer Refund Created', 'ID: ' + refundId + ' TranID: ' + result.refundTranId);
+        } catch (refErr) {
+          log.error('Customer Refund Error', refErr.message + '\n' + refErr.stack);
+          result.refundError = refErr.message;
+        }
+      }
+
+      return result;
 
     } catch (e) {
       log.error('CW Trade-In CM Error', e.message + '\n' + e.stack);

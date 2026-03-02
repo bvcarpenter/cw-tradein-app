@@ -1659,54 +1659,56 @@ async function finalizeCredit() {
 
   // Confirm
   const custName = [linkedCustomer.first, linkedCustomer.last].filter(Boolean).join(' ');
-  if (!confirm(`Issue $${totalNet.toFixed(2)} store credit to ${custName}?\n\nCM: ${cm}\nItems: ${sessionItems.length}\n\nThis action cannot be undone.`)) return;
+  if (!confirm(`Issue store credit to ${custName}?\n\nEst. subtotal: $${totalNet.toFixed(2)} (final amount includes tax)\nItems: ${sessionItems.length}\n\nThis will create a Credit Memo, Customer Refund, and Shopify store credit.\nThis action cannot be undone.`)) return;
 
   btn.disabled = true;
-  btn.textContent = 'Processing…';
+  btn.textContent = 'Creating NetSuite CM…';
   statusEl.className = '';
   statusEl.textContent = '';
 
   try {
+    // Step 1: Create Credit Memo + Customer Refund in NetSuite
+    const nsPayload = buildNsPayload();
+    nsPayload.createRefund = true;
+
+    const nsRes = await fetch('/api/netsuite-credit-memo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nsPayload),
+    });
+    const nsData = await nsRes.json();
+    if (!nsRes.ok || nsData.error) {
+      throw new Error('NetSuite: ' + (nsData.error || `HTTP ${nsRes.status}`));
+    }
+
+    // Grand total from the saved CM (includes tax calculated by AVATAX)
+    const creditAmount = nsData.grandTotal || totalNet;
+
+    let nsMsg = `NetSuite CM: ${nsData.tranId}`;
+    if (nsData.refundTranId) nsMsg += ` | Refund: ${nsData.refundTranId}`;
+    if (nsData.refundError) nsMsg += ` | Refund failed: ${nsData.refundError}`;
+
+    // Step 2: Issue Shopify store credit using the grand total (with tax)
+    btn.textContent = 'Issuing Shopify credit…';
     const res = await fetch('/api/store-credit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         customerId: linkedCustomer.id,
-        amount: totalNet,
-        note: `Trade-in credit — ${cm}`
+        amount: creditAmount,
+        note: `Trade-in credit — ${nsData.tranId || cm}`
       })
     });
 
     const data = await res.json();
     if (!res.ok || data.error) {
-      throw new Error(data.error || `HTTP ${res.status}`);
+      throw new Error('Shopify: ' + (data.error || `HTTP ${res.status}`) + ` (${nsMsg})`);
     }
 
     const credited = parseFloat(data.storeCredit.credited).toFixed(2);
     const balance = parseFloat(data.storeCredit.balance).toFixed(2);
 
-    // Create Credit Memo in NetSuite
-    btn.textContent = 'Creating NetSuite CM…';
-    let nsMsg = '';
-    try {
-      const nsRes = await fetch('/api/netsuite-credit-memo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildNsPayload()),
-      });
-      const nsData = await nsRes.json();
-      if (nsData.success) {
-        nsMsg = ` | NetSuite CM: ${nsData.tranId || nsData.creditMemoId}`;
-      } else {
-        console.warn('NetSuite CM failed:', nsData.error);
-        nsMsg = ` | NetSuite: ${nsData.error || 'failed'}`;
-      }
-    } catch (nsErr) {
-      console.warn('NetSuite CM call failed:', nsErr);
-      nsMsg = ' | NetSuite CM unavailable';
-    }
-
-    showFinalizeStatus(`Store credit issued — $${credited} credited (balance: $${balance})${nsMsg}`, 'ok');
+    showFinalizeStatus(`Store credit issued — $${credited} credited (balance: $${balance}) | ${nsMsg}`, 'ok');
     btn.textContent = 'Credited';
   } catch (err) {
     showFinalizeStatus(`Failed: ${err.message}`, 'err');
