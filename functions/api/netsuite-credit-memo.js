@@ -16,7 +16,10 @@
 
 import { netsuiteRequest } from './_netsuite.js';
 
-const cors = { 'Content-Type': 'application/json' };
+const cors = {
+  'Content-Type': 'application/json',
+  'Access-Control-Allow-Origin': '*',
+};
 
 export async function onRequestPost({ request, env }) {
   let body;

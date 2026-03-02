@@ -105,6 +105,10 @@ export async function netsuiteRequest(env, method, url, body) {
   const res = await fetch(url, fetchOpts);
   const text = await res.text();
 
+  if (!text || !text.trim()) {
+    throw new Error(`NetSuite returned empty response (HTTP ${res.status}). Check TBA credentials and RESTlet deployment.`);
+  }
+
   let data;
   try {
     data = JSON.parse(text);
