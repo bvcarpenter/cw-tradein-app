@@ -321,9 +321,9 @@ body {
 .finalize-status.err { color: #e07070; background: #3a1414; border: 1px solid #5a2a2a; }
 
 /* NS-ONLY BUTTON */
-.btn-ns-only { background: linear-gradient(135deg, #2a3a5a, #1a2a4a); border: 1px solid #3a4a7a; color: #7090d0; font-family: 'Jost', sans-serif; font-size: 10px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; padding: 12px 24px; cursor: pointer; transition: all .2s; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
+.btn-ns-only { background: linear-gradient(135deg, #2a3a5a, #1a2a4a); border: 1px solid #3a4a7a; color: #7090d0; font-family: 'Jost', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; padding: 14px 24px; cursor: pointer; transition: all .2s; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; }
 .btn-ns-only:hover { background: linear-gradient(135deg, #3a4a7a, #2a3a5a); border-color: #4a5a9a; }
-.btn-ns-only:disabled { opacity: .35; cursor: not-allowed; }
+.btn-ns-only:disabled { opacity: .55; cursor: not-allowed; }
 
 /* SCROLLBAR */
 ::-webkit-scrollbar { width: 4px; }
@@ -798,10 +798,15 @@ body {
       </div>
 
       <button class="btn-finalize" id="finalize-btn" onclick="finalizeCredit()" disabled>
-        Finalize <em style="font-style:italic">//</em> Credit
+        Finalize <em style="font-style:italic">//</em> Credit + Shopify
       </button>
+      <div style="display:flex;align-items:center;gap:10px;margin:12px 0 4px;">
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+        <span style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--dim);">or</span>
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+      </div>
       <button class="btn-ns-only" id="ns-only-btn" onclick="issueNsOnly()" disabled>
-        Issue Credit Memo Only <em style="font-style:italic">//</em> NetSuite
+        Issue Credit Memo Only <em style="font-style:italic">//</em> No Shopify Credit
       </button>
       <div id="finalize-status"></div>
     </section>
@@ -1699,11 +1704,22 @@ async function finalizeCredit() {
     applyNsResult(nsData);
 
     // Grand total from the saved CM (includes tax calculated by AVATAX)
-    const creditAmount = nsData.grandTotal || totalNet;
+    // IMPORTANT: use explicit null check — 0 is falsy in JS so || would skip valid zeros
+    const creditAmount = (nsData.grandTotal != null && nsData.grandTotal > 0)
+      ? nsData.grandTotal
+      : totalNet;
 
-    let nsMsg = `NetSuite CM: ${nsData.tranId}`;
+    const usedGrandTotal = (nsData.grandTotal != null && nsData.grandTotal > 0);
+    console.log('Shopify credit amount:', creditAmount, 'grandTotal:', nsData.grandTotal, 'subtotal:', nsData.subtotal, 'tax:', nsData.taxtotal);
+
+    let nsMsg = `CM: ${nsData.tranId}`;
     if (nsData.refundTranId) nsMsg += ` | Refund: ${nsData.refundTranId}`;
-    if (nsData.refundError) nsMsg += ` | Refund failed: ${nsData.refundError}`;
+
+    // Show refund error prominently
+    if (nsData.refundError) {
+      showFinalizeStatus(`CM created but Refund failed: ${nsData.refundError}`, 'err');
+      // Don't return — still issue Shopify credit
+    }
 
     // Step 2: Issue Shopify store credit using the grand total (with tax)
     btn.textContent = 'Issuing Shopify credit…';
@@ -1713,7 +1729,8 @@ async function finalizeCredit() {
       body: JSON.stringify({
         customerId: linkedCustomer.id,
         amount: creditAmount,
-        note: `Trade-in credit — ${nsData.tranId || 'Trade-In'}`
+        note: `Trade-in credit — ${nsData.tranId || 'Trade-In'}`,
+        timelineNote: buildTimelineNote(nsData),
       })
     });
 
@@ -1725,7 +1742,10 @@ async function finalizeCredit() {
     const credited = parseFloat(data.storeCredit.credited).toFixed(2);
     const balance = parseFloat(data.storeCredit.balance).toFixed(2);
 
-    showFinalizeStatus(`Store credit issued — $${credited} credited (balance: $${balance}) | ${nsMsg}`, 'ok');
+    let okMsg = `Store credit issued — $${credited} credited (balance: $${balance}) | ${nsMsg}`;
+    if (!usedGrandTotal) okMsg += ' | Note: used subtotal — update RESTlet for tax-inclusive total';
+    if (nsData.refundError) okMsg += ` | REFUND FAILED: ${nsData.refundError}`;
+    showFinalizeStatus(okMsg, nsData.refundError ? 'err' : 'ok');
     btn.textContent = 'Credited';
   } catch (err) {
     showFinalizeStatus(`Failed: ${err.message}`, 'err');
@@ -1786,6 +1806,20 @@ function showFinalizeStatus(msg, type) {
   const el = document.getElementById('finalize-status');
   el.textContent = msg;
   el.className = 'finalize-status ' + type;
+}
+
+/** Build a timeline note for the Shopify customer record */
+function buildTimelineNote(nsData) {
+  const date = document.getElementById('txn-date').value || new Date().toISOString().split('T')[0];
+  const lines = [`Trade-In Credit — ${date}`];
+  if (nsData.tranId) lines.push(`CM#: ${nsData.tranId}`);
+  if (nsData.refundTranId) lines.push(`Refund#: ${nsData.refundTranId}`);
+  sessionItems.forEach(it => {
+    lines.push(`  - ${it.name} [${it.grade}] ${it.priceType === 'tradein' ? 'TI' : 'OR'} ${f(it.net)}`);
+  });
+  const gt = (nsData.grandTotal != null && nsData.grandTotal > 0) ? nsData.grandTotal : sessionItems.reduce((s, i) => s + i.net, 0);
+  lines.push(`Total: ${f(gt)}`);
+  return lines.join('\n');
 }
 
 /** Update sidebar and CM# field after NetSuite returns grand total */

@@ -59,6 +59,8 @@ export async function onRequestPost({ request, env }) {
       tranId:     data.tranId,
       internalId: data.internalId,
       grandTotal: data.grandTotal,
+      subtotal:   data.subtotal,
+      taxtotal:   data.taxtotal,
     };
     if (data.refundTranId)     resp.refundTranId     = data.refundTranId;
     if (data.refundInternalId) resp.refundInternalId  = data.refundInternalId;
