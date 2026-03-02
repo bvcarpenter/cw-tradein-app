@@ -1052,8 +1052,8 @@ function updPricing() {
   const gradeAdj = gradeAdjustedRetail(base, selGrade);
   const ret = ov > 0 ? ov : gradeAdj;
   const tiRate = tradeInRate(selGrade);
-  const orRate = 0.50;
-  const ti = ret * tiRate, or = ret * orRate;
+  const ti = ret * tiRate;
+  const or = ti * 0.75; // outright = trade-in minus 25%
   const net = selPT === 'tradein' ? ti : or;
   const f = v => v > 0 ? '$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
   document.getElementById('p-ret').textContent = f(ret);
@@ -1062,7 +1062,7 @@ function updPricing() {
   document.getElementById('p-net').textContent = f(net);
   // Update rate labels
   document.getElementById('p-ti-pct').textContent = `${Math.round(tiRate * 100)}% of retail`;
-  document.getElementById('p-or-pct').textContent = `${Math.round(orRate * 100)}% of retail`;
+  document.getElementById('p-or-pct').textContent = `Trade-in − 25%`;
   // Show grade adjustment info
   const srcEl = document.getElementById('p-src');
   if (ov > 0) {
@@ -1090,7 +1090,8 @@ function addItem() {
   const ov = parseFloat(document.getElementById('r-override').value);
   const ret = ov > 0 ? ov : gradeAdjustedRetail(selItem.price, selGrade);
   const tiRate = tradeInRate(selGrade);
-  const ti = ret * tiRate, or = ret * 0.50;
+  const ti = ret * tiRate;
+  const or = ti * 0.75; // outright = trade-in minus 25%
   const net = selPT === 'tradein' ? ti : or;
   const accs = [...document.querySelectorAll('.achip.on')].map(c => c.querySelector('span').textContent);
   sessionItems.push({
