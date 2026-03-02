@@ -1,18 +1,17 @@
 /**
- * POST /api/store-credit — Issue Shopify store credit to a customer.
+ * POST /api/store-credit — Issue Shopify store credit to a customer
+ * and append a timeline note with item details.
  *
- * Body: { customerId, amount, note }
- *   customerId — Shopify customer GID (e.g. "gid://shopify/Customer/12345")
- *   amount     — Dollar amount (number)
- *   note       — Optional note (e.g. credit memo reference)
+ * Body: { customerId, amount, note, timelineNote }
+ *   customerId   — Shopify customer GID (e.g. "gid://shopify/Customer/12345")
+ *   amount       — Dollar amount (number)
+ *   note         — Short note for the store credit transaction
+ *   timelineNote — Longer note with item details to append to customer notes
  *
- * Uses the storeCreditAccountCredit mutation. Passing a customer ID
- * as the account owner auto-creates the store credit account if needed.
- *
- * Required scope: write_store_credit_account_transactions
+ * Required scopes: write_store_credit_account_transactions, write_customers, read_customers
  */
 
-import { shopifyGQL } from './_shopify.js';
+import { shopifyGQL, getShopifyToken } from './_shopify.js';
 
 const cors = { 'Content-Type': 'application/json' };
 
@@ -24,7 +23,7 @@ export async function onRequestPost({ request, env }) {
     return Response.json({ error: 'Invalid JSON' }, { status: 400, headers: cors });
   }
 
-  const { customerId, amount, note } = body;
+  const { customerId, amount, note, timelineNote } = body;
   if (!customerId || !amount || amount <= 0) {
     return Response.json(
       { error: 'customerId and a positive amount are required' },
@@ -64,12 +63,48 @@ export async function onRequestPost({ request, env }) {
       );
     }
     const txn = result.storeCreditAccountTransaction;
+
+    // Append timeline note to Shopify customer notes
+    let noteAppended = false;
+    if (timelineNote) {
+      try {
+        const numericId = customerId.replace(/\D/g, '');
+        const token = await getShopifyToken(env);
+
+        // Read current note
+        const custRes = await fetch(
+          `https://${env.SHOPIFY_STORE}/admin/api/2024-10/customers/${numericId}.json`,
+          { headers: { 'X-Shopify-Access-Token': token } }
+        );
+        const custData = await custRes.json();
+        const existing = custData.customer?.note || '';
+        const updated = existing ? existing + '\n\n' + timelineNote : timelineNote;
+
+        // Update customer with appended note
+        const updRes = await fetch(
+          `https://${env.SHOPIFY_STORE}/admin/api/2024-10/customers/${numericId}.json`,
+          {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Shopify-Access-Token': token,
+            },
+            body: JSON.stringify({ customer: { id: Number(numericId), note: updated } }),
+          }
+        );
+        noteAppended = updRes.ok;
+      } catch (noteErr) {
+        console.warn('Failed to append customer note:', noteErr);
+      }
+    }
+
     return Response.json({
       storeCredit: {
         credited: txn.amount.amount,
         currency: txn.amount.currencyCode,
         balance:  txn.account.balance.amount,
-      }
+      },
+      noteAppended,
     }, { headers: cors });
   } catch (err) {
     console.error('Store credit error:', err);

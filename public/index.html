@@ -6,8 +6,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Trade // Sell — Camera West</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -1559,63 +1557,6 @@ function buildPrint() {
 
 
 // ════════════════════════════════════════════
-// PDF GENERATION (for Shopify timeline upload)
-// ════════════════════════════════════════════
-async function generateCreditMemoPDF() {
-  const wrapper = document.createElement('div');
-  wrapper.style.cssText = 'position:absolute;left:-9999px;top:0;width:760px;background:#fff;font-family:Jost,sans-serif;font-size:12px;color:#111;';
-  wrapper.innerHTML = buildPrint();
-  document.body.appendChild(wrapper);
-  try {
-    const canvas = await html2canvas(wrapper, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-    const imgData = canvas.toDataURL('image/jpeg', 0.92);
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ unit: 'px', format: 'letter' });
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-    const margin = 30;
-    const usableW = pageW - margin * 2;
-    const imgH = (canvas.height / canvas.width) * usableW;
-    // Handle multi-page if content is tall
-    if (imgH <= pageH - margin * 2) {
-      pdf.addImage(imgData, 'JPEG', margin, margin, usableW, imgH);
-    } else {
-      let srcY = 0;
-      const sliceH = ((pageH - margin * 2) / usableW) * canvas.width;
-      while (srcY < canvas.height) {
-        const slice = document.createElement('canvas');
-        const h = Math.min(sliceH, canvas.height - srcY);
-        slice.width = canvas.width;
-        slice.height = h;
-        slice.getContext('2d').drawImage(canvas, 0, srcY, canvas.width, h, 0, 0, canvas.width, h);
-        const sliceImg = slice.toDataURL('image/jpeg', 0.92);
-        const drawH = (h / canvas.width) * usableW;
-        if (srcY > 0) pdf.addPage();
-        pdf.addImage(sliceImg, 'JPEG', margin, margin, usableW, drawH);
-        srcY += h;
-      }
-    }
-    const base64 = pdf.output('datauristring').split(',')[1];
-    return base64;
-  } finally {
-    document.body.removeChild(wrapper);
-  }
-}
-
-async function uploadCreditMemoPDF(customerId, pdfBase64, cmNum) {
-  const custName = (document.getElementById('c-first').value.trim() + '_' + document.getElementById('c-last').value.trim()).replace(/\s+/g, '_');
-  const filename = `CreditMemo_${cmNum}_${custName}.pdf`;
-  const res = await fetch('/api/customer-timeline', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ customerId, pdfBase64, filename, cmNum }),
-  });
-  const data = await res.json();
-  if (!res.ok || data.error) throw new Error(data.error || `Upload failed (${res.status})`);
-  return data;
-}
-
-// ════════════════════════════════════════════
 // MISC
 // ════════════════════════════════════════════
 
@@ -2005,31 +1946,69 @@ async function execStoreCredit() {
   const scMsg = document.getElementById('sc-msg');
   scBtn.disabled = true; scBtn.textContent = 'Issuing…';
   scMsg.style.display = 'none';
+
+  // Build timeline note with item details
+  const custName = (document.getElementById('c-first').value.trim() + ' ' + document.getElementById('c-last').value.trim()).trim();
+  const dt = document.getElementById('txn-date').value || new Date().toISOString().split('T')[0];
+  const assoc = document.getElementById('assoc').value.trim();
+  const lines = sessionItems.map(it =>
+    `  • ${it.name} [${it.grade}] — ${it.priceType === 'tradein' ? 'TI' : 'OR'} ${ff(it.net)}${it.serial ? ' (S/N: ' + it.serial + ')' : ''}`
+  );
+  const timelineNote = [
+    `═══ STORE CREDIT ISSUED ═══`,
+    `Credit Memo: ${cm}`,
+    `Date: ${dt}${assoc ? ' | Associate: ' + assoc : ''}`,
+    `Customer: ${custName}`,
+    ``,
+    `Items:`,
+    ...lines,
+    ``,
+    `Total Credit: ${ff(net)}`,
+  ].join('\n');
+
   try {
     const r = await fetch('/api/store-credit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ customerId: custId, amount: net, note: 'Trade-in credit — ' + cm }),
+      body: JSON.stringify({ customerId: custId, amount: net, note: 'Trade-in credit — ' + cm, timelineNote }),
     });
     const d = await r.json();
     if (d.error) throw new Error(d.error);
     const sc = d.storeCredit;
-    scMsg.style.color = '#6fbf73';
-    scMsg.innerHTML = 'Store credit issued — <strong>$' + esc(sc.credited) + '</strong> credited (account balance: $' + esc(sc.balance) + ')';
-    scMsg.style.display = 'block';
-    scBtn.textContent = 'Uploading PDF…';
-    showToast('Store credit issued ✓');
-    // Generate and upload credit memo PDF to Shopify customer timeline
+    const credited = parseFloat(sc.credited).toFixed(2);
+    const balance = parseFloat(sc.balance).toFixed(2);
+
+    // Save and finalize the session with store credit info
+    scBtn.textContent = 'Saving session…';
     try {
-      const pdfBase64 = await generateCreditMemoPDF();
-      await uploadCreditMemoPDF(custId, pdfBase64, cm);
-      scMsg.innerHTML += '<br><span style="font-size:10px;">Credit memo PDF uploaded to customer timeline.</span>';
-      scBtn.textContent = 'Issued';
-    } catch (pdfErr) {
-      console.warn('PDF upload failed:', pdfErr);
-      scMsg.innerHTML += '<br><span style="font-size:10px;color:#e0a050;">PDF upload failed: ' + esc(pdfErr.message) + '</span>';
-      scBtn.textContent = 'Issued (PDF failed)';
+      const sessionData = getSessionData();
+      sessionData.finalized = true;
+      sessionData.finalizedAt = new Date().toISOString();
+      sessionData.storeCredit = { credited, balance, issuedAt: new Date().toISOString() };
+      const name = (sessionData.customer.first + ' ' + sessionData.customer.last).trim()
+        || 'Session ' + new Date().toLocaleDateString();
+      const key = 'cwti_' + Date.now();
+      sessionData.name = name;
+      sessionData.key = key;
+      await kvSaveSession(key, sessionData);
+    } catch (saveErr) {
+      console.warn('Session save failed:', saveErr);
     }
+
+    // Show success briefly, then clear
+    showToast(`Store credit issued — $${credited} credited ✓`);
+    scMsg.style.color = '#6fbf73';
+    scMsg.innerHTML = 'Store credit issued — <strong>$' + esc(credited) + '</strong> credited (balance: $' + esc(balance) + ')'
+      + (d.noteAppended ? '<br><span style="font-size:10px;">Customer note updated.</span>' : '');
+    scMsg.style.display = 'block';
+    scBtn.textContent = 'Issued ✓';
+
+    // Clear session after a short delay so the user sees the success message
+    setTimeout(() => {
+      resetSessionForm();
+      showToast('Session finalized and cleared');
+    }, 2500);
+
   } catch (err) {
     scMsg.style.color = '#e07070';
     scMsg.textContent = 'Failed: ' + err.message;
