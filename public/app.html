@@ -1645,7 +1645,36 @@ async function finalizeCredit() {
 
     const credited = parseFloat(data.storeCredit.credited).toFixed(2);
     const balance = parseFloat(data.storeCredit.balance).toFixed(2);
-    showFinalizeStatus(`Store credit issued — $${credited} credited (account balance: $${balance})`, 'ok');
+
+    // Create Credit Memo in NetSuite
+    btn.textContent = 'Creating NetSuite CM…';
+    let nsMsg = '';
+    try {
+      const nsRes = await fetch('/api/netsuite-credit-memo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: selLoc,
+          cmNum: cm,
+          txnDate: document.getElementById('txn-date').value || new Date().toISOString().split('T')[0],
+          items: sessionItems,
+          totalNet,
+          associate: document.getElementById('assoc').value.trim()
+        }),
+      });
+      const nsData = await nsRes.json();
+      if (nsData.success) {
+        nsMsg = ` | NetSuite CM: ${nsData.tranId || nsData.creditMemoId}`;
+      } else {
+        console.warn('NetSuite CM failed:', nsData.error);
+        nsMsg = ' | NetSuite CM failed — check console';
+      }
+    } catch (nsErr) {
+      console.warn('NetSuite CM call failed:', nsErr);
+      nsMsg = ' | NetSuite CM unavailable';
+    }
+
+    showFinalizeStatus(`Store credit issued — $${credited} credited (balance: $${balance})${nsMsg}`, 'ok');
     btn.textContent = 'Credited';
   } catch (err) {
     showFinalizeStatus(`Failed: ${err.message}`, 'err');
