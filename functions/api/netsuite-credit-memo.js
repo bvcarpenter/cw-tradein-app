@@ -5,10 +5,11 @@
  *   customerEmail, customerFirst, customerLast, customerPhone,
  *   items: [{ name, grade, serial, catalog, systemId, accessories, notes, net, tradein, priceType }],
  *   totalAmount, date, associate, issuedBy,
- *   location, shippingAddress
+ *   location, shippingAddress,
+ *   createRefund  — boolean, also create a Customer Refund (payment method 17)
  * }
  *
- * Returns: { success, tranId, internalId }
+ * Returns: { success, tranId, internalId, grandTotal, refundTranId?, refundInternalId? }
  *
  * Required env: NS_ACCOUNT_ID, NS_CONSUMER_KEY, NS_CONSUMER_SECRET,
  *               NS_TOKEN_ID, NS_TOKEN_SECRET, NS_RESTLET_URL
@@ -53,11 +54,17 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
-    return Response.json({
-      success: true,
+    const resp = {
+      success:    true,
       tranId:     data.tranId,
       internalId: data.internalId,
-    }, { headers: cors });
+      grandTotal: data.grandTotal,
+    };
+    if (data.refundTranId)     resp.refundTranId     = data.refundTranId;
+    if (data.refundInternalId) resp.refundInternalId  = data.refundInternalId;
+    if (data.refundError)      resp.refundError       = data.refundError;
+
+    return Response.json(resp, { headers: cors });
 
   } catch (err) {
     console.error('NetSuite credit memo error:', err);
