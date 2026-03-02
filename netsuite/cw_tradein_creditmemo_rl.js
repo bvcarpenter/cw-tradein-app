@@ -164,10 +164,17 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
         }
       });
 
+      // Auto-approve the Credit Memo so it can be refunded immediately
+      // approvalstatus: 1 = Pending Approval, 2 = Approved
+      try { cm.setValue({ fieldId: 'approvalstatus', value: 2 }); }
+      catch (e) { log.debug('approvalstatus pre-save', e.message); }
+      try { cm.setValue({ fieldId: 'status', value: 'open' }); }
+      catch (e) { log.debug('status pre-save', e.message); }
+
       const cmId = cm.save({ enableSourcing: true, ignoreMandatoryFields: true });
 
       // Load back to get the auto-generated tranId and grand total (includes tax)
-      const saved = record.load({ type: record.Type.CREDIT_MEMO, id: cmId });
+      var saved = record.load({ type: record.Type.CREDIT_MEMO, id: cmId });
       const tranId     = saved.getValue({ fieldId: 'tranid' });
       const subtotal   = parseFloat(saved.getValue({ fieldId: 'subtotal' })) || 0;
       var   taxtotal   = 0;
@@ -183,6 +190,26 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
         grandTotal = subtotal + taxtotal;
       }
 
+      // Check if the CM is approved — if not, approve it now
+      var cmStatus = saved.getValue({ fieldId: 'approvalstatus' });
+      log.audit('CM Status after save', 'approvalstatus=' + cmStatus + ' (1=Pending, 2=Approved)');
+      if (cmStatus && String(cmStatus) !== '2') {
+        try {
+          log.audit('Approving CM', 'Setting approvalstatus=2 on CM ' + cmId);
+          record.submitFields({
+            type: record.Type.CREDIT_MEMO,
+            id: cmId,
+            values: { approvalstatus: 2 },
+            options: { enableSourcing: false, ignoreMandatoryFields: true }
+          });
+          // Reload to get updated status
+          saved = record.load({ type: record.Type.CREDIT_MEMO, id: cmId });
+          log.audit('CM Approved', 'New approvalstatus=' + saved.getValue({ fieldId: 'approvalstatus' }));
+        } catch (appErr) {
+          log.error('CM Approval Failed', appErr.message);
+        }
+      }
+
       log.audit('CW Trade-In CM Created',
         'ID: ' + cmId + ' TranID: ' + tranId +
         ' Subtotal: ' + subtotal + ' Tax: ' + taxtotal +
@@ -196,9 +223,12 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
       // ── Optionally create Customer Refund from the Credit Memo ──
       if (body.createRefund) {
         try {
-          log.audit('Creating Refund', 'Transforming CM ' + cmId + ' (entity=' + custId + ') to Customer Refund');
+          log.audit('Creating Refund', 'CM ' + cmId + ' (entity=' + custId + ') — approvalstatus=' + saved.getValue({ fieldId: 'approvalstatus' }));
 
           var refund;
+          var transformOK = false;
+
+          // Attempt 1: Transform CM → Customer Refund (preferred — auto-applies the CM)
           try {
             refund = record.transform({
               fromType: record.Type.CREDIT_MEMO,
@@ -206,16 +236,20 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
               toType: record.Type.CUSTOMER_REFUND,
               isDynamic: true,
             });
+            transformOK = true;
             log.audit('Refund Transform OK', 'Transformed CM ' + cmId);
           } catch (txErr) {
-            log.error('Refund Transform Failed', txErr.message + ' — falling back to manual create');
-            // Fallback: create Customer Refund from scratch
+            log.error('Refund Transform Failed', txErr.message);
+          }
+
+          // Attempt 2: If transform failed, create from scratch
+          if (!transformOK) {
+            log.audit('Refund Fallback', 'Creating Customer Refund manually for entity=' + custId);
             refund = record.create({ type: record.Type.CUSTOMER_REFUND, isDynamic: true });
             refund.setValue({ fieldId: 'entity', value: custId });
           }
 
           // Set payment method — try several common IDs until one works
-          // (IDs vary per NetSuite account: 17=Check, 5=Visa, 1=Cash, etc.)
           var pmSet = false;
           var pmTry = [17, 1, 5, 3, 2, 4];
           for (var p = 0; p < pmTry.length; p++) {
@@ -228,65 +262,47 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
               log.debug('paymentmethod ' + pmTry[p] + ' failed', pmErr.message);
             }
           }
-          if (!pmSet) {
-            log.audit('Payment method warning', 'No payment method could be set — save may fail');
-          }
 
-          // Set location to match the credit memo
+          // Set location and memo
           var cmLocation;
           try { cmLocation = saved.getValue({ fieldId: 'location' }); } catch (e) { /* skip */ }
           if (cmLocation) {
             try { refund.setValue({ fieldId: 'location', value: cmLocation }); }
             catch (e) { log.debug('refund location', e.message); }
           }
+          try { refund.setValue({ fieldId: 'memo', value: 'Trade-In Refund for CM# ' + tranId }); }
+          catch (e) { log.debug('refund memo', e.message); }
 
-          // Set the memo to reference the Credit Memo
-          try {
-            refund.setValue({ fieldId: 'memo', value: 'Trade-In Refund for CM# ' + tranId });
-          } catch (e) { log.debug('refund memo', e.message); }
-
-          // Ensure the CM is checked in the apply sublist
+          // Check apply sublist — if transform succeeded, the CM should already be applied
           var applyCount = refund.getLineCount({ sublistId: 'apply' });
-          log.audit('Refund apply lines', 'Count: ' + applyCount + ' for CM ' + cmId);
+          log.audit('Refund apply lines', 'Count: ' + applyCount + ' transformOK=' + transformOK);
 
-          var appliedAny = false;
-          for (var i = 0; i < applyCount; i++) {
-            refund.selectLine({ sublistId: 'apply', line: i });
-            var refInternalId = refund.getCurrentSublistValue({ sublistId: 'apply', fieldId: 'internalid' });
-            var refType = '';
-            try { refType = refund.getCurrentSublistValue({ sublistId: 'apply', fieldId: 'type' }); } catch(e) {}
-            log.debug('Apply line ' + i, 'internalid=' + refInternalId + ' type=' + refType + ' (looking for CM ' + cmId + ')');
+          if (applyCount > 0) {
+            // Ensure our CM line is checked (apply=true)
+            for (var i = 0; i < applyCount; i++) {
+              refund.selectLine({ sublistId: 'apply', line: i });
+              var refInternalId = refund.getCurrentSublistValue({ sublistId: 'apply', fieldId: 'internalid' });
+              var isApplied = refund.getCurrentSublistValue({ sublistId: 'apply', fieldId: 'apply' });
+              log.debug('Apply line ' + i, 'internalid=' + refInternalId + ' apply=' + isApplied);
 
-            // Apply lines matching our CM, or apply all if only one exists
-            if (String(refInternalId) === String(cmId) || applyCount === 1) {
-              refund.setCurrentSublistValue({ sublistId: 'apply', fieldId: 'apply', value: true });
-              refund.commitLine({ sublistId: 'apply' });
-              appliedAny = true;
-              log.audit('Applied line ' + i, 'internalid=' + refInternalId);
+              // Apply if it matches our CM, or apply all
+              if (String(refInternalId) === String(cmId) || applyCount === 1 || !transformOK) {
+                if (!isApplied) {
+                  refund.setCurrentSublistValue({ sublistId: 'apply', fieldId: 'apply', value: true });
+                  refund.commitLine({ sublistId: 'apply' });
+                  log.audit('Applied line ' + i, 'internalid=' + refInternalId);
+                }
+              }
             }
-          }
 
-          if (!appliedAny && applyCount > 0) {
-            // Apply all lines as a last resort
-            log.audit('No exact CM match', 'Applying all ' + applyCount + ' lines');
-            for (var j = 0; j < applyCount; j++) {
-              refund.selectLine({ sublistId: 'apply', line: j });
-              refund.setCurrentSublistValue({ sublistId: 'apply', fieldId: 'apply', value: true });
-              refund.commitLine({ sublistId: 'apply' });
-            }
-            appliedAny = true;
-          }
-
-          if (applyCount === 0) {
-            log.error('Refund has no apply lines', 'CM ' + cmId + ' may not be eligible for refund');
-            result.refundError = 'No credits available to apply — CM may need approval or has zero balance';
-          } else {
             var refundId = refund.save({ enableSourcing: true, ignoreMandatoryFields: true });
             var savedRefund = record.load({ type: record.Type.CUSTOMER_REFUND, id: refundId });
             result.refundTranId     = savedRefund.getValue({ fieldId: 'tranid' });
             result.refundInternalId = refundId;
-
             log.audit('Customer Refund Created', 'ID: ' + refundId + ' TranID: ' + result.refundTranId);
+          } else {
+            log.error('Refund has no apply lines', 'CM ' + cmId + ' — status=' + saved.getValue({ fieldId: 'approvalstatus' }) + ' status=' + saved.getValue({ fieldId: 'status' }));
+            result.refundError = 'No credits available to apply — CM status: ' + saved.getValue({ fieldId: 'statusRef' });
           }
         } catch (refErr) {
           log.error('Customer Refund Error', refErr.message + '\n' + (refErr.stack || ''));
