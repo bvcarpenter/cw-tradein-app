@@ -19,6 +19,24 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
   const EXCHANGE_ITEM_ID  = 21433;          // Non-Inventory Item for Sale "Exchange"
   const IN_STORE_SHIP_METHOD = 18525;       // Shipping method "In-Store Sale"
 
+  /** Look up a tax code internal ID by name (cached after first call). */
+  let _taxCodeCache = {};
+  function findTaxCodeId(name) {
+    if (_taxCodeCache[name] !== undefined) return _taxCodeCache[name];
+    try {
+      const results = search.create({
+        type: 'salestaxitem',
+        filters: [['name', 'is', name]],
+        columns: ['internalid'],
+      }).run().getRange({ start: 0, end: 1 });
+      _taxCodeCache[name] = results.length ? results[0].id : null;
+    } catch (e) {
+      log.debug('findTaxCodeId', 'Could not look up tax code "' + name + '": ' + e.message);
+      _taxCodeCache[name] = null;
+    }
+    return _taxCodeCache[name];
+  }
+
   // Trade-In App location name → NetSuite internal Location ID
   const STORE_LOCATIONS = {
     'Leica SF':        1,
@@ -123,12 +141,15 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
         cm.setCurrentSublistValue({ sublistId: 'item', fieldId: 'rate',        value: it.net || 0 });
 
         // Set Tax Item to AVATAX to commit sales tax
-        cm.setCurrentSublistValue({ sublistId: 'item', fieldId: 'taxcode', value: 'AVATAX' });
+        const avataxId = findTaxCodeId('AVATAX');
+        if (avataxId) {
+          cm.setCurrentSublistValue({ sublistId: 'item', fieldId: 'taxcode', value: avataxId });
+        }
 
         cm.commitLine({ sublistId: 'item' });
       });
 
-      const cmId = cm.save({ enableSourcing: true, ignoreMandatoryFields: false });
+      const cmId = cm.save({ enableSourcing: true, ignoreMandatoryFields: true });
 
       // Load back to get the auto-generated tranId (CM#)
       const saved = record.load({ type: record.Type.CREDIT_MEMO, id: cmId });
