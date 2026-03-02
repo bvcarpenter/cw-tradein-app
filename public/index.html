@@ -697,15 +697,45 @@ window.addEventListener('DOMContentLoaded', () => {
   autoFillAssociate();
 });
 
+// Allowed emails for CM# entry, finalize, and issuing store credit
+const FINALIZE_ALLOWED = [
+  'ben@camerawest.com','sean@camerawest.com','sam@leicastoresf.com',
+  'adam@camerawest.com','kyle@camerawest.com'
+];
+let _loggedInEmail = '';
+
 async function autoFillAssociate() {
   const el = document.getElementById('assoc');
-  if (!el || el.value) return;
+  if (!el) return;
   try {
     const res = await fetch('/cdn-cgi/access/get-identity');
     if (!res.ok) throw new Error('not available');
     const data = await res.json();
-    if (data.email) { el.value = data.email; el.placeholder = data.email; }
+    if (data.email) {
+      _loggedInEmail = data.email.toLowerCase();
+      el.value = data.email;
+      el.placeholder = data.email;
+      el.readOnly = true;
+      el.style.opacity = '.7';
+      el.style.cursor = 'not-allowed';
+    }
   } catch(e) { /* not behind Access or anonymous */ }
+  applyFinalizePermissions();
+}
+
+function applyFinalizePermissions() {
+  const allowed = FINALIZE_ALLOWED.includes(_loggedInEmail);
+  const cmEl = document.getElementById('cm-num');
+  const scBtn = document.getElementById('sc-btn');
+  if (!allowed) {
+    cmEl.disabled = true;
+    cmEl.placeholder = 'Restricted';
+    cmEl.title = 'You do not have permission to enter a Credit Memo #';
+    cmEl.style.opacity = '.5';
+    scBtn.disabled = true;
+    scBtn.style.opacity = '.3';
+    scBtn.title = 'You do not have permission to issue store credit';
+  }
 }
 
 function doLogout() {
@@ -1406,7 +1436,7 @@ function exportXLSX() {
     ? _destStore+' — '+STORE_INFO[_destStore].address : '';
   const info = [
     ['CAMERA WEST — TRADE-IN SESSION'],[],
-    ['Credit Memo',cm],['Date',dt],['Associate',asc],['Customer',cust],
+    ['Credit Memo',cm],['Date',dt],['Associate',asc],['Credit Issued By',_loggedInEmail||asc],['Customer',cust],
     ['Email',document.getElementById('c-email').value.trim()],
     ['Phone',document.getElementById('c-phone').value.trim()],
     ['Location',locStr],
@@ -1492,7 +1522,7 @@ function buildPrint() {
     <td style="text-align:right;vertical-align:top;">
       <div style="font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#aaa;margin-bottom:3px;">Credit Memo</div>
       <div style="font-family:'Palatino Linotype',serif;font-size:22px;font-weight:300;color:#d95e00;">${esc(cm)}</div>
-      <div style="font-size:10px;color:#666;margin-top:3px;line-height:1.8;">${dt}<br>Associate: ${esc(asc)}</div>
+      <div style="font-size:10px;color:#666;margin-top:3px;line-height:1.8;">${dt}<br>Associate: ${esc(asc)}${_loggedInEmail ? '<br>Issued by: ' + esc(_loggedInEmail) : ''}</div>
     </td>
   </tr></table>
   <table width="100%" style="margin-bottom:16px;"><tr>
@@ -1858,6 +1888,7 @@ async function saveSerialPopup() {
   await finalizeCm(_pendingCmVal);
 }
 async function onCmInput(el) {
+  if (!FINALIZE_ALLOWED.includes(_loggedInEmail)) return;
   const val = el.value.trim();
   const scBtn = document.getElementById('sc-btn');
   if (!val || val.length < 2) {
@@ -1873,6 +1904,7 @@ async function onCmInput(el) {
   await finalizeCm(val);
 }
 async function finalizeCm(val) {
+  if (!FINALIZE_ALLOWED.includes(_loggedInEmail)) return;
   const cust = (document.getElementById('c-first').value.trim() + ' ' + document.getElementById('c-last').value.trim()).trim();
   try {
     const sessions = await kvReadSessions();
@@ -1895,6 +1927,7 @@ async function finalizeCm(val) {
 
 
 function issueStoreCredit() {
+  if (!FINALIZE_ALLOWED.includes(_loggedInEmail)) { showToast('You do not have permission to issue store credit'); return; }
   const cm = document.getElementById('cm-num').value.trim();
   if (!cm) { showToast('Enter a Credit Memo # first'); return; }
   const custId = window._shopifyCustId;
@@ -1959,6 +1992,7 @@ async function execStoreCredit() {
     `Credit Memo: ${cm}`,
     `Date: ${dt}${assoc ? ' | Associate: ' + assoc : ''}`,
     `Customer: ${custName}`,
+    `Credit issued by: ${_loggedInEmail || assoc || 'unknown'}`,
     ``,
     `Items:`,
     ...lines,
