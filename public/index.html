@@ -313,6 +313,10 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
       </div>
       <div class="ship-box" id="ship-box">
         <div class="ship-lbl">Shipping Address</div>
+        <div id="addr-pick" style="display:none;margin-bottom:12px;">
+          <div style="font-size:11px;color:var(--dim);margin-bottom:6px;">Select from customer addresses:</div>
+          <div id="addr-list" style="display:flex;flex-direction:column;gap:4px;"></div>
+        </div>
         <div class="fg" style="margin-bottom:12px;">
           <div class="fld ff"><label>Street Address</label><input type="text" id="s-str" placeholder="123 Main Street"></div>
           <div class="fld"><label>City</label><input type="text" id="s-city" placeholder="Palm Springs"></div>
@@ -903,6 +907,32 @@ function pickCustomer(i) {
   document.getElementById('c-phone').value = c.phone;
   document.getElementById('cust-search').value = '';
   closeCustRes();
+  showAddrPicker(c.addresses || []);
+}
+function showAddrPicker(addrs) {
+  window._custAddrs = addrs;
+  const wrap = document.getElementById('addr-pick');
+  const list = document.getElementById('addr-list');
+  if (!addrs.length) { wrap.style.display = 'none'; return; }
+  list.innerHTML = addrs.map((a, i) =>
+    `<button type="button" onclick="pickAddr(${i})" style="text-align:left;padding:8px 10px;font-size:11px;background:var(--bg);border:1px solid var(--border);cursor:pointer;color:var(--fg);line-height:1.4">`
+    + esc(a.street) + '<br>'
+    + esc([a.city, a.state, a.zip].filter(Boolean).join(', '))
+    + `</button>`
+  ).join('');
+  wrap.style.display = 'block';
+}
+function pickAddr(i) {
+  const a = window._custAddrs?.[i];
+  if (!a) return;
+  document.getElementById('s-str').value = a.street;
+  document.getElementById('s-city').value = a.city;
+  document.getElementById('s-st').value = a.state;
+  document.getElementById('s-zip').value = a.zip;
+  updTax();
+  document.querySelectorAll('#addr-list button').forEach((b, j) => {
+    b.style.borderColor = j === i ? 'var(--accent)' : 'var(--border)';
+  });
 }
 function closeCustRes() { document.getElementById('cust-res').style.display = 'none'; }
 
@@ -1010,6 +1040,7 @@ function setLoc(btn, loc) {
     sb.classList.remove('vis');
     ['s-str','s-city','s-st','s-zip'].forEach(id => document.getElementById(id).value = '');
     setDestStore('',null);
+    document.getElementById('addr-pick').style.display = 'none';
   }
 }
 let _destStore='';
