@@ -423,10 +423,22 @@ body {
       <div class="ship-box" id="ship-box">
         <div class="ship-lbl">Shipping Address</div>
         <div class="fg" style="margin-bottom:0;">
-          <div class="fld ff"><label>Street Address</label><input type="text" id="s-str" placeholder="123 Main Street"></div>
-          <div class="fld"><label>City</label><input type="text" id="s-city" placeholder="Palm Springs"></div>
-          <div class="fld"><label>State</label><input type="text" id="s-st" placeholder="CA" maxlength="2"></div>
-          <div class="fld"><label>ZIP</label><input type="text" id="s-zip" placeholder="92262" maxlength="10"></div>
+          <div class="fld ff"><label>Street Address *</label><input type="text" id="s-str" placeholder="123 Main Street"></div>
+          <div class="fld"><label>City *</label><input type="text" id="s-city" placeholder="Palm Springs"></div>
+          <div class="fld"><label>State *</label><input type="text" id="s-st" placeholder="CA" maxlength="2"></div>
+          <div class="fld"><label>ZIP *</label><input type="text" id="s-zip" placeholder="92262" maxlength="10"></div>
+        </div>
+        <div class="fg" style="margin-top:10px;margin-bottom:0;">
+          <div class="fld ff">
+            <label>Destination Store *</label>
+            <select id="s-dest-store" style="width:100%;padding:8px 10px;background:var(--bg2);color:var(--white);border:1px solid var(--border);font-family:inherit;font-size:13px;">
+              <option value="">— Select destination store —</option>
+              <option value="San Francisco">San Francisco</option>
+              <option value="Palm Springs">Palm Springs</option>
+              <option value="SoHo — New York">SoHo — New York</option>
+              <option value="Leica SF">Leica SF</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -887,6 +899,7 @@ function setLoc(btn, loc) {
   else {
     sb.classList.remove('vis');
     ['s-str','s-city','s-st','s-zip'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('s-dest-store').value = '';
   }
 }
 
@@ -1219,6 +1232,7 @@ function exportXLSX() {
     ? [document.getElementById('s-str').value, document.getElementById('s-city').value,
        document.getElementById('s-st').value, document.getElementById('s-zip').value].filter(Boolean).join(', ')
     : '';
+  const destStore = selLoc === 'shipping' ? (document.getElementById('s-dest-store').value || '') : '';
   const info = [
     ['CAMERA WEST — TRADE-IN SESSION'],[],
     ['Credit Memo', cm],['Date', dt],['Associate', asc],['Customer', cust],
@@ -1226,6 +1240,7 @@ function exportXLSX() {
     ['Phone', document.getElementById('c-phone').value.trim()],
     ['Location', locStr],
     ...(shipTo ? [['Ship To', shipTo]] : []),
+    ...(destStore ? [['Destination Store', destStore]] : []),
     [],[' SUMMARY'],
     ['Items', sessionItems.length],
     ['Total Retail', sessionItems.reduce((s,i)=>s+i.retail,0)],
@@ -1273,6 +1288,7 @@ function buildPrint() {
     ? [document.getElementById('s-str').value, document.getElementById('s-city').value,
        document.getElementById('s-st').value, document.getElementById('s-zip').value].filter(Boolean).join(', ')
     : '';
+  const destStoreReceipt = selLoc === 'shipping' ? (document.getElementById('s-dest-store').value || '') : '';
 
   const rows = sessionItems.map(it => {
     const ac  = it.accessories.length ? `<br><span style="color:#777;font-size:10px;">Includes: ${it.accessories.join(', ')}</span>` : '';
@@ -1323,6 +1339,7 @@ function buildPrint() {
         ${phone ? `<div style="font-size:10px;color:#555;">${phone}</div>` : ''}
         ${loc !== '—' ? `<div style="font-size:10px;color:#777;margin-top:3px;">Location: ${loc}</div>` : ''}
         ${shipTo ? `<div style="font-size:10px;color:#777;">Ship To: ${shipTo}</div>` : ''}
+        ${destStoreReceipt ? `<div style="font-size:10px;color:#777;">Destination: ${destStoreReceipt}</div>` : ''}
       </td>
       <td style="vertical-align:top;text-align:right;">
         <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:#aaa;margin-bottom:4px;">Transaction</div>
@@ -1511,6 +1528,7 @@ function resetSessionForm() {
   document.getElementById('exp-sec').classList.remove('vis');
   ['c-first','c-last','c-email','c-phone','cm-num','assoc','s-str','s-city','s-st','s-zip']
     .forEach(id => document.getElementById(id).value = '');
+  document.getElementById('s-dest-store').value = '';
   document.querySelectorAll('.loc').forEach(b => b.classList.remove('on'));
   selLoc = '';
   document.getElementById('ship-box').classList.remove('vis');
@@ -1642,6 +1660,7 @@ function buildNsPayload() {
       st:   (document.getElementById('s-st').value || '').trim(),
       zip:  (document.getElementById('s-zip').value || '').trim(),
     };
+    payload.destStore = (document.getElementById('s-dest-store').value || '').trim();
   }
   return payload;
 }
@@ -1675,6 +1694,20 @@ async function finalizeCredit() {
 
   const totalNet = sessionItems.reduce((s, i) => s + i.net, 0);
   if (totalNet <= 0) { showFinalizeStatus('Net total must be greater than $0.', 'err'); return; }
+
+  // Shipping validation
+  if (selLoc === 'shipping') {
+    const missingAddr = [];
+    if (!(document.getElementById('s-str').value || '').trim()) missingAddr.push('Street Address');
+    if (!(document.getElementById('s-city').value || '').trim()) missingAddr.push('City');
+    if (!(document.getElementById('s-st').value || '').trim()) missingAddr.push('State');
+    if (!(document.getElementById('s-zip').value || '').trim()) missingAddr.push('ZIP');
+    if (!(document.getElementById('s-dest-store').value || '').trim()) missingAddr.push('Destination Store');
+    if (missingAddr.length) {
+      showFinalizeStatus(`Shipping requires: ${missingAddr.join(', ')}`, 'err');
+      return;
+    }
+  }
 
   // Confirm
   const custName = [linkedCustomer.first, linkedCustomer.last].filter(Boolean).join(' ');
@@ -1770,6 +1803,20 @@ async function issueNsOnly() {
 
   const totalNet = sessionItems.reduce((s, i) => s + i.net, 0);
   if (totalNet <= 0) { showFinalizeStatus('Net total must be greater than $0.', 'err'); return; }
+
+  // Shipping validation
+  if (selLoc === 'shipping') {
+    const missingAddr = [];
+    if (!(document.getElementById('s-str').value || '').trim()) missingAddr.push('Street Address');
+    if (!(document.getElementById('s-city').value || '').trim()) missingAddr.push('City');
+    if (!(document.getElementById('s-st').value || '').trim()) missingAddr.push('State');
+    if (!(document.getElementById('s-zip').value || '').trim()) missingAddr.push('ZIP');
+    if (!(document.getElementById('s-dest-store').value || '').trim()) missingAddr.push('Destination Store');
+    if (missingAddr.length) {
+      showFinalizeStatus(`Shipping requires: ${missingAddr.join(', ')}`, 'err');
+      return;
+    }
+  }
 
   const custFirst = (document.getElementById('c-first').value || '').trim();
   const custLast  = (document.getElementById('c-last').value || '').trim();

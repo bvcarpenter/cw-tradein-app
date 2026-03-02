@@ -171,7 +171,11 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
           var addr = body.shippingAddress;
           var custName = [(body.customerFirst || ''), (body.customerLast || '')].filter(Boolean).join(' ') || 'Customer';
 
-          // Set shipoverride first so NetSuite unlocks the address subrecord
+          // Clear the address list selection so NetSuite uses a custom address
+          // instead of sourcing from the customer's addressbook
+          try { cmEdit.setValue({ fieldId: 'shipaddresslist', value: '' }); } catch(e) { log.debug('shipaddresslist clear', e.message); }
+
+          // Set shipoverride so NetSuite unlocks the address subrecord
           try { cmEdit.setValue({ fieldId: 'shipoverride', value: true }); } catch(e) { log.debug('shipoverride', e.message); }
 
           var shipAddr = cmEdit.getSubrecord({ fieldId: 'shippingaddress' });
@@ -184,6 +188,10 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
           shipAddr.setValue({ fieldId: 'state',     value: addr.st   || '' });
           shipAddr.setValue({ fieldId: 'zip',       value: addr.zip  || '' });
           try { shipAddr.setValue({ fieldId: 'override', value: true }); } catch(e) {}
+
+          // Also set addrtext so the display address matches
+          var addrText = [custName, addr.str || '', (addr.city || '') + ' ' + (addr.st || '') + ' ' + (addr.zip || '')].filter(Boolean).join('\n');
+          try { shipAddr.setValue({ fieldId: 'addrtext', value: addrText }); } catch(e) { log.debug('addrtext', e.message); }
 
           // Re-zero shipping cost (may have been recalculated on load)
           try { cmEdit.setValue({ fieldId: 'shippingcost', value: 0 }); } catch(e) {}
