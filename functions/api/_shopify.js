@@ -1,21 +1,27 @@
 /**
- * Shared Shopify API helper — OAuth token rotation
+ * Shared Shopify API helper — token rotation for Dev Dashboard apps
  *
- * Shopify no longer allows creating custom apps in the admin.
- * New apps use OAuth with rotating tokens:
- *   - Access tokens expire after ~1 hour
- *   - Refresh tokens last 90 days but are single-use
- *   - Each refresh returns a NEW access token AND refresh token
+ * Shopify Dev Dashboard apps use rotating tokens:
+ *   - Access tokens expire after ~24 hours
+ *   - Refresh tokens are single-use and rotate on each exchange
+ *   - Each refresh returns a NEW access token AND a NEW refresh token
+ *
+ * Token resolution order:
+ *   1. SHOPIFY_TOKEN env var — static Admin API token (shpat_xxx)
+ *      Works for custom apps created in Shopify Admin. Skips rotation.
+ *   2. KV cached access token — from a previous successful rotation
+ *   3. Refresh token rotation — exchange refresh token for new tokens
+ *      Uses KV-stored refresh token first, falls back to env var.
  *
  * Environment variables (set in Cloudflare Pages dashboard):
- *   SHOPIFY_STORE          – e.g. camerawest.myshopify.com
- *   SHOPIFY_CLIENT_ID      – API key from Shopify Partners / Dev Dashboard
- *   SHOPIFY_CLIENT_SECRET  – Client secret (shpss_...)
- *   SHOPIFY_REFRESH_TOKEN  – Initial refresh token (used only on first run)
+ *   SHOPIFY_STORE          – e.g. camera-west.myshopify.com
+ *   SHOPIFY_CLIENT_ID      – Client ID from Shopify Dev Dashboard
+ *   SHOPIFY_CLIENT_SECRET  – Client secret
+ *   SHOPIFY_REFRESH_TOKEN  – Initial refresh token from Dev Dashboard
  *
  * KV keys (AUTH_KV):
  *   shopify_access_token   – cached access token
- *   shopify_refresh_token  – latest refresh token (rotates on each exchange)
+ *   shopify_refresh_token  – latest rotated refresh token
  */
 
 const KV_ACCESS  = 'shopify_access_token';
@@ -23,26 +29,29 @@ const KV_REFRESH = 'shopify_refresh_token';
 
 /**
  * Get a valid Shopify access token, refreshing if necessary.
- * Caches the token in KV with a 50-minute TTL (tokens last ~60 min).
  */
 export async function getShopifyToken(env) {
+  // 1. Static token (custom apps created in Shopify Admin)
+  if (env.SHOPIFY_TOKEN) return env.SHOPIFY_TOKEN;
+
   const kv = env.AUTH_KV;
 
-  // 1. Check for a cached access token in KV
+  // 2. Cached access token in KV (still valid)
   if (kv) {
     const cached = await kv.get(KV_ACCESS);
     if (cached) return cached;
   }
 
-  // 2. No valid cached token — exchange the refresh token for a new one
+  // 3. Rotate: exchange refresh token for a new access + refresh token
+  //    Prefer the KV-stored refresh token (from last rotation) over the
+  //    env var (initial token from the Dev Dashboard).
   const refreshToken = (kv && await kv.get(KV_REFRESH)) || env.SHOPIFY_REFRESH_TOKEN;
 
   if (!refreshToken) {
-    const missing = ['SHOPIFY_CLIENT_ID', 'SHOPIFY_CLIENT_SECRET', 'SHOPIFY_REFRESH_TOKEN', 'SHOPIFY_STORE']
-      .filter(k => !env[k]);
     throw new Error(
-      `Shopify auth not configured. Missing env vars: ${missing.length ? missing.join(', ') : 'none (but KV has no refresh token)'}. ` +
-      `If you just added these in Cloudflare, trigger a new deployment for them to take effect.`
+      'Shopify API token not configured. Set SHOPIFY_REFRESH_TOKEN (from the ' +
+      'Shopify Dev Dashboard) as a secret env var in Cloudflare, or set ' +
+      'SHOPIFY_TOKEN for a static Admin API token.'
     );
   }
 
@@ -62,21 +71,29 @@ export async function getShopifyToken(env) {
 
   if (!tokenRes.ok) {
     const body = await tokenRes.text();
+
+    // Clear stale KV refresh token so we don't keep retrying it
+    if (kv) await kv.delete(KV_REFRESH);
+
     throw new Error(
-      `Shopify token refresh failed (${tokenRes.status}): ${body}`
+      `Shopify token refresh failed (${tokenRes.status}). ` +
+      `The refresh token is likely expired or already used. ` +
+      `Generate a new one in the Shopify Dev Dashboard → Settings → ` +
+      `Refresh token, then update SHOPIFY_REFRESH_TOKEN in Cloudflare. ` +
+      `Detail: ${body.slice(0, 200)}`
     );
   }
 
   const tokenData = await tokenRes.json();
-  const accessToken  = tokenData.access_token;
-  const newRefresh   = tokenData.refresh_token;
+  const accessToken = tokenData.access_token;
+  const newRefresh  = tokenData.refresh_token;
 
-  // 3. Cache the new tokens in KV
+  // Cache tokens in KV
   if (kv) {
-    // Cache access token for 50 minutes (tokens expire at 60 min)
-    await kv.put(KV_ACCESS, accessToken, { expirationTtl: 3000 });
+    // Cache access token for 23 hours (tokens last ~24h)
+    await kv.put(KV_ACCESS, accessToken, { expirationTtl: 82800 });
 
-    // Persist the new refresh token (replaces the old single-use one)
+    // Persist the new single-use refresh token (replaces the old one)
     if (newRefresh) {
       await kv.put(KV_REFRESH, newRefresh);
     }
@@ -104,7 +121,7 @@ export async function shopifyGQL(env, query, variables) {
   );
 
   if (res.status === 401 || res.status === 403) {
-    // Token may have expired between our check and the API call — clear cache
+    // Token expired or invalid — clear cache so the next request re-rotates
     if (env.AUTH_KV) {
       await env.AUTH_KV.delete(KV_ACCESS);
     }

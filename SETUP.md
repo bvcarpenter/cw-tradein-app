@@ -40,15 +40,12 @@ Staff flow:
 1. Go to **partners.shopify.com** (or Shopify Dev Dashboard)
 2. **Apps → Create app** → name it `Trade-In Search`
 3. **Configure API scopes** → enable `read_products`, `read_collections`, `read_customers`, `write_customers`
-4. **Install the app** on your store
-5. After install, you'll receive:
-   - **Client ID** (API key)
-   - **Client Secret** (`shpss_...`)
-   - **Refresh Token** (from the OAuth callback)
+4. Set the **App URL** to your Pages URL (e.g. `https://cw-tradein-app.pages.dev`)
+5. Set **Allowed redirection URL(s)** to `https://cw-tradein-app.pages.dev/api/auth/shopify-callback`
+6. Note your **Client ID** and **Client Secret** (`shpss_...`)
 
-> **Note:** Shopify no longer allows creating new custom apps in the admin.
-> Apps must be created through the Dev Dashboard. These use rotating OAuth
-> tokens instead of static `shpat_...` tokens.
+> **Don't install the app from the Partner Dashboard yet.** You'll do that
+> through the app's OAuth flow in Step 6 below.
 
 ### Collection ID
 1. **Shopify Admin → Products → Collections** → click your pre-owned collection
@@ -123,22 +120,37 @@ In **Workers & Pages → cw-tradein-app → Settings → Environment variables**
 |----------|-------|---------|
 | `APP_URL` | `https://cw-tradein-app.pages.dev` | No |
 | `FROM_EMAIL` | `noreply@camerawest.com` | No |
-| `SHOPIFY_STORE` | `camerawest.myshopify.com` | No |
+| `SHOPIFY_STORE` | `camera-west.myshopify.com` | No |
 | `SHOPIFY_CLIENT_ID` | Your app's API key | No |
 | `SHOPIFY_CLIENT_SECRET` | `shpss_xxxx...` | **Yes — click Encrypt** |
-| `SHOPIFY_REFRESH_TOKEN` | Initial refresh token | **Yes — click Encrypt** |
 | `COLLECTION_ID` | `123456789` | No |
 
-> **How token rotation works:** The app automatically exchanges the refresh
-> token for a short-lived access token (~1 hour). Both tokens are cached in
-> KV. The refresh token in the env var is only used on the very first run —
-> after that, the latest refresh token is stored in KV automatically.
+> **Token management:** The app uses Shopify's offline access tokens, which
+> never expire. The token is obtained once during the OAuth install flow
+> (Step 6) and stored in KV. No refresh token rotation is needed.
 
 Click **Save and Deploy** — Cloudflare will redeploy automatically.
 
 ---
 
-## Step 6 — Add staff email addresses
+## Step 6 — Connect Shopify via OAuth
+
+Now that the app is deployed with your credentials, complete the Shopify
+OAuth install to get an access token:
+
+1. Visit **`https://cw-tradein-app.pages.dev/api/auth/shopify-install`**
+2. You'll be redirected to Shopify — log in as the store owner
+3. Click **Install app** to approve the permissions
+4. Shopify redirects back to your app and stores the access token in KV
+5. You should see a **"Shopify Connected Successfully"** page
+
+> If you get an error about redirect URIs, make sure you added
+> `https://cw-tradein-app.pages.dev/api/auth/shopify-callback`
+> to your app's **Allowed redirection URL(s)** in the Partner Dashboard.
+
+---
+
+## Step 7 — Add staff email addresses
 
 Staff emails are stored in KV. Add them through the Cloudflare dashboard:
 
@@ -157,7 +169,7 @@ Staff emails are stored in KV. Add them through the Cloudflare dashboard:
 
 ---
 
-## Step 7 — Set up email sending (MailChannels)
+## Step 8 — Set up email sending (MailChannels)
 
 MailChannels is free on Cloudflare Workers and requires no account. However, it requires
 your sending domain (`camerawest.com`) to have a DNS record authorizing Cloudflare to send.
@@ -177,7 +189,7 @@ This usually takes a few minutes to propagate.
 
 ---
 
-## Step 8 — Test it
+## Step 9 — Test it
 
 1. Go to `https://cw-tradein-app.pages.dev`
 2. Enter your email address (must be in the `allowed_emails` KV list)
