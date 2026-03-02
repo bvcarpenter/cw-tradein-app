@@ -28,6 +28,15 @@ export async function onRequestGet({ request, env }) {
             lastName
             email
             phone
+            addresses {
+              address1
+              address2
+              city
+              province
+              provinceCode
+              zip
+              country
+            }
           }
         }
       }
@@ -43,6 +52,12 @@ export async function onRequestGet({ request, env }) {
       last: node.lastName || '',
       email: node.email || '',
       phone: node.phone || '',
+      addresses: (node.addresses || []).map(a => ({
+        street: [a.address1, a.address2].filter(Boolean).join(', '),
+        city: a.city || '',
+        state: a.provinceCode || a.province || '',
+        zip: a.zip || '',
+      })),
     }));
     return Response.json({ customers }, { headers: cors });
   } catch (err) {
