@@ -1,10 +1,15 @@
 /**
- * POST /api/store-credit — Issue a Shopify gift card (store credit) to a customer.
+ * POST /api/store-credit — Issue Shopify store credit to a customer.
  *
  * Body: { customerId, amount, note }
  *   customerId — Shopify customer GID (e.g. "gid://shopify/Customer/12345")
  *   amount     — Dollar amount (number)
  *   note       — Optional note (e.g. credit memo reference)
+ *
+ * Uses the storeCreditAccountCredit mutation. Passing a customer ID
+ * as the account owner auto-creates the store credit account if needed.
+ *
+ * Required scope: write_store_credit_account_transactions
  */
 
 import { shopifyGQL } from './_shopify.js';
@@ -28,40 +33,42 @@ export async function onRequestPost({ request, env }) {
   }
 
   const gql = `
-    mutation GiftCardCreate($input: GiftCardCreateInput!) {
-      giftCardCreate(input: $input) {
-        giftCard {
-          id
-          lastCharacters
-          balance { amount currencyCode }
+    mutation StoreCreditAccountCredit($id: ID!, $creditInput: StoreCreditAccountCreditInput!) {
+      storeCreditAccountCredit(id: $id, creditInput: $creditInput) {
+        storeCreditAccountTransaction {
+          amount { amount currencyCode }
+          account {
+            id
+            balance { amount currencyCode }
+          }
         }
         userErrors { field message }
       }
     }
   `;
 
-  const input = {
-    initialValue: String(amount),
-    customerId,
-    note: note || 'Trade-in store credit',
+  const variables = {
+    id: customerId,
+    creditInput: {
+      creditAmount: { amount: String(amount), currencyCode: 'USD' },
+    },
   };
 
   try {
-    const data = await shopifyGQL(env, gql, { input });
-    const result = data.giftCardCreate;
+    const data = await shopifyGQL(env, gql, variables);
+    const result = data.storeCreditAccountCredit;
     if (result.userErrors?.length) {
       return Response.json(
         { error: result.userErrors.map(e => e.message).join('; ') },
         { status: 422, headers: cors }
       );
     }
-    const gc = result.giftCard;
+    const txn = result.storeCreditAccountTransaction;
     return Response.json({
-      giftCard: {
-        id: gc.id,
-        lastCharacters: gc.lastCharacters,
-        balance: gc.balance.amount,
-        currency: gc.balance.currencyCode,
+      storeCredit: {
+        credited: txn.amount.amount,
+        currency: txn.amount.currencyCode,
+        balance:  txn.account.balance.amount,
       }
     }, { headers: cors });
   } catch (err) {

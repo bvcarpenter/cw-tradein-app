@@ -1845,9 +1845,9 @@ async function issueStoreCredit() {
     });
     const d = await r.json();
     if (d.error) throw new Error(d.error);
-    const gc = d.giftCard;
+    const sc = d.storeCredit;
     scMsg.style.color = '#6fbf73';
-    scMsg.innerHTML = 'Store credit issued — <strong>$' + esc(gc.balance) + '</strong> (ending ' + esc(gc.lastCharacters) + ')';
+    scMsg.innerHTML = 'Store credit issued — <strong>$' + esc(sc.credited) + '</strong> credited (account balance: $' + esc(sc.balance) + ')';
     scMsg.style.display = 'block';
     scBtn.textContent = 'Issued';
     showToast('Store credit issued ✓');
