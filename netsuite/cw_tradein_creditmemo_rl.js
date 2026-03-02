@@ -206,17 +206,30 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
               toType: record.Type.CUSTOMER_REFUND,
               isDynamic: true,
             });
+            log.audit('Refund Transform OK', 'Transformed CM ' + cmId);
           } catch (txErr) {
-            log.error('Refund Transform Failed', txErr.message);
+            log.error('Refund Transform Failed', txErr.message + ' — falling back to manual create');
             // Fallback: create Customer Refund from scratch
             refund = record.create({ type: record.Type.CUSTOMER_REFUND, isDynamic: true });
             refund.setValue({ fieldId: 'entity', value: custId });
           }
 
-          // Try setting payment method — 17 is typically "Check"; find available methods
-          try { refund.setValue({ fieldId: 'paymentmethod', value: 17 }); }
-          catch (pmErr) {
-            log.debug('paymentmethod 17 failed', pmErr.message + ' — trying without');
+          // Set payment method — try several common IDs until one works
+          // (IDs vary per NetSuite account: 17=Check, 5=Visa, 1=Cash, etc.)
+          var pmSet = false;
+          var pmTry = [17, 1, 5, 3, 2, 4];
+          for (var p = 0; p < pmTry.length; p++) {
+            try {
+              refund.setValue({ fieldId: 'paymentmethod', value: pmTry[p] });
+              pmSet = true;
+              log.debug('Payment method set', 'ID=' + pmTry[p]);
+              break;
+            } catch (pmErr) {
+              log.debug('paymentmethod ' + pmTry[p] + ' failed', pmErr.message);
+            }
+          }
+          if (!pmSet) {
+            log.audit('Payment method warning', 'No payment method could be set — save may fail');
           }
 
           // Set location to match the credit memo
@@ -227,15 +240,41 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
             catch (e) { log.debug('refund location', e.message); }
           }
 
+          // Set the memo to reference the Credit Memo
+          try {
+            refund.setValue({ fieldId: 'memo', value: 'Trade-In Refund for CM# ' + tranId });
+          } catch (e) { log.debug('refund memo', e.message); }
+
           // Ensure the CM is checked in the apply sublist
           var applyCount = refund.getLineCount({ sublistId: 'apply' });
           log.audit('Refund apply lines', 'Count: ' + applyCount + ' for CM ' + cmId);
+
+          var appliedAny = false;
           for (var i = 0; i < applyCount; i++) {
             refund.selectLine({ sublistId: 'apply', line: i });
             var refInternalId = refund.getCurrentSublistValue({ sublistId: 'apply', fieldId: 'internalid' });
-            log.debug('Apply line ' + i, 'internalid=' + refInternalId + ' (looking for CM ' + cmId + ')');
-            refund.setCurrentSublistValue({ sublistId: 'apply', fieldId: 'apply', value: true });
-            refund.commitLine({ sublistId: 'apply' });
+            var refType = '';
+            try { refType = refund.getCurrentSublistValue({ sublistId: 'apply', fieldId: 'type' }); } catch(e) {}
+            log.debug('Apply line ' + i, 'internalid=' + refInternalId + ' type=' + refType + ' (looking for CM ' + cmId + ')');
+
+            // Apply lines matching our CM, or apply all if only one exists
+            if (String(refInternalId) === String(cmId) || applyCount === 1) {
+              refund.setCurrentSublistValue({ sublistId: 'apply', fieldId: 'apply', value: true });
+              refund.commitLine({ sublistId: 'apply' });
+              appliedAny = true;
+              log.audit('Applied line ' + i, 'internalid=' + refInternalId);
+            }
+          }
+
+          if (!appliedAny && applyCount > 0) {
+            // Apply all lines as a last resort
+            log.audit('No exact CM match', 'Applying all ' + applyCount + ' lines');
+            for (var j = 0; j < applyCount; j++) {
+              refund.selectLine({ sublistId: 'apply', line: j });
+              refund.setCurrentSublistValue({ sublistId: 'apply', fieldId: 'apply', value: true });
+              refund.commitLine({ sublistId: 'apply' });
+            }
+            appliedAny = true;
           }
 
           if (applyCount === 0) {

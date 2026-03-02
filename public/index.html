@@ -573,6 +573,7 @@ let PRODUCTS = [], productsLoaded = false;
 let selItem = null, selGrade = null, selPT = 'tradein';
 let sessionItems = [], srchT = null, selLoc = '';
 let searchResultsCache = [];
+let _nsGrandTotal = 0;  // Stored after NetSuite CM creation (tax-inclusive total)
 
 // ════════════════════════════════════════════
 // TAX RATES
@@ -1379,7 +1380,7 @@ function exportXLSX() {
   if (!sessionItems.length) { alert('No items to export.'); return; }
   const cm   = document.getElementById('cm-num').value.trim() || 'PENDING';
   const tracking = document.getElementById('tracking-num').value.trim();
-  const finalTot = ''; // field removed
+  const finalTot = _nsGrandTotal > 0 ? _nsGrandTotal.toFixed(2) : '';
   const asc  = document.getElementById('assoc').value.trim();
   const dt   = document.getElementById('txn-date').value || new Date().toISOString().split('T')[0];
   const cust = [document.getElementById('c-first').value.trim(), document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || 'Unknown';
@@ -1489,7 +1490,7 @@ function buildPrint() {
   const destStore = (selLoc === 'shipping' && _destStore && STORE_INFO[_destStore])
     ? _destStore + ' — ' + STORE_INFO[_destStore].address : '';
   const tracking = document.getElementById('tracking-num').value.trim();
-  const finalTot = ''; // field removed
+  const finalTot = _nsGrandTotal > 0 ? _nsGrandTotal.toFixed(2) : '';
   const taxRate  = getTaxRate();
   const estTax   = taxRate > 0 ? totNet * taxRate : 0;
   const estGrand = totNet + estTax;
@@ -1890,7 +1891,21 @@ async function saveSerialPopup() {
 // ════════════════════════════════════════════
 // ISSUE STORE CREDIT  (NetSuite CM → Shopify Credit → Finalize)
 // ════════════════════════════════════════════
-function issueStoreCredit() {
+// Lock credit buttons after a CM# has been assigned (prevent double-issue)
+function lockCreditButtons(cmNum) {
+  const scBtn = document.getElementById('sc-btn');
+  const cmBtn = document.getElementById('cm-only-btn');
+  scBtn.disabled = true;
+  scBtn.textContent = 'CM# ' + cmNum + ' Issued';
+  scBtn.style.opacity = '0.5';
+  scBtn.style.cursor = 'not-allowed';
+  cmBtn.disabled = true;
+  cmBtn.textContent = 'CM# ' + cmNum;
+  cmBtn.style.opacity = '0.5';
+  cmBtn.style.cursor = 'not-allowed';
+}
+
+async function issueStoreCredit() {
   if (!FINALIZE_ALLOWED.includes(_loggedInEmail)) { showToast('You do not have permission to issue store credit'); return; }
   if (!sessionItems.length) { showToast('No items in session'); return; }
   const custId = window._shopifyCustId;
@@ -1905,10 +1920,16 @@ function issueStoreCredit() {
     return;
   }
 
-  // Build confirmation summary
+  // Build confirmation summary with estimated tax
   const cust = (document.getElementById('c-first').value.trim() + ' ' + document.getElementById('c-last').value.trim()).trim();
   const email = document.getElementById('c-email').value.trim();
   const el = document.getElementById('cc-summary');
+
+  // Fetch tax rate (async) and build the summary
+  const taxRate = await getAvaTaxRate();
+  const estTax = taxRate > 0 ? net * taxRate : 0;
+  const estTotal = net + estTax;
+
   el.innerHTML = `
     <div style="margin-bottom:16px;font-size:13px;color:var(--dim);line-height:1.6;">
       This will create a Credit Memo + Customer Refund in NetSuite and issue Shopify store credit:
@@ -1931,13 +1952,23 @@ function issueStoreCredit() {
         </tr>`).join('')}</tbody>
       </table>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:2px solid var(--accent);">
-      <span style="font-size:14px;color:var(--dim);">Total Credit</span>
-      <span style="font-size:22px;font-weight:600;color:var(--accent);">${ff(net)}</span>
+    <div style="padding:10px 0;border-top:2px solid var(--accent);">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;color:var(--dim);">Subtotal</span>
+        <span style="font-size:14px;color:var(--white);">${ff(net)}</span>
+      </div>
+      ${taxRate > 0 ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+        <span style="font-size:11px;color:var(--dim);">Est. Tax (${(taxRate*100).toFixed(3).replace(/\\.?0+$/,'')}%)</span>
+        <span style="font-size:13px;color:var(--dim);">${ff(estTax)}</span>
+      </div>` : ''}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding-top:6px;border-top:1px solid var(--border);">
+        <span style="font-size:14px;color:var(--dim);">${taxRate > 0 ? 'Est. Total (incl. tax)' : 'Total Credit'}</span>
+        <span style="font-size:22px;font-weight:600;color:var(--accent);">${ff(estTotal)}</span>
+      </div>
     </div>
     <div style="margin-top:10px;font-size:10px;color:var(--dim);line-height:1.6;border-top:1px solid var(--border);padding-top:8px;">
-      1. Create Credit Memo in NetSuite<br>
-      2. Issue store credit in Shopify<br>
+      1. Create Credit Memo + Customer Refund in NetSuite<br>
+      2. Issue store credit in Shopify (final total from NetSuite)<br>
       3. Finalize and save session
     </div>`;
   document.getElementById('mo-confirm-credit').classList.add('open');
@@ -2002,19 +2033,22 @@ async function execStoreCredit() {
     if (nsData.error) throw new Error('NetSuite: ' + nsData.error);
     cm = nsData.tranId || '';
 
-    // Show the CM# in the field
+    // Show the CM# in the field and lock the buttons
     document.getElementById('cm-num').value = cm;
+    lockCreditButtons(cm);
 
     // Use grand total from NetSuite (includes tax) if available, otherwise fall back to subtotal
     const creditAmount = (nsData.grandTotal != null && nsData.grandTotal > 0) ? nsData.grandTotal : net;
 
-    // Show refund status
+    // Store grand total globally for the print PDF
+    _nsGrandTotal = creditAmount;
+
+    // Log refund status
+    let refundNote = '';
     if (nsData.refundTranId) {
-      scMsg.textContent += ` | Refund: ${nsData.refundTranId}`;
-    }
-    if (nsData.refundError) {
-      scMsg.style.color = '#e07070';
-      scMsg.textContent = 'CM created but Refund failed: ' + nsData.refundError + ' (CM# ' + cm + ')';
+      refundNote = ' | Refund# ' + nsData.refundTranId;
+    } else if (nsData.refundError) {
+      refundNote = ' | Refund failed: ' + nsData.refundError;
     }
 
     // ── Step 2: Issue Store Credit in Shopify ──
@@ -2063,6 +2097,7 @@ async function execStoreCredit() {
       sessionData.finalizedAt = new Date().toISOString();
       sessionData.storeCredit = { credited, balance, issuedAt: new Date().toISOString() };
       sessionData.netsuiteId = nsData.internalId || '';
+      sessionData.refundTranId = nsData.refundTranId || '';
       const name = (sessionData.customer.first + ' ' + sessionData.customer.last).trim()
         || 'Session ' + new Date().toLocaleDateString();
       const key = 'cwti_' + Date.now();
@@ -2084,18 +2119,16 @@ async function execStoreCredit() {
     scMsg.style.display = 'block';
     scBtn.textContent = 'Issued ✓';
 
-    // Clear session after delay
-    setTimeout(() => {
-      resetSessionForm();
-      showToast('Session finalized and cleared');
-    }, 3000);
-
   } catch (err) {
     scMsg.style.color = '#e07070';
     scMsg.textContent = 'Failed: ' + err.message;
-    if (cm) scMsg.textContent += ` (NetSuite CM# ${cm} was created — void it manually if needed)`;
+    if (cm) {
+      scMsg.textContent += ` (NetSuite CM# ${cm} was created — void it manually if needed)`;
+      lockCreditButtons(cm);  // Still lock — CM was created even though Shopify failed
+    } else {
+      scBtn.disabled = false; scBtn.textContent = 'Issue Store Credit';
+    }
     scMsg.style.display = 'block';
-    scBtn.disabled = false; scBtn.textContent = 'Issue Store Credit';
   }
 }
 // ── ISSUE CM ONLY (no Shopify credit) ──
@@ -2154,13 +2187,14 @@ function issueCmOnly() {
     const cm = nsData.tranId || '';
     document.getElementById('cm-num').value = cm;
     const gt = (nsData.grandTotal != null && nsData.grandTotal > 0) ? nsData.grandTotal : net;
+    _nsGrandTotal = gt;  // Store for print PDF
+    lockCreditButtons(cm);  // Prevent double-issue
     showToast(`CM# ${cm} created ✓`);
     scMsg.style.color = '#7090d0';
     scMsg.innerHTML = `<strong>CM# ${esc(cm)}</strong> created in NetSuite (no Shopify credit issued)`
       + `<br>Subtotal: ${ff(net)}` + (nsData.taxtotal ? ` | Tax: ${ff(nsData.taxtotal)}` : '')
       + ` | <strong>Total: ${ff(gt)}</strong>`;
     scMsg.style.display = 'block';
-    cmBtn.textContent = 'CM Created ✓';
   }).catch(err => {
     scMsg.style.color = '#e07070';
     scMsg.textContent = 'Failed: ' + err.message;
@@ -2211,6 +2245,7 @@ async function updTax() {
 function resetSessionForm() {
   sessionItems = []; selItem = null; selGrade = null;
   window._shopifyCustId = '';
+  _nsGrandTotal = 0;
   renderCart(); clrItem();
   ['c-first','c-last','c-email','c-phone','cm-num','assoc','tracking-num','final-total','s-str','s-city','s-st','s-zip']
     .forEach(id => document.getElementById(id).value = '');
@@ -2220,6 +2255,11 @@ function resetSessionForm() {
   document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
   document.getElementById('sc-msg').textContent = '';
   document.getElementById('sc-msg').style.display = 'none';
+  // Re-enable credit buttons
+  const scBtn = document.getElementById('sc-btn');
+  const cmBtn = document.getElementById('cm-only-btn');
+  scBtn.disabled = false; scBtn.textContent = 'Issue Store Credit'; scBtn.style.opacity = ''; scBtn.style.cursor = '';
+  cmBtn.disabled = false; cmBtn.textContent = 'Issue CM Only'; cmBtn.style.opacity = ''; cmBtn.style.cursor = '';
 }
 function clrSession() {
   if (!confirm('Clear all items and start a new session?')) return;
