@@ -19,24 +19,6 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
   const EXCHANGE_ITEM_ID  = 21433;          // Non-Inventory Item for Sale "Exchange"
   const IN_STORE_SHIP_METHOD = 18525;       // Shipping method "In-Store Sale"
 
-  /** Look up a tax code internal ID by name (cached after first call). */
-  let _taxCodeCache = {};
-  function findTaxCodeId(name) {
-    if (_taxCodeCache[name] !== undefined) return _taxCodeCache[name];
-    try {
-      const results = search.create({
-        type: 'salestaxitem',
-        filters: [['name', 'is', name]],
-        columns: ['internalid'],
-      }).run().getRange({ start: 0, end: 1 });
-      _taxCodeCache[name] = results.length ? results[0].id : null;
-    } catch (e) {
-      log.debug('findTaxCodeId', 'Could not look up tax code "' + name + '": ' + e.message);
-      _taxCodeCache[name] = null;
-    }
-    return _taxCodeCache[name];
-  }
-
   // Trade-In App location name → NetSuite internal Location ID
   const STORE_LOCATIONS = {
     'Leica SF':        1,
@@ -65,8 +47,8 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
       // ── Find or create customer ──
       const custId = findOrCreateCustomer(body);
 
-      // ── Create Credit Memo ──
-      const cm = record.create({ type: record.Type.CREDIT_MEMO, isDynamic: true });
+      // ── Create Credit Memo (standard mode — avoids commitLine tax validation) ──
+      const cm = record.create({ type: record.Type.CREDIT_MEMO, isDynamic: false });
       cm.setValue({ fieldId: 'entity', value: custId });
 
       if (body.date) {
@@ -84,14 +66,16 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
       const loc = body.location || '';
 
       if (loc === 'shipping' && body.shippingAddress) {
-        // Customer ships items in — set their address as ship-to
         const addr = body.shippingAddress;
-        cm.setValue({ fieldId: 'shipaddress', value: [
-          addr.str || '',
-          [addr.city || '', addr.st || '', addr.zip || ''].filter(Boolean).join(', '),
-        ].filter(Boolean).join('\n') });
+        try {
+          cm.setValue({ fieldId: 'shipaddress', value: [
+            addr.str || '',
+            [addr.city || '', addr.st || '', addr.zip || ''].filter(Boolean).join(', '),
+          ].filter(Boolean).join('\n') });
+        } catch (e) {
+          log.debug('shipaddress', 'Could not set ship address: ' + e.message);
+        }
 
-        // Set location to the destination store (where shipped items go)
         const destLocId = STORE_LOCATIONS[body.destStore];
         if (destLocId) {
           try {
@@ -101,14 +85,12 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
           }
         }
       } else {
-        // In-store — set shipping method to "In-Store Sale"
         try {
           cm.setValue({ fieldId: 'shipmethod', value: IN_STORE_SHIP_METHOD });
         } catch (e) {
           log.debug('shipmethod', 'Could not set ship method: ' + e.message);
         }
 
-        // Set transaction-level location from the store mapping
         const nsLocId = STORE_LOCATIONS[loc];
         if (nsLocId) {
           try {
@@ -119,13 +101,11 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
         }
       }
 
-      // ── Add line items ──
+      // ── Add line items (standard mode — setSublistValue, no commitLine) ──
       const items = body.items || [];
       items.forEach((it, idx) => {
-        cm.selectNewLine({ sublistId: 'item' });
-        cm.setCurrentSublistValue({ sublistId: 'item', fieldId: 'item', value: EXCHANGE_ITEM_ID });
+        cm.setSublistValue({ sublistId: 'item', fieldId: 'item', line: idx, value: EXCHANGE_ITEM_ID });
 
-        // Build rich description from trade-in item details
         const descParts = [
           it.name || 'Item ' + (idx + 1),
           it.grade  ? '[' + it.grade + ']' : '',
@@ -136,11 +116,9 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
           it.notes ? 'Notes: ' + it.notes : '',
         ].filter(Boolean).join(' | ');
 
-        cm.setCurrentSublistValue({ sublistId: 'item', fieldId: 'description', value: descParts });
-        cm.setCurrentSublistValue({ sublistId: 'item', fieldId: 'quantity',    value: 1 });
-        cm.setCurrentSublistValue({ sublistId: 'item', fieldId: 'rate',        value: it.net || 0 });
-
-        cm.commitLine({ sublistId: 'item' });
+        cm.setSublistValue({ sublistId: 'item', fieldId: 'description', line: idx, value: descParts });
+        cm.setSublistValue({ sublistId: 'item', fieldId: 'quantity',    line: idx, value: 1 });
+        cm.setSublistValue({ sublistId: 'item', fieldId: 'rate',        line: idx, value: it.net || 0 });
       });
 
       const cmId = cm.save({ enableSourcing: true, ignoreMandatoryFields: true });
@@ -166,7 +144,6 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
     const email = (body.customerEmail || '').trim().toLowerCase();
 
     if (email) {
-      // Search for all customers with this email, sorted by datecreated ASC (oldest first)
       const results = search.create({
         type: search.Type.CUSTOMER,
         filters: [['email', 'is', email]],
@@ -177,7 +154,6 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
       }).run().getRange({ start: 0, end: 10 });
 
       if (results.length > 0) {
-        // First result = oldest match
         const custId = results[0].getValue('internalid');
         log.debug('Customer found', 'email=' + email + ' id=' + custId + ' (oldest of ' + results.length + ')');
         return custId;
