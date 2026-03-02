@@ -482,11 +482,11 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
     <section class="sec" id="exp-sec">
       <div class="sec-hd"><span class="sec-n">iv.</span><h3>Export <em style="font-style:italic;color:var(--accent)">//</em> Print</h3></div>
       <div class="fg t3" style="margin-bottom:0;">
-        <div class="fld"><label>Credit Memo # (from ERP)</label><input type="text" id="cm-num" placeholder="CM00000" oninput="onCmInput(this)"></div>
+        <div class="fld"><label>Credit Memo #</label><input type="text" id="cm-num" placeholder="Auto-assigned by NetSuite" readonly style="opacity:.7;cursor:not-allowed;"></div>
         <div class="fld"><label>Tracking # (if shipping)</label><input type="text" id="tracking-num" placeholder="1Z999AA10123456784"></div>
         <div class="fld"><label>Final Total</label><input type="text" id="final-total" placeholder="$0.00"></div>
         <div style="grid-column:1/-1;background:#1a1a1a;border-left:2px solid #d95e00;padding:8px 12px;font-size:11px;color:#aaa;line-height:1.6;margin-top:4px;">
-          ⚠ Credit Memo # will be assigned once this trade-in is finalized in the ERP. Enter the CM# above before printing the final receipt.
+          Credit Memo # is auto-assigned by NetSuite when you issue store credit.
         </div>
         <div class="fld"><label>Associate</label><input type="text" id="assoc" placeholder="Your name"></div>
         <div class="fld"><label>Date</label><input type="date" id="txn-date"></div>
@@ -494,7 +494,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
       <div class="exp-acts">
         <button class="btn btn-g" onclick="exportXLSX()">Export NetSuite XLSX</button>
         <button class="btn btn-a" onclick="openPrint()">Print Credit Memo</button>
-        <button class="btn" id="sc-btn" onclick="issueStoreCredit()" disabled style="opacity:.45;background:#2a6e3f;color:#fff;border:1px solid #2a6e3f;">Issue Store Credit</button>
+        <button class="btn" id="sc-btn" onclick="issueStoreCredit()" style="background:#2a6e3f;color:#fff;border:1px solid #2a6e3f;">Issue Store Credit</button>
         <button class="btn btn-r" onclick="clrSession()">Clear Session</button>
       </div>
       <div id="sc-msg" style="display:none;font-size:11px;padding:8px 12px;margin-top:6px;border-left:2px solid var(--border);background:var(--bg3);line-height:1.5;"></div>
@@ -725,13 +725,8 @@ async function autoFillAssociate() {
 
 function applyFinalizePermissions() {
   const allowed = FINALIZE_ALLOWED.includes(_loggedInEmail);
-  const cmEl = document.getElementById('cm-num');
   const scBtn = document.getElementById('sc-btn');
   if (!allowed) {
-    cmEl.disabled = true;
-    cmEl.placeholder = 'Restricted';
-    cmEl.title = 'You do not have permission to enter a Credit Memo #';
-    cmEl.style.opacity = '.5';
     scBtn.disabled = true;
     scBtn.style.opacity = '.3';
     scBtn.title = 'You do not have permission to issue store credit';
@@ -1849,15 +1844,18 @@ async function renderSessionsMgr() {
   }).join('');
 }
 
-let _pendingCmVal = '';
+// ════════════════════════════════════════════
+// SERIAL NUMBER CHECK
+// ════════════════════════════════════════════
+let _serialCallback = null;
 function needsSerialItems() {
   return sessionItems.filter(it =>
     (!it.serial || !it.serial.trim()) &&
     (it.itemType === 'Bodies' || it.itemType === 'Lenses')
   );
 }
-function openSerialPopup(items, cmVal) {
-  _pendingCmVal = cmVal;
+function openSerialPopup(items, callback) {
+  _serialCallback = callback;
   const list = document.getElementById('serial-popup-list');
   list.innerHTML = items.map(it => `
     <div class="sm-item">
@@ -1869,7 +1867,7 @@ function openSerialPopup(items, cmVal) {
 }
 function closeSerialPopup() {
   document.getElementById('serial-overlay').classList.remove('vis');
-  _pendingCmVal = '';
+  _serialCallback = null;
 }
 function valSerialPopup() {
   const inputs = document.querySelectorAll('#serial-popup-list input');
@@ -1885,67 +1883,38 @@ async function saveSerialPopup() {
   });
   renderCart();
   closeSerialPopup();
-  await finalizeCm(_pendingCmVal);
-}
-async function onCmInput(el) {
-  if (!FINALIZE_ALLOWED.includes(_loggedInEmail)) return;
-  const val = el.value.trim();
-  const scBtn = document.getElementById('sc-btn');
-  if (!val || val.length < 2) {
-    scBtn.disabled = true; scBtn.style.opacity = '.45';
-    return;
-  }
-  scBtn.disabled = false; scBtn.style.opacity = '1';
-  const missing = needsSerialItems();
-  if (missing.length > 0) {
-    openSerialPopup(missing, val);
-    return;
-  }
-  await finalizeCm(val);
-}
-async function finalizeCm(val) {
-  if (!FINALIZE_ALLOWED.includes(_loggedInEmail)) return;
-  const cust = (document.getElementById('c-first').value.trim() + ' ' + document.getElementById('c-last').value.trim()).trim();
-  try {
-    const sessions = await kvReadSessions();
-    for (let i = sessions.length - 1; i >= 0; i--) {
-      const s = sessions[i];
-      if (s.data?.finalized) continue;
-      const dc = ((s.data?.customer?.first || '') + ' ' + (s.data?.customer?.last || '')).trim();
-      if (!cust || dc === cust) {
-        s.data.finalized = true;
-        s.data.finalizedAt = new Date().toISOString();
-        s.data.cmNum = val;
-        await kvSaveSession(s.key, s.data);
-        showToast('Session auto-finalized ✓');
-        break;
-      }
-    }
-  } catch(e) { console.warn('onCmInput err', e); }
+  if (_serialCallback) _serialCallback();
 }
 
-
-
+// ════════════════════════════════════════════
+// ISSUE STORE CREDIT  (NetSuite CM → Shopify Credit → Finalize)
+// ════════════════════════════════════════════
 function issueStoreCredit() {
   if (!FINALIZE_ALLOWED.includes(_loggedInEmail)) { showToast('You do not have permission to issue store credit'); return; }
-  const cm = document.getElementById('cm-num').value.trim();
-  if (!cm) { showToast('Enter a Credit Memo # first'); return; }
+  if (!sessionItems.length) { showToast('No items in session'); return; }
   const custId = window._shopifyCustId;
   if (!custId) { showToast('Select a Shopify customer first'); return; }
   const net = sessionItems.reduce((s, i) => s + i.net, 0);
   if (net <= 0) { showToast('No net value to credit'); return; }
+
+  // Check for missing serial numbers first
+  const missing = needsSerialItems();
+  if (missing.length > 0) {
+    openSerialPopup(missing, () => issueStoreCredit());
+    return;
+  }
+
   // Build confirmation summary
   const cust = (document.getElementById('c-first').value.trim() + ' ' + document.getElementById('c-last').value.trim()).trim();
   const email = document.getElementById('c-email').value.trim();
   const el = document.getElementById('cc-summary');
   el.innerHTML = `
     <div style="margin-bottom:16px;font-size:13px;color:var(--dim);line-height:1.6;">
-      You are about to issue store credit to the following customer:
+      This will create a Credit Memo in NetSuite and issue Shopify store credit:
     </div>
     <div style="background:var(--bg3);border:1px solid var(--border);padding:14px 18px;margin-bottom:16px;">
       <div style="font-size:15px;font-weight:500;color:var(--white);margin-bottom:4px;">${esc(cust)}</div>
       ${email ? `<div style="font-size:11px;color:var(--dim);">${esc(email)}</div>` : ''}
-      <div style="font-size:11px;color:var(--dim);margin-top:2px;">CM# ${esc(cm)}</div>
     </div>
     <div style="margin-bottom:14px;">
       <table style="width:100%;font-size:12px;border-collapse:collapse;">
@@ -1964,6 +1933,11 @@ function issueStoreCredit() {
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:2px solid var(--accent);">
       <span style="font-size:14px;color:var(--dim);">Total Credit</span>
       <span style="font-size:22px;font-weight:600;color:var(--accent);">${ff(net)}</span>
+    </div>
+    <div style="margin-top:10px;font-size:10px;color:var(--dim);line-height:1.6;border-top:1px solid var(--border);padding-top:8px;">
+      1. Create Credit Memo in NetSuite<br>
+      2. Issue store credit in Shopify<br>
+      3. Finalize and save session
     </div>`;
   document.getElementById('mo-confirm-credit').classList.add('open');
 }
@@ -1972,53 +1946,96 @@ function closeConfirmCredit() {
 }
 async function execStoreCredit() {
   closeConfirmCredit();
-  const cm = document.getElementById('cm-num').value.trim();
   const custId = window._shopifyCustId;
   const net = sessionItems.reduce((s, i) => s + i.net, 0);
   const scBtn = document.getElementById('sc-btn');
   const scMsg = document.getElementById('sc-msg');
-  scBtn.disabled = true; scBtn.textContent = 'Issuing…';
+  scBtn.disabled = true;
   scMsg.style.display = 'none';
 
-  // Build timeline note with item details
   const custName = (document.getElementById('c-first').value.trim() + ' ' + document.getElementById('c-last').value.trim()).trim();
+  const custEmail = document.getElementById('c-email').value.trim();
+  const custPhone = document.getElementById('c-phone').value.trim();
   const dt = document.getElementById('txn-date').value || new Date().toISOString().split('T')[0];
   const assoc = document.getElementById('assoc').value.trim();
-  const lines = sessionItems.map(it =>
-    `  • ${it.name} [${it.grade}] — ${it.priceType === 'tradein' ? 'TI' : 'OR'} ${ff(it.net)}${it.serial ? ' (S/N: ' + it.serial + ')' : ''}`
-  );
-  const timelineNote = [
-    `═══ STORE CREDIT ISSUED ═══`,
-    `Credit Memo: ${cm}`,
-    `Date: ${dt}${assoc ? ' | Associate: ' + assoc : ''}`,
-    `Customer: ${custName}`,
-    `Credit issued by: ${_loggedInEmail || assoc || 'unknown'}`,
-    ``,
-    `Items:`,
-    ...lines,
-    ``,
-    `Total Credit: ${ff(net)}`,
-  ].join('\n');
+
+  let cm = '';
 
   try {
-    const r = await fetch('/api/store-credit', {
+    // ── Step 1: Create Credit Memo in NetSuite ──
+    scBtn.textContent = 'Creating CM in NetSuite…';
+    scMsg.style.color = 'var(--dim)';
+    scMsg.textContent = 'Step 1/3 — Creating Credit Memo in NetSuite…';
+    scMsg.style.display = 'block';
+
+    const nsBody = {
+      customerEmail: custEmail,
+      customerFirst: document.getElementById('c-first').value.trim(),
+      customerLast:  document.getElementById('c-last').value.trim(),
+      customerPhone: custPhone,
+      items: sessionItems.map(it => ({
+        name: it.name, grade: it.grade, serial: it.serial || '',
+        net: it.net, tradein: it.tradein, priceType: it.priceType,
+      })),
+      totalAmount: net,
+      date: dt,
+      associate: assoc,
+      issuedBy: _loggedInEmail || assoc,
+    };
+
+    const nsRes = await fetch('/api/netsuite-credit-memo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nsBody),
+    });
+    const nsData = await nsRes.json();
+    if (nsData.error) throw new Error('NetSuite: ' + nsData.error);
+    cm = nsData.tranId || '';
+
+    // Show the CM# in the field
+    document.getElementById('cm-num').value = cm;
+
+    // ── Step 2: Issue Store Credit in Shopify ──
+    scBtn.textContent = 'Issuing Shopify credit…';
+    scMsg.textContent = 'Step 2/3 — Issuing store credit in Shopify (CM# ' + cm + ')…';
+
+    const lines = sessionItems.map(it =>
+      `  • ${it.name} [${it.grade}] — ${it.priceType === 'tradein' ? 'TI' : 'OR'} ${ff(it.net)}${it.serial ? ' (S/N: ' + it.serial + ')' : ''}`
+    );
+    const timelineNote = [
+      `═══ STORE CREDIT ISSUED ═══`,
+      `Credit Memo: ${cm}`,
+      `Date: ${dt}${assoc ? ' | Associate: ' + assoc : ''}`,
+      `Customer: ${custName}`,
+      `Credit issued by: ${_loggedInEmail || assoc || 'unknown'}`,
+      ``,
+      `Items:`,
+      ...lines,
+      ``,
+      `Total Credit: ${ff(net)}`,
+    ].join('\n');
+
+    const scRes = await fetch('/api/store-credit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ customerId: custId, amount: net, note: 'Trade-in credit — ' + cm, timelineNote }),
     });
-    const d = await r.json();
-    if (d.error) throw new Error(d.error);
-    const sc = d.storeCredit;
-    const credited = parseFloat(sc.credited).toFixed(2);
-    const balance = parseFloat(sc.balance).toFixed(2);
+    const scData = await scRes.json();
+    if (scData.error) throw new Error('Shopify: ' + scData.error);
+    const credited = parseFloat(scData.storeCredit.credited).toFixed(2);
+    const balance = parseFloat(scData.storeCredit.balance).toFixed(2);
 
-    // Save and finalize the session with store credit info
-    scBtn.textContent = 'Saving session…';
+    // ── Step 3: Save and finalize session ──
+    scBtn.textContent = 'Finalizing session…';
+    scMsg.textContent = 'Step 3/3 — Saving and finalizing session…';
+
     try {
       const sessionData = getSessionData();
+      sessionData.cmNum = cm;
       sessionData.finalized = true;
       sessionData.finalizedAt = new Date().toISOString();
       sessionData.storeCredit = { credited, balance, issuedAt: new Date().toISOString() };
+      sessionData.netsuiteId = nsData.internalId || '';
       const name = (sessionData.customer.first + ' ' + sessionData.customer.last).trim()
         || 'Session ' + new Date().toLocaleDateString();
       const key = 'cwti_' + Date.now();
@@ -2029,23 +2046,25 @@ async function execStoreCredit() {
       console.warn('Session save failed:', saveErr);
     }
 
-    // Show success briefly, then clear
-    showToast(`Store credit issued — $${credited} credited ✓`);
+    // ── Done ──
+    showToast(`CM# ${cm} — $${credited} store credit issued ✓`);
     scMsg.style.color = '#6fbf73';
-    scMsg.innerHTML = 'Store credit issued — <strong>$' + esc(credited) + '</strong> credited (balance: $' + esc(balance) + ')'
-      + (d.noteAppended ? '<br><span style="font-size:10px;">Customer note updated.</span>' : '');
+    scMsg.innerHTML = `<strong>CM# ${esc(cm)}</strong> created in NetSuite<br>`
+      + `Store credit issued — <strong>$${esc(credited)}</strong> (balance: $${esc(balance)})`
+      + (scData.noteAppended ? '<br><span style="font-size:10px;">Customer note updated.</span>' : '');
     scMsg.style.display = 'block';
     scBtn.textContent = 'Issued ✓';
 
-    // Clear session after a short delay so the user sees the success message
+    // Clear session after delay
     setTimeout(() => {
       resetSessionForm();
       showToast('Session finalized and cleared');
-    }, 2500);
+    }, 3000);
 
   } catch (err) {
     scMsg.style.color = '#e07070';
     scMsg.textContent = 'Failed: ' + err.message;
+    if (cm) scMsg.textContent += ` (NetSuite CM# ${cm} was created — void it manually if needed)`;
     scMsg.style.display = 'block';
     scBtn.disabled = false; scBtn.textContent = 'Issue Store Credit';
   }
