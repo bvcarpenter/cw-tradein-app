@@ -44,7 +44,9 @@ export async function onRequestGet({ request, env }) {
   `;
 
   try {
-    const searchQuery = `first_name:*${q}* OR last_name:*${q}* OR email:*${q}*`;
+    // Simple full-text search — Shopify handles matching across name/email/phone.
+    // Field-specific infix wildcards (first_name:*q*) are not supported by Shopify.
+    const searchQuery = q;
     const data = await shopifyGQL(env, gql, { query: searchQuery });
     const customers = (data.customers?.edges || []).map(({ node }) => ({
       id: node.id,

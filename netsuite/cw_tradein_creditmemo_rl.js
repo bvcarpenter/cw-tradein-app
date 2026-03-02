@@ -168,51 +168,89 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
 
       // Load back to get the auto-generated tranId and grand total (includes tax)
       const saved = record.load({ type: record.Type.CREDIT_MEMO, id: cmId });
-      const tranId    = saved.getValue({ fieldId: 'tranid' });
-      const grandTotal = parseFloat(saved.getValue({ fieldId: 'total' })) || 0;
+      const tranId     = saved.getValue({ fieldId: 'tranid' });
+      const subtotal   = parseFloat(saved.getValue({ fieldId: 'subtotal' })) || 0;
+      var   taxtotal   = 0;
+      try { taxtotal = parseFloat(saved.getValue({ fieldId: 'taxtotal' })) || 0; }
+      catch (e) {
+        try { taxtotal = parseFloat(saved.getValue({ fieldId: 'tax' })) || 0; }
+        catch (e2) { log.debug('taxtotal', 'Could not read tax fields: ' + e2.message); }
+      }
+      var rawTotal = parseFloat(saved.getValue({ fieldId: 'total' })) || 0;
+      // If rawTotal is missing or equals subtotal but tax exists, compute manually
+      var grandTotal = rawTotal;
+      if ((!rawTotal || rawTotal === subtotal) && taxtotal > 0) {
+        grandTotal = subtotal + taxtotal;
+      }
 
-      log.audit('CW Trade-In CM Created', 'ID: ' + cmId + ' TranID: ' + tranId + ' GrandTotal: ' + grandTotal);
+      log.audit('CW Trade-In CM Created',
+        'ID: ' + cmId + ' TranID: ' + tranId +
+        ' Subtotal: ' + subtotal + ' Tax: ' + taxtotal +
+        ' RawTotal: ' + rawTotal + ' GrandTotal: ' + grandTotal);
 
-      const result = { success: true, tranId: tranId, internalId: cmId, grandTotal: grandTotal };
+      const result = {
+        success: true, tranId: tranId, internalId: cmId,
+        grandTotal: grandTotal, subtotal: subtotal, taxtotal: taxtotal
+      };
 
       // ── Optionally create Customer Refund from the Credit Memo ──
       if (body.createRefund) {
         try {
-          log.debug('Creating Refund', 'Transforming CM ' + cmId + ' to Customer Refund');
+          log.audit('Creating Refund', 'Transforming CM ' + cmId + ' (entity=' + custId + ') to Customer Refund');
 
-          const refund = record.transform({
-            fromType: record.Type.CREDIT_MEMO,
-            fromId: cmId,
-            toType: record.Type.CUSTOMER_REFUND,
-            isDynamic: true,
-          });
+          var refund;
+          try {
+            refund = record.transform({
+              fromType: record.Type.CREDIT_MEMO,
+              fromId: cmId,
+              toType: record.Type.CUSTOMER_REFUND,
+              isDynamic: true,
+            });
+          } catch (txErr) {
+            log.error('Refund Transform Failed', txErr.message);
+            // Fallback: create Customer Refund from scratch
+            refund = record.create({ type: record.Type.CUSTOMER_REFUND, isDynamic: true });
+            refund.setValue({ fieldId: 'entity', value: custId });
+          }
 
-          refund.setValue({ fieldId: 'paymentmethod', value: 17 });
+          // Try setting payment method — 17 is typically "Check"; find available methods
+          try { refund.setValue({ fieldId: 'paymentmethod', value: 17 }); }
+          catch (pmErr) {
+            log.debug('paymentmethod 17 failed', pmErr.message + ' — trying without');
+          }
 
           // Set location to match the credit memo
-          const cmLocation = saved.getValue({ fieldId: 'location' });
+          var cmLocation;
+          try { cmLocation = saved.getValue({ fieldId: 'location' }); } catch (e) { /* skip */ }
           if (cmLocation) {
             try { refund.setValue({ fieldId: 'location', value: cmLocation }); }
             catch (e) { log.debug('refund location', e.message); }
           }
 
           // Ensure the CM is checked in the apply sublist
-          const applyCount = refund.getLineCount({ sublistId: 'apply' });
-          log.debug('Refund apply lines', applyCount);
+          var applyCount = refund.getLineCount({ sublistId: 'apply' });
+          log.audit('Refund apply lines', 'Count: ' + applyCount + ' for CM ' + cmId);
           for (var i = 0; i < applyCount; i++) {
             refund.selectLine({ sublistId: 'apply', line: i });
+            var refInternalId = refund.getCurrentSublistValue({ sublistId: 'apply', fieldId: 'internalid' });
+            log.debug('Apply line ' + i, 'internalid=' + refInternalId + ' (looking for CM ' + cmId + ')');
             refund.setCurrentSublistValue({ sublistId: 'apply', fieldId: 'apply', value: true });
             refund.commitLine({ sublistId: 'apply' });
           }
 
-          const refundId = refund.save({ enableSourcing: true, ignoreMandatoryFields: true });
-          const savedRefund = record.load({ type: record.Type.CUSTOMER_REFUND, id: refundId });
-          result.refundTranId     = savedRefund.getValue({ fieldId: 'tranid' });
-          result.refundInternalId = refundId;
+          if (applyCount === 0) {
+            log.error('Refund has no apply lines', 'CM ' + cmId + ' may not be eligible for refund');
+            result.refundError = 'No credits available to apply — CM may need approval or has zero balance';
+          } else {
+            var refundId = refund.save({ enableSourcing: true, ignoreMandatoryFields: true });
+            var savedRefund = record.load({ type: record.Type.CUSTOMER_REFUND, id: refundId });
+            result.refundTranId     = savedRefund.getValue({ fieldId: 'tranid' });
+            result.refundInternalId = refundId;
 
-          log.audit('Customer Refund Created', 'ID: ' + refundId + ' TranID: ' + result.refundTranId);
+            log.audit('Customer Refund Created', 'ID: ' + refundId + ' TranID: ' + result.refundTranId);
+          }
         } catch (refErr) {
-          log.error('Customer Refund Error', refErr.message + '\n' + refErr.stack);
+          log.error('Customer Refund Error', refErr.message + '\n' + (refErr.stack || ''));
           result.refundError = refErr.message;
         }
       }
