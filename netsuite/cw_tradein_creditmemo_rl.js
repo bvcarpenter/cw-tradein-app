@@ -18,6 +18,7 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
   /* ── Configuration ── */
   const EXCHANGE_ITEM_ID  = 21433;          // Non-Inventory Item for Sale "Exchange"
   const IN_STORE_SHIP_METHOD = 18525;       // Shipping method "In-Store Sale"
+  const SHIPPING_SHIP_METHOD = 1590272;     // Shipping method for shipped orders (AvaTax-compatible)
 
   // Trade-In App location name → NetSuite internal Location ID
   const STORE_LOCATIONS = {
@@ -111,6 +112,13 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
           ].filter(Boolean).join('\n') });
         } catch (e) {
           log.debug('shipaddress', 'Could not set ship address: ' + e.message);
+        }
+
+        // Set shipping method for shipped orders (required for AvaTax to calculate tax correctly)
+        try {
+          cm.setValue({ fieldId: 'shipmethod', value: SHIPPING_SHIP_METHOD });
+        } catch (e) {
+          log.debug('shipmethod shipping', 'Could not set shipping method: ' + e.message);
         }
 
         const destLocId = STORE_LOCATIONS[body.destStore];

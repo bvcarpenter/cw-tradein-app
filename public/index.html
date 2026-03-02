@@ -1639,10 +1639,12 @@ function restoreSessionData(d) {
     selLoc = d.loc;
     const btn = document.querySelector(`.loc-btn[data-loc="${d.loc}"]`);
     if (btn) btn.classList.add('on');
-    if (d.loc === 'shipping') document.getElementById('ship-fields').style.display = '';
+    if (d.loc === 'shipping') document.getElementById('ship-box').classList.add('vis');
   }
   sessionItems = d.items || [];
   renderCart();
+  // If CM# was already assigned, lock the credit buttons
+  if (d.cmNum) lockCreditButtons(d.cmNum);
 }
 
 
@@ -2021,7 +2023,8 @@ async function execStoreCredit() {
         st:   document.getElementById('s-st').value.trim(),
         zip:  document.getElementById('s-zip').value.trim(),
       } : null,
-      createRefund: true,
+      // Refund is handled automatically by the User Event Script in NetSuite
+      // (cw_tradein_cm_autorefund_ue.js) — no need to create inline
     };
 
     const nsRes = await fetch('/api/netsuite-credit-memo', {
@@ -2043,14 +2046,6 @@ async function execStoreCredit() {
     // Store grand total globally for the print PDF
     _nsGrandTotal = creditAmount;
 
-    // Log refund status
-    let refundNote = '';
-    if (nsData.refundTranId) {
-      refundNote = ' | Refund# ' + nsData.refundTranId;
-    } else if (nsData.refundError) {
-      refundNote = ' | Refund failed: ' + nsData.refundError;
-    }
-
     // ── Step 2: Issue Store Credit in Shopify ──
     scBtn.textContent = 'Issuing Shopify credit…';
     scMsg.textContent = 'Step 2/3 — Issuing store credit in Shopify (CM# ' + cm + ' — $' + creditAmount.toFixed(2) + ')…';
@@ -2063,7 +2058,6 @@ async function execStoreCredit() {
     const timelineNote = [
       `═══ STORE CREDIT ISSUED ═══`,
       `Credit Memo: ${cm}`,
-      nsData.refundTranId ? `Customer Refund: ${nsData.refundTranId}` : '',
       `Date: ${dt}${assoc ? ' | Associate: ' + assoc : ''}`,
       `Customer: ${custName}`,
       `Credit issued by: ${_loggedInEmail || assoc || 'unknown'}`,
@@ -2097,7 +2091,6 @@ async function execStoreCredit() {
       sessionData.finalizedAt = new Date().toISOString();
       sessionData.storeCredit = { credited, balance, issuedAt: new Date().toISOString() };
       sessionData.netsuiteId = nsData.internalId || '';
-      sessionData.refundTranId = nsData.refundTranId || '';
       const name = (sessionData.customer.first + ' ' + sessionData.customer.last).trim()
         || 'Session ' + new Date().toLocaleDateString();
       const key = 'cwti_' + Date.now();
@@ -2112,10 +2105,9 @@ async function execStoreCredit() {
     showToast(`CM# ${cm} — $${credited} store credit issued ✓`);
     scMsg.style.color = '#6fbf73';
     scMsg.innerHTML = `<strong>CM# ${esc(cm)}</strong> created in NetSuite`
-      + (nsData.refundTranId ? ` | <strong>Refund# ${esc(nsData.refundTranId)}</strong>` : '')
       + `<br>Store credit issued — <strong>$${esc(credited)}</strong> (balance: $${esc(balance)})`
-      + (scData.noteAppended ? '<br><span style="font-size:10px;">Customer note updated.</span>' : '')
-      + (nsData.refundError ? `<br><span style="color:#e07070;">Refund failed: ${esc(nsData.refundError)}</span>` : '');
+      + `<br><span style="font-size:10px;color:var(--dim);">Customer Refund will be created automatically in NetSuite.</span>`
+      + (scData.noteAppended ? '<br><span style="font-size:10px;">Customer note updated.</span>' : '');
     scMsg.style.display = 'block';
     scBtn.textContent = 'Issued ✓';
 
