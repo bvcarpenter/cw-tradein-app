@@ -28,6 +28,32 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
   };
 
   /**
+   * Look up the AVATAX tax item/group so we can set it on customers and line items.
+   * Searches tax groups first, then sales tax items. Returns internal ID or null.
+   */
+  function findAvataxId() {
+    const types = ['taxgroup', 'salestaxitem'];
+    for (const t of types) {
+      try {
+        const results = search.create({
+          type: t,
+          filters: [['name', 'contains', 'AVATAX']],
+          columns: ['internalid'],
+        }).run().getRange({ start: 0, end: 1 });
+        if (results.length) {
+          const id = results[0].getValue('internalid');
+          log.debug('findAvataxId', 'Found ' + t + ' id=' + id);
+          return id;
+        }
+      } catch (e) {
+        log.debug('findAvataxId', t + ' search failed: ' + e.message);
+      }
+    }
+    log.audit('findAvataxId', 'AVATAX tax item not found');
+    return null;
+  }
+
+  /**
    * POST — Create a Credit Memo from trade-in session data.
    *
    * Body: {
@@ -44,12 +70,22 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
     log.audit('CW Trade-In CM', JSON.stringify(body));
 
     try {
+      // ── Look up AVATAX tax item (needed for customer + credit memo) ──
+      const taxItemId = findAvataxId();
+      log.debug('Tax item', taxItemId ? 'AVATAX id=' + taxItemId : 'not found — will skip tax fields');
+
       // ── Find or create customer ──
-      const custId = findOrCreateCustomer(body);
+      const custId = findOrCreateCustomer(body, taxItemId);
 
       // ── Create Credit Memo (standard mode — avoids commitLine tax validation) ──
       const cm = record.create({ type: record.Type.CREDIT_MEMO, isDynamic: false });
       cm.setValue({ fieldId: 'entity', value: custId });
+
+      // ── Tax settings on CM body (required by AVATAX) ──
+      if (taxItemId) {
+        try { cm.setValue({ fieldId: 'istaxable', value: true }); } catch (e) { log.debug('cm istaxable', e.message); }
+        try { cm.setValue({ fieldId: 'taxitem',   value: taxItemId }); } catch (e) { log.debug('cm taxitem', e.message); }
+      }
 
       if (body.date) {
         cm.setValue({ fieldId: 'trandate', value: new Date(body.date + 'T00:00:00') });
@@ -119,6 +155,12 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
         cm.setSublistValue({ sublistId: 'item', fieldId: 'description', line: idx, value: descParts });
         cm.setSublistValue({ sublistId: 'item', fieldId: 'quantity',    line: idx, value: 1 });
         cm.setSublistValue({ sublistId: 'item', fieldId: 'rate',        line: idx, value: it.net || 0 });
+
+        // Set AVATAX tax code on each line (required by Avalara tax engine)
+        if (taxItemId) {
+          try { cm.setSublistValue({ sublistId: 'item', fieldId: 'taxcode', line: idx, value: taxItemId }); }
+          catch (e) { log.debug('line taxcode ' + idx, e.message); }
+        }
       });
 
       const cmId = cm.save({ enableSourcing: true, ignoreMandatoryFields: true });
@@ -139,8 +181,9 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
 
   /**
    * Find customer by email (oldest match), or create a new one.
+   * Sets AVATAX tax item on new customers so credit memos pass tax validation.
    */
-  function findOrCreateCustomer(body) {
+  function findOrCreateCustomer(body, taxItemId) {
     const email = (body.customerEmail || '').trim().toLowerCase();
 
     if (email) {
@@ -176,6 +219,12 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
 
     if (email) cust.setValue({ fieldId: 'email', value: email });
     if (body.customerPhone) cust.setValue({ fieldId: 'phone', value: body.customerPhone });
+
+    // Set tax configuration so AVATAX can calculate on credit memos
+    if (taxItemId) {
+      try { cust.setValue({ fieldId: 'taxable',  value: 'T' }); } catch (e) { log.debug('cust taxable', e.message); }
+      try { cust.setValue({ fieldId: 'taxitem',  value: taxItemId }); } catch (e) { log.debug('cust taxitem', e.message); }
+    }
 
     return cust.save({ enableSourcing: true, ignoreMandatoryFields: true });
   }
