@@ -178,6 +178,8 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
       // ── Optionally create Customer Refund from the Credit Memo ──
       if (body.createRefund) {
         try {
+          log.debug('Creating Refund', 'Transforming CM ' + cmId + ' to Customer Refund');
+
           const refund = record.transform({
             fromType: record.Type.CREDIT_MEMO,
             fromId: cmId,
@@ -192,6 +194,15 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
           if (cmLocation) {
             try { refund.setValue({ fieldId: 'location', value: cmLocation }); }
             catch (e) { log.debug('refund location', e.message); }
+          }
+
+          // Ensure the CM is checked in the apply sublist
+          const applyCount = refund.getLineCount({ sublistId: 'apply' });
+          log.debug('Refund apply lines', applyCount);
+          for (var i = 0; i < applyCount; i++) {
+            refund.selectLine({ sublistId: 'apply', line: i });
+            refund.setCurrentSublistValue({ sublistId: 'apply', fieldId: 'apply', value: true });
+            refund.commitLine({ sublistId: 'apply' });
           }
 
           const refundId = refund.save({ enableSourcing: true, ignoreMandatoryFields: true });
