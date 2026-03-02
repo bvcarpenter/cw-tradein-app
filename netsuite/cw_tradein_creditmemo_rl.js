@@ -140,12 +140,6 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
         cm.setCurrentSublistValue({ sublistId: 'item', fieldId: 'quantity',    value: 1 });
         cm.setCurrentSublistValue({ sublistId: 'item', fieldId: 'rate',        value: it.net || 0 });
 
-        // Set Tax Item to AVATAX to commit sales tax
-        const avataxId = findTaxCodeId('AVATAX');
-        if (avataxId) {
-          cm.setCurrentSublistValue({ sublistId: 'item', fieldId: 'taxcode', value: avataxId });
-        }
-
         cm.commitLine({ sublistId: 'item' });
       });
 
