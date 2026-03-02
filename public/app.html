@@ -1013,9 +1013,9 @@ function pickGrade(g, btn) {
 }
 
 // ─── PRICING ───
-// Grade-adjusted retail: catalog price is baseline for grade 9.
+// Grade-adjusted retail: catalog price is baseline for grade 9+.
 // Each grade step adds/subtracts 5%, rounded to nearest $5.
-const BASE_GRADE_IDX = 2; // index of '9' in GRADES array
+const BASE_GRADE_IDX = 1; // index of '9+' in GRADES array — catalog price = 9+ condition
 function gradeAdjustedRetail(catalogPrice, grade) {
   if (!catalogPrice || catalogPrice <= 0 || !grade) return catalogPrice || 0;
   const idx = GRADES.indexOf(grade);
