@@ -515,6 +515,20 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
   </div>
 </div>
 
+<!-- ISSUE CREDIT CONFIRMATION -->
+<div class="mo" id="mo-confirm-credit">
+  <div class="mod" style="max-width:520px;">
+    <div class="mod-h"><h3>Confirm Store Credit</h3><button class="mod-x" onclick="closeConfirmCredit()">&#215;</button></div>
+    <div class="mod-b" style="padding:22px 26px;">
+      <div id="cc-summary"></div>
+    </div>
+    <div class="mod-f">
+      <button class="btn btn-ol" onclick="closeConfirmCredit()">Cancel</button>
+      <button class="btn" id="cc-go" onclick="execStoreCredit()" style="background:#2a6e3f;color:#fff;border:1px solid #2a6e3f;">Confirm &amp; Issue Credit</button>
+    </div>
+  </div>
+</div>
+
 <!-- SESSIONS MANAGER MODAL -->
 <div class="mo" id="mo-sessions">
   <div class="mod" style="max-width:860px;width:100%;">
@@ -1069,6 +1083,7 @@ function pickGrade(g, btn) {
   selGrade = g;
   document.querySelectorAll('.gbtn').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
+  clearOverrides();
   updPricing();
 }
 
@@ -1880,15 +1895,54 @@ async function finalizeCm(val) {
 
 
 
-async function issueStoreCredit() {
+function issueStoreCredit() {
   const cm = document.getElementById('cm-num').value.trim();
   if (!cm) { showToast('Enter a Credit Memo # first'); return; }
   const custId = window._shopifyCustId;
   if (!custId) { showToast('Select a Shopify customer first'); return; }
   const net = sessionItems.reduce((s, i) => s + i.net, 0);
   if (net <= 0) { showToast('No net value to credit'); return; }
+  // Build confirmation summary
   const cust = (document.getElementById('c-first').value.trim() + ' ' + document.getElementById('c-last').value.trim()).trim();
-  if (!confirm(`Issue $${net.toFixed(2)} store credit to ${cust}?`)) return;
+  const email = document.getElementById('c-email').value.trim();
+  const el = document.getElementById('cc-summary');
+  el.innerHTML = `
+    <div style="margin-bottom:16px;font-size:13px;color:var(--dim);line-height:1.6;">
+      You are about to issue store credit to the following customer:
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border);padding:14px 18px;margin-bottom:16px;">
+      <div style="font-size:15px;font-weight:500;color:var(--white);margin-bottom:4px;">${esc(cust)}</div>
+      ${email ? `<div style="font-size:11px;color:var(--dim);">${esc(email)}</div>` : ''}
+      <div style="font-size:11px;color:var(--dim);margin-top:2px;">CM# ${esc(cm)}</div>
+    </div>
+    <div style="margin-bottom:14px;">
+      <table style="width:100%;font-size:12px;border-collapse:collapse;">
+        <thead><tr style="color:var(--dim);text-align:left;border-bottom:1px solid var(--border);">
+          <th style="padding:4px 0;font-weight:400;">Item</th>
+          <th style="padding:4px 8px;font-weight:400;text-align:center;">Grade</th>
+          <th style="padding:4px 0;font-weight:400;text-align:right;">Net</th>
+        </tr></thead>
+        <tbody>${sessionItems.map(it => `<tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:6px 0;color:var(--white);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(it.name)}</td>
+          <td style="padding:6px 8px;text-align:center;"><span style="color:${gradeColor(it.grade).c}">${it.grade}</span></td>
+          <td style="padding:6px 0;text-align:right;color:var(--white);">${ff(it.net)}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:2px solid var(--accent);">
+      <span style="font-size:14px;color:var(--dim);">Total Credit</span>
+      <span style="font-size:22px;font-weight:600;color:var(--accent);">${ff(net)}</span>
+    </div>`;
+  document.getElementById('mo-confirm-credit').classList.add('open');
+}
+function closeConfirmCredit() {
+  document.getElementById('mo-confirm-credit').classList.remove('open');
+}
+async function execStoreCredit() {
+  closeConfirmCredit();
+  const cm = document.getElementById('cm-num').value.trim();
+  const custId = window._shopifyCustId;
+  const net = sessionItems.reduce((s, i) => s + i.net, 0);
   const scBtn = document.getElementById('sc-btn');
   const scMsg = document.getElementById('sc-msg');
   scBtn.disabled = true; scBtn.textContent = 'Issuing…';
