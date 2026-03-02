@@ -1009,10 +1009,22 @@ function pickGrade(g, btn) {
   selGrade = g;
   document.querySelectorAll('.gbtn').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
-  valAdd();
+  updPricing();
 }
 
 // ─── PRICING ───
+// Grade-adjusted retail: catalog price is baseline for grade 9.
+// Each grade step adds/subtracts 5%, rounded to nearest $5.
+const BASE_GRADE_IDX = 2; // index of '9' in GRADES array
+function gradeAdjustedRetail(catalogPrice, grade) {
+  if (!catalogPrice || catalogPrice <= 0 || !grade) return catalogPrice || 0;
+  const idx = GRADES.indexOf(grade);
+  if (idx < 0) return catalogPrice;
+  const steps = BASE_GRADE_IDX - idx; // positive = above baseline, negative = below
+  const adjusted = catalogPrice * (1 + steps * 0.05);
+  return Math.round(adjusted / 5) * 5;
+}
+
 function setPT(t) {
   selPT = t;
   document.getElementById('pt-ti').classList.toggle('on', t === 'tradein');
@@ -1022,7 +1034,9 @@ function setPT(t) {
 }
 function updPricing() {
   const ov = parseFloat(document.getElementById('r-override').value);
-  const ret = ov > 0 ? ov : (selItem ? selItem.price : 0);
+  const base = selItem ? selItem.price : 0;
+  const gradeAdj = gradeAdjustedRetail(base, selGrade);
+  const ret = ov > 0 ? ov : gradeAdj;
   const ti = ret * 0.70, or = ret * 0.50;
   const net = selPT === 'tradein' ? ti : or;
   const f = v => v > 0 ? '$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
@@ -1030,10 +1044,25 @@ function updPricing() {
   document.getElementById('p-ti').textContent = f(ti);
   document.getElementById('p-or').textContent = f(or);
   document.getElementById('p-net').textContent = f(net);
+  // Show grade adjustment info
+  const srcEl = document.getElementById('p-src');
+  if (ov > 0) {
+    srcEl.textContent = 'Manual override';
+  } else if (base > 0 && selGrade && selGrade !== GRADES[BASE_GRADE_IDX]) {
+    const diff = gradeAdj - base;
+    const sign = diff >= 0 ? '+' : '';
+    srcEl.textContent = `Catalog $${base.toLocaleString()} ${sign}${Math.round((diff/base)*100)}% for grade ${selGrade}`;
+  } else if (base > 0) {
+    srcEl.textContent = 'From catalog';
+  } else {
+    srcEl.textContent = 'Enter retail price';
+  }
   valAdd();
 }
 function valAdd() {
-  const ret = parseFloat(document.getElementById('r-override').value) || (selItem ? selItem.price : 0);
+  const ov = parseFloat(document.getElementById('r-override').value);
+  const base = selItem ? selItem.price : 0;
+  const ret = ov > 0 ? ov : gradeAdjustedRetail(base, selGrade);
   document.getElementById('add-btn').disabled = !(selItem && selGrade && ret > 0);
 }
 
@@ -1041,7 +1070,7 @@ function valAdd() {
 function addItem() {
   if (!selItem || !selGrade) return;
   const ov = parseFloat(document.getElementById('r-override').value);
-  const ret = ov > 0 ? ov : selItem.price;
+  const ret = ov > 0 ? ov : gradeAdjustedRetail(selItem.price, selGrade);
   const ti = ret * 0.70, or = ret * 0.50;
   const net = selPT === 'tradein' ? ti : or;
   const accs = [...document.querySelectorAll('.achip.on')].map(c => c.querySelector('span').textContent);
