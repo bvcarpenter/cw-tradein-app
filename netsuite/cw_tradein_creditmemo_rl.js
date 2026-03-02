@@ -105,13 +105,30 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
 
       if (loc === 'shipping' && body.shippingAddress) {
         const addr = body.shippingAddress;
+
+        // Set structured shipping address subrecord so AvaTax calculates
+        // tax based on the DESTINATION address, not the origin store.
         try {
-          cm.setValue({ fieldId: 'shipaddress', value: [
-            addr.str || '',
-            [addr.city || '', addr.st || '', addr.zip || ''].filter(Boolean).join(', '),
-          ].filter(Boolean).join('\n') });
-        } catch (e) {
-          log.debug('shipaddress', 'Could not set ship address: ' + e.message);
+          var shipAddr = cm.getSubrecord({ fieldId: 'shippingaddress' });
+          shipAddr.setValue({ fieldId: 'country', value: 'US' });
+          if (addr.str)  shipAddr.setValue({ fieldId: 'addr1', value: addr.str });
+          if (addr.city) shipAddr.setValue({ fieldId: 'city',  value: addr.city });
+          if (addr.st)   shipAddr.setValue({ fieldId: 'state', value: addr.st });
+          if (addr.zip)  shipAddr.setValue({ fieldId: 'zip',   value: addr.zip });
+          // Override flag tells NetSuite to use this custom address instead of the customer default
+          try { shipAddr.setValue({ fieldId: 'override', value: true }); } catch(e) {}
+          log.audit('Shipping address set', addr.city + ', ' + addr.st + ' ' + addr.zip);
+        } catch (subErr) {
+          log.error('shippingaddress subrecord failed', subErr.message + ' — falling back to shipaddress text');
+          // Fallback: set as plain text (won't help AvaTax but at least records the address)
+          try {
+            cm.setValue({ fieldId: 'shipaddress', value: [
+              addr.str || '',
+              [addr.city || '', addr.st || '', addr.zip || ''].filter(Boolean).join(', '),
+            ].filter(Boolean).join('\n') });
+          } catch (e) {
+            log.debug('shipaddress fallback', e.message);
+          }
         }
 
         // Set shipping method for shipped orders (required for AvaTax to calculate tax correctly)
@@ -120,6 +137,10 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
         } catch (e) {
           log.debug('shipmethod shipping', 'Could not set shipping method: ' + e.message);
         }
+
+        // Also set the shipoverride flag on the CM body to signal custom address
+        try { cm.setValue({ fieldId: 'shipoverride', value: true }); }
+        catch (e) { log.debug('shipoverride', e.message); }
 
         const destLocId = STORE_LOCATIONS[body.destStore];
         if (destLocId) {
