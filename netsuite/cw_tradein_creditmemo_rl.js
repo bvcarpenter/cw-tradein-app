@@ -1,31 +1,31 @@
 /**
  * CW Trade-In — Credit Memo RESTlet
  *
- * Deploy: Customization > Scripting > Scripts > New
- *   Script Type : RESTlet
- *   Script File : this file
- *   POST Function: post
- *   Deploy → Status: Released, Audience: All Roles (or specific role)
- *
- * After deploying, copy the External URL and set it as NS_RESTLET_URL
- * in the trade-in app's wrangler.jsonc.
- *
- * Requires a Non-Inventory Item in NetSuite for trade-in line items.
- * Set the internal ID of that item as TRADE_IN_ITEM_ID below.
+ * Deploy steps:
+ *   1. Upload this file: Documents > Files > SuiteScripts
+ *   2. Create Script: Customization > Scripting > Scripts > New
+ *        Script Type : RESTlet
+ *        Script File : this file
+ *        POST Function: post
+ *   3. Deploy: Status = Released, Audience = All Roles (or TBA role)
+ *   4. Copy the External URL → set as NS_RESTLET_URL in wrangler.jsonc
  *
  * @NApiVersion 2.1
  * @NScriptType Restlet
  */
 define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
 
-  /**
-   * ── CONFIGURE THIS ──
-   * Internal ID of the Non-Inventory Item used for trade-in credit lines.
-   * Create one at: Lists > Accounting > Items > New > Non-Inventory Item
-   *   Name: "Trade-In Credit"
-   *   Income Account: (your trade-in liability / store credit account)
-   */
-  const TRADE_IN_ITEM_ID = null; // e.g. 1234 — set this after creating the item
+  /* ── Configuration ── */
+  const EXCHANGE_ITEM_ID  = 21433;          // Non-Inventory Item for Sale "Exchange"
+  const IN_STORE_SHIP_METHOD = 18525;       // Shipping method "In-Store Sale"
+
+  // NetSuite internal IDs for each store location (set these after confirming in NS)
+  const STORE_LOCATIONS = {
+    'Leica SF':        null,  // TODO: set NS location internal ID
+    'San Francisco':   null,  // TODO: set NS location internal ID
+    'SoHo — New York': null,  // TODO: set NS location internal ID
+    'Palm Springs':    null,  // TODO: set NS location internal ID
+  };
 
   /**
    * POST — Create a Credit Memo from trade-in session data.
@@ -33,7 +33,9 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
    * Body: {
    *   customerEmail, customerFirst, customerLast, customerPhone,
    *   items: [{ name, grade, serial, net, tradein, priceType }],
-   *   totalAmount, date, associate, issuedBy
+   *   totalAmount, date, associate, issuedBy,
+   *   location,                     // store key or "shipping"
+   *   shippingAddress: { str, city, st, zip }  // only when location === "shipping"
    * }
    *
    * Returns: { success, tranId, internalId }
@@ -60,14 +62,40 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
       ].filter(Boolean).join(' | ');
       cm.setValue({ fieldId: 'memo', value: memoLines });
 
+      // ── Location & shipping ──
+      const loc = body.location || '';
+
+      if (loc === 'shipping' && body.shippingAddress) {
+        // Customer ships items in — set their address as ship-to
+        const addr = body.shippingAddress;
+        cm.setValue({ fieldId: 'shipaddress', value: [
+          addr.str || '',
+          [addr.city || '', addr.st || '', addr.zip || ''].filter(Boolean).join(', '),
+        ].filter(Boolean).join('\n') });
+      } else {
+        // In-store — set shipping method to "In-Store Sale"
+        try {
+          cm.setValue({ fieldId: 'shipmethod', value: IN_STORE_SHIP_METHOD });
+        } catch (e) {
+          log.debug('shipmethod', 'Could not set ship method: ' + e.message);
+        }
+
+        // Set ship-to location if we have an internal ID for this store
+        const nsLocId = STORE_LOCATIONS[loc];
+        if (nsLocId) {
+          try {
+            cm.setValue({ fieldId: 'location', value: nsLocId });
+          } catch (e) {
+            log.debug('location', 'Could not set location: ' + e.message);
+          }
+        }
+      }
+
       // ── Add line items ──
       const items = body.items || [];
       items.forEach((it, idx) => {
         cm.selectNewLine({ sublistId: 'item' });
-
-        if (TRADE_IN_ITEM_ID) {
-          cm.setCurrentSublistValue({ sublistId: 'item', fieldId: 'item', value: TRADE_IN_ITEM_ID });
-        }
+        cm.setCurrentSublistValue({ sublistId: 'item', fieldId: 'item', value: EXCHANGE_ITEM_ID });
 
         const desc = [
           it.name || 'Item ' + (idx + 1),
@@ -99,25 +127,32 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
   }
 
   /**
-   * Find customer by email, or create a new one.
+   * Find customer by email (oldest match), or create a new one.
    */
   function findOrCreateCustomer(body) {
     const email = (body.customerEmail || '').trim().toLowerCase();
 
-    // Try to find by email
     if (email) {
+      // Search for all customers with this email, sorted by datecreated ASC (oldest first)
       const results = search.create({
         type: search.Type.CUSTOMER,
         filters: [['email', 'is', email]],
-        columns: ['internalid'],
-      }).run().getRange({ start: 0, end: 1 });
+        columns: [
+          search.createColumn({ name: 'internalid' }),
+          search.createColumn({ name: 'datecreated', sort: search.Sort.ASC }),
+        ],
+      }).run().getRange({ start: 0, end: 10 });
 
       if (results.length > 0) {
-        return results[0].getValue('internalid');
+        // First result = oldest match
+        const custId = results[0].getValue('internalid');
+        log.debug('Customer found', 'email=' + email + ' id=' + custId + ' (oldest of ' + results.length + ')');
+        return custId;
       }
     }
 
-    // Create new customer
+    // No match — create new customer
+    log.audit('Creating customer', email || 'no-email');
     const cust = record.create({ type: record.Type.CUSTOMER, isDynamic: true });
     const first = (body.customerFirst || '').trim();
     const last  = (body.customerLast  || '').trim();

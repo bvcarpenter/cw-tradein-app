@@ -1981,6 +1981,13 @@ async function execStoreCredit() {
       date: dt,
       associate: assoc,
       issuedBy: _loggedInEmail || assoc,
+      location: selLoc,
+      shippingAddress: selLoc === 'shipping' ? {
+        str:  document.getElementById('s-str').value.trim(),
+        city: document.getElementById('s-city').value.trim(),
+        st:   document.getElementById('s-st').value.trim(),
+        zip:  document.getElementById('s-zip').value.trim(),
+      } : null,
     };
 
     const nsRes = await fetch('/api/netsuite-credit-memo', {
