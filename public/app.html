@@ -759,8 +759,8 @@ body {
 
       <div class="pgrid">
         <div class="pbox"><div class="pbox-l">Retail Value</div><div class="pbox-v" id="p-ret">—</div></div>
-        <div class="pbox"><div class="pbox-l">Trade-In Credit</div><div class="pbox-v" id="p-ti">—</div><div class="pbox-p">70% of retail</div></div>
-        <div class="pbox"><div class="pbox-l">Sell Outright</div><div class="pbox-v" id="p-or">—</div><div class="pbox-p">50% of retail</div></div>
+        <div class="pbox"><div class="pbox-l">Trade-In Credit</div><div class="pbox-v" id="p-ti">—</div><div class="pbox-p" id="p-ti-pct">70% of retail</div></div>
+        <div class="pbox"><div class="pbox-l">Sell Outright</div><div class="pbox-v" id="p-or">—</div><div class="pbox-p" id="p-or-pct">50% of retail</div></div>
       </div>
 
       <div class="net-bar">
@@ -1009,10 +1009,36 @@ function pickGrade(g, btn) {
   selGrade = g;
   document.querySelectorAll('.gbtn').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
-  valAdd();
+  updPricing();
 }
 
 // ─── PRICING ───
+// Grade-adjusted retail: catalog price is baseline for grade 10-.
+// Each grade step below 10- subtracts 5% from retail, rounded to nearest $5.
+const BASE_GRADE_IDX = 0; // index of '10-' in GRADES array — catalog price = 10- condition
+function gradeAdjustedRetail(catalogPrice, grade) {
+  if (!catalogPrice || catalogPrice <= 0 || !grade) return catalogPrice || 0;
+  const idx = GRADES.indexOf(grade);
+  if (idx < 0) return catalogPrice;
+  const steps = idx - BASE_GRADE_IDX; // steps below baseline
+  const adjusted = catalogPrice * (1 - steps * 0.05);
+  return Math.round(adjusted / 5) * 5;
+}
+
+// Trade-in rate by grade:
+//   10-, 9+, 9  → 70%
+//   8+          → 65%
+//   8, 7+       → 60%
+//   7 and below → 50%
+function tradeInRate(grade) {
+  if (!grade) return 0.70;
+  const g = grade;
+  if (g === '10-' || g === '9+' || g === '9') return 0.70;
+  if (g === '8+') return 0.65;
+  if (g === '8' || g === '7+') return 0.60;
+  return 0.50;
+}
+
 function setPT(t) {
   selPT = t;
   document.getElementById('pt-ti').classList.toggle('on', t === 'tradein');
@@ -1022,18 +1048,39 @@ function setPT(t) {
 }
 function updPricing() {
   const ov = parseFloat(document.getElementById('r-override').value);
-  const ret = ov > 0 ? ov : (selItem ? selItem.price : 0);
-  const ti = ret * 0.70, or = ret * 0.50;
+  const base = selItem ? selItem.price : 0;
+  const gradeAdj = gradeAdjustedRetail(base, selGrade);
+  const ret = ov > 0 ? ov : gradeAdj;
+  const tiRate = tradeInRate(selGrade);
+  const ti = ret * tiRate;
+  const or = ti * 0.75; // outright = trade-in minus 25%
   const net = selPT === 'tradein' ? ti : or;
   const f = v => v > 0 ? '$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
   document.getElementById('p-ret').textContent = f(ret);
   document.getElementById('p-ti').textContent = f(ti);
   document.getElementById('p-or').textContent = f(or);
   document.getElementById('p-net').textContent = f(net);
+  // Update rate labels
+  document.getElementById('p-ti-pct').textContent = `${Math.round(tiRate * 100)}% of retail`;
+  document.getElementById('p-or-pct').textContent = `Trade-in − 25%`;
+  // Show grade adjustment info
+  const srcEl = document.getElementById('p-src');
+  if (ov > 0) {
+    srcEl.textContent = 'Manual override';
+  } else if (base > 0 && selGrade && selGrade !== GRADES[BASE_GRADE_IDX]) {
+    const steps = GRADES.indexOf(selGrade) - BASE_GRADE_IDX;
+    srcEl.textContent = `Catalog $${base.toLocaleString()} −${steps * 5}% for grade ${selGrade}`;
+  } else if (base > 0) {
+    srcEl.textContent = 'From catalog';
+  } else {
+    srcEl.textContent = 'Enter retail price';
+  }
   valAdd();
 }
 function valAdd() {
-  const ret = parseFloat(document.getElementById('r-override').value) || (selItem ? selItem.price : 0);
+  const ov = parseFloat(document.getElementById('r-override').value);
+  const base = selItem ? selItem.price : 0;
+  const ret = ov > 0 ? ov : gradeAdjustedRetail(base, selGrade);
   document.getElementById('add-btn').disabled = !(selItem && selGrade && ret > 0);
 }
 
@@ -1041,8 +1088,10 @@ function valAdd() {
 function addItem() {
   if (!selItem || !selGrade) return;
   const ov = parseFloat(document.getElementById('r-override').value);
-  const ret = ov > 0 ? ov : selItem.price;
-  const ti = ret * 0.70, or = ret * 0.50;
+  const ret = ov > 0 ? ov : gradeAdjustedRetail(selItem.price, selGrade);
+  const tiRate = tradeInRate(selGrade);
+  const ti = ret * tiRate;
+  const or = ti * 0.75; // outright = trade-in minus 25%
   const net = selPT === 'tradein' ? ti : or;
   const accs = [...document.querySelectorAll('.achip.on')].map(c => c.querySelector('span').textContent);
   sessionItems.push({
