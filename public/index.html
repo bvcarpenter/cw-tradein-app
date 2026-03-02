@@ -1982,6 +1982,7 @@ async function execStoreCredit() {
       associate: assoc,
       issuedBy: _loggedInEmail || assoc,
       location: selLoc,
+      destStore: selLoc === 'shipping' ? _destStore : '',
       shippingAddress: selLoc === 'shipping' ? {
         str:  document.getElementById('s-str').value.trim(),
         city: document.getElementById('s-city').value.trim(),
