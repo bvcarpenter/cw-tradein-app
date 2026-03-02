@@ -3,8 +3,9 @@
  *
  * Body: {
  *   customerEmail, customerFirst, customerLast, customerPhone,
- *   items: [{ name, grade, serial, net, tradein, priceType }],
- *   totalAmount, date, associate, issuedBy
+ *   items: [{ name, grade, serial, catalog, systemId, accessories, notes, net, tradein, priceType }],
+ *   totalAmount, date, associate, issuedBy,
+ *   location, shippingAddress
  * }
  *
  * Returns: { success, tranId, internalId }

@@ -19,12 +19,12 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
   const EXCHANGE_ITEM_ID  = 21433;          // Non-Inventory Item for Sale "Exchange"
   const IN_STORE_SHIP_METHOD = 18525;       // Shipping method "In-Store Sale"
 
-  // NetSuite internal IDs for each store location (set these after confirming in NS)
+  // Trade-In App location name → NetSuite internal Location ID
   const STORE_LOCATIONS = {
-    'Leica SF':        null,  // TODO: set NS location internal ID
-    'San Francisco':   null,  // TODO: set NS location internal ID
-    'SoHo — New York': null,  // TODO: set NS location internal ID
-    'Palm Springs':    null,  // TODO: set NS location internal ID
+    'Leica SF':        1,
+    'San Francisco':   11,
+    'SoHo — New York': 10,
+    'Palm Springs':    3,
   };
 
   /**
@@ -32,7 +32,7 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
    *
    * Body: {
    *   customerEmail, customerFirst, customerLast, customerPhone,
-   *   items: [{ name, grade, serial, net, tradein, priceType }],
+   *   items: [{ name, grade, serial, catalog, systemId, accessories, notes, net, tradein, priceType }],
    *   totalAmount, date, associate, issuedBy,
    *   location,                     // store key or "shipping"
    *   shippingAddress: { str, city, st, zip }  // only when location === "shipping"
@@ -80,7 +80,7 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
           log.debug('shipmethod', 'Could not set ship method: ' + e.message);
         }
 
-        // Set ship-to location if we have an internal ID for this store
+        // Set transaction-level location from the store mapping
         const nsLocId = STORE_LOCATIONS[loc];
         if (nsLocId) {
           try {
@@ -97,15 +97,23 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
         cm.selectNewLine({ sublistId: 'item' });
         cm.setCurrentSublistValue({ sublistId: 'item', fieldId: 'item', value: EXCHANGE_ITEM_ID });
 
-        const desc = [
+        // Build rich description from trade-in item details
+        const descParts = [
           it.name || 'Item ' + (idx + 1),
           it.grade  ? '[' + it.grade + ']' : '',
           it.serial ? 'S/N: ' + it.serial  : '',
-        ].filter(Boolean).join(' ');
+          it.catalog ? 'Cat: ' + it.catalog : '',
+          it.systemId ? 'System: ' + it.systemId : '',
+          (it.accessories && it.accessories.length) ? 'Includes: ' + it.accessories.join(', ') : '',
+          it.notes ? 'Notes: ' + it.notes : '',
+        ].filter(Boolean).join(' | ');
 
-        cm.setCurrentSublistValue({ sublistId: 'item', fieldId: 'description', value: desc });
+        cm.setCurrentSublistValue({ sublistId: 'item', fieldId: 'description', value: descParts });
         cm.setCurrentSublistValue({ sublistId: 'item', fieldId: 'quantity',    value: 1 });
         cm.setCurrentSublistValue({ sublistId: 'item', fieldId: 'rate',        value: it.net || 0 });
+
+        // Set Tax Item to AVATAX to commit sales tax
+        cm.setCurrentSublistValue({ sublistId: 'item', fieldId: 'taxcode', value: 'AVATAX' });
 
         cm.commitLine({ sublistId: 'item' });
       });
