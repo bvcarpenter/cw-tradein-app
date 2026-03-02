@@ -1,34 +1,27 @@
 /**
- * Shared Shopify API helper — token rotation for Dev Dashboard apps
+ * Shared Shopify API helper — Client Credentials for Dev Dashboard apps
  *
- * Shopify Dev Dashboard apps use rotating tokens:
- *   - Access tokens expire after ~24 hours
- *   - Refresh tokens are single-use and rotate on each exchange
- *   - Each refresh returns a NEW access token AND a NEW refresh token
+ * Dev Dashboard apps use the OAuth 2.0 Client Credentials grant:
+ *   - POST client_id + client_secret to get an access token
+ *   - Access tokens are valid for 24 hours
+ *   - No refresh token needed — just re-request when expired
  *
  * Token resolution order:
  *   1. SHOPIFY_TOKEN env var — static Admin API token (shpat_xxx)
- *      Works for custom apps created in Shopify Admin. Skips rotation.
- *   2. KV cached access token — from a previous successful rotation
- *   3. Refresh token rotation — exchange refresh token for new tokens
- *      Uses KV-stored refresh token first, falls back to env var.
+ *      Works for custom apps created in Shopify Admin. Skips OAuth.
+ *   2. KV cached access token — from a previous client_credentials grant
+ *   3. Client credentials grant — request a new 24h access token
  *
  * Environment variables (set in Cloudflare Pages dashboard):
  *   SHOPIFY_STORE          – e.g. camera-west.myshopify.com
  *   SHOPIFY_CLIENT_ID      – Client ID from Shopify Dev Dashboard
- *   SHOPIFY_CLIENT_SECRET  – Client secret
- *   SHOPIFY_REFRESH_TOKEN  – Initial refresh token from Dev Dashboard
- *
- * KV keys (AUTH_KV):
- *   shopify_access_token   – cached access token
- *   shopify_refresh_token  – latest rotated refresh token
+ *   SHOPIFY_CLIENT_SECRET  – Client secret from Shopify Dev Dashboard
  */
 
-const KV_ACCESS  = 'shopify_access_token';
-const KV_REFRESH = 'shopify_refresh_token';
+const KV_ACCESS = 'shopify_access_token';
 
 /**
- * Get a valid Shopify access token, refreshing if necessary.
+ * Get a valid Shopify access token via client credentials grant.
  */
 export async function getShopifyToken(env) {
   // 1. Static token (custom apps created in Shopify Admin)
@@ -42,15 +35,11 @@ export async function getShopifyToken(env) {
     if (cached) return cached;
   }
 
-  // 3. Rotate: exchange refresh token for a new access + refresh token
-  //    Prefer the KV-stored refresh token (from last rotation) over the
-  //    env var (initial token from the Dev Dashboard).
-  const refreshToken = (kv && await kv.get(KV_REFRESH)) || env.SHOPIFY_REFRESH_TOKEN;
-
-  if (!refreshToken) {
+  // 3. Client credentials grant — exchange client_id + client_secret for token
+  if (!env.SHOPIFY_CLIENT_ID || !env.SHOPIFY_CLIENT_SECRET) {
     throw new Error(
-      'Shopify API token not configured. Set SHOPIFY_REFRESH_TOKEN (from the ' +
-      'Shopify Dev Dashboard) as a secret env var in Cloudflare, or set ' +
+      'Shopify API not configured. Set SHOPIFY_CLIENT_ID and ' +
+      'SHOPIFY_CLIENT_SECRET from the Dev Dashboard, or set ' +
       'SHOPIFY_TOKEN for a static Admin API token.'
     );
   }
@@ -59,53 +48,37 @@ export async function getShopifyToken(env) {
     `https://${env.SHOPIFY_STORE}/admin/oauth/access_token`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type:    'client_credentials',
         client_id:     env.SHOPIFY_CLIENT_ID,
         client_secret: env.SHOPIFY_CLIENT_SECRET,
-        grant_type:    'refresh_token',
-        refresh_token: refreshToken,
       }),
     }
   );
 
   if (!tokenRes.ok) {
     const body = await tokenRes.text();
-
-    // Clear stale KV refresh token so we don't keep retrying it
-    if (kv) await kv.delete(KV_REFRESH);
-
     throw new Error(
-      `Shopify token refresh failed (${tokenRes.status}). ` +
-      `The refresh token is likely expired or already used. ` +
-      `Generate a new one in the Shopify Dev Dashboard → Settings → ` +
-      `Refresh token, then update SHOPIFY_REFRESH_TOKEN in Cloudflare. ` +
-      `Detail: ${body.slice(0, 200)}`
+      `Shopify client_credentials grant failed (${tokenRes.status}). ` +
+      `Check SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET in Cloudflare env vars. ` +
+      `Detail: ${body.slice(0, 300)}`
     );
   }
 
   const tokenData = await tokenRes.json();
   const accessToken = tokenData.access_token;
-  const newRefresh  = tokenData.refresh_token;
 
-  // Log token exchange result shape for debugging (no secrets)
-  console.log('Shopify token exchange result:', {
-    keys: Object.keys(tokenData),
-    hasAccessToken: !!accessToken,
-    accessTokenPrefix: accessToken ? accessToken.slice(0, 10) + '...' : 'MISSING',
-    hasRefreshToken: !!newRefresh,
-    scope: tokenData.scope || 'none',
-  });
+  if (!accessToken) {
+    throw new Error(
+      'Shopify returned no access_token. Response keys: ' +
+      Object.keys(tokenData).join(', ')
+    );
+  }
 
-  // Cache tokens in KV
+  // Cache access token for 23 hours (tokens last 24h)
   if (kv) {
-    // Cache access token for 23 hours (tokens last ~24h)
     await kv.put(KV_ACCESS, accessToken, { expirationTtl: 82800 });
-
-    // Persist the new single-use refresh token (replaces the old one)
-    if (newRefresh) {
-      await kv.put(KV_REFRESH, newRefresh);
-    }
   }
 
   return accessToken;
@@ -130,15 +103,12 @@ export async function shopifyGQL(env, query, variables) {
   );
 
   if (res.status === 401 || res.status === 403) {
-    const body = await res.text().catch(() => '');
-    // Token expired or invalid — clear cache so the next request re-rotates
+    // Token expired or invalid — clear cache so the next request gets a new one
     if (env.AUTH_KV) {
       await env.AUTH_KV.delete(KV_ACCESS);
     }
     throw new Error(
-      `Shopify ${res.status} — token may be invalid. ` +
-      `Token prefix: ${token.slice(0, 8)}... | ` +
-      `Response: ${body.slice(0, 300)} | ` +
+      `Shopify ${res.status} — token rejected. ` +
       `Check your app scopes (read_customers, write_customers, read_products, read_collections).`
     );
   }
