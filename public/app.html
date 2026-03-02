@@ -440,6 +440,10 @@ body {
             </select>
           </div>
         </div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:var(--dim);cursor:pointer;">
+          <input type="checkbox" id="s-save-addr" style="accent-color:var(--accent);width:15px;height:15px;cursor:pointer;">
+          Save address to customer's Shopify profile
+        </label>
       </div>
 
       <div class="cust-link">
@@ -900,6 +904,7 @@ function setLoc(btn, loc) {
     sb.classList.remove('vis');
     ['s-str','s-city','s-st','s-zip'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('s-dest-store').value = '';
+    document.getElementById('s-save-addr').checked = false;
   }
 }
 
@@ -1529,6 +1534,7 @@ function resetSessionForm() {
   ['c-first','c-last','c-email','c-phone','cm-num','assoc','s-str','s-city','s-st','s-zip']
     .forEach(id => document.getElementById(id).value = '');
   document.getElementById('s-dest-store').value = '';
+  document.getElementById('s-save-addr').checked = false;
   document.querySelectorAll('.loc').forEach(b => b.classList.remove('on'));
   selLoc = '';
   document.getElementById('ship-box').classList.remove('vis');
@@ -1684,6 +1690,7 @@ async function finalizeCredit() {
   // Validation
   if (!linkedCustomer) { showFinalizeStatus('Link a Shopify customer before issuing store credit.', 'err'); return; }
   if (!sessionItems.length) { showFinalizeStatus('No items in session.', 'err'); return; }
+  if (!selLoc) { showFinalizeStatus('Select a Preferred Location before issuing credit.', 'err'); return; }
 
   const missingSN = itemsNeedingSerials();
   if (missingSN.length) {
@@ -1780,6 +1787,9 @@ async function finalizeCredit() {
     if (nsData.refundError) okMsg += ` | REFUND FAILED: ${nsData.refundError}`;
     showFinalizeStatus(okMsg, nsData.refundError ? 'err' : 'ok');
     btn.textContent = 'Credited';
+
+    // Save address to Shopify if checkbox is checked (non-blocking)
+    maybeSaveAddressToShopify();
   } catch (err) {
     showFinalizeStatus(`Failed: ${err.message}`, 'err');
     btn.disabled = false;
@@ -1793,6 +1803,7 @@ async function issueNsOnly() {
   const statusEl = document.getElementById('finalize-status');
 
   if (!sessionItems.length) { showFinalizeStatus('No items in session.', 'err'); return; }
+  if (!selLoc) { showFinalizeStatus('Select a Preferred Location before issuing credit.', 'err'); return; }
 
   const missingSN = itemsNeedingSerials();
   if (missingSN.length) {
@@ -1842,10 +1853,36 @@ async function issueNsOnly() {
     applyNsResult(nsData);
     showFinalizeStatus(`NetSuite CM created: ${nsData.tranId}`, 'ok');
     btn.textContent = 'CM Created';
+
+    // Save address to Shopify if checkbox is checked (non-blocking)
+    maybeSaveAddressToShopify();
   } catch (err) {
     showFinalizeStatus(`Failed: ${err.message}`, 'err');
     btn.disabled = false;
     btn.innerHTML = 'Issue Credit Memo Only <em style="font-style:italic">//</em> NetSuite';
+  }
+}
+
+/** Save shipping address to linked Shopify customer profile (fire-and-forget). */
+async function maybeSaveAddressToShopify() {
+  const cb = document.getElementById('s-save-addr');
+  if (!cb || !cb.checked) return;
+  if (selLoc !== 'shipping' || !linkedCustomer) return;
+  try {
+    await fetch('/api/customer-address', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerId: linkedCustomer.id,
+        address1: (document.getElementById('s-str').value || '').trim(),
+        city:     (document.getElementById('s-city').value || '').trim(),
+        province: (document.getElementById('s-st').value || '').trim(),
+        zip:      (document.getElementById('s-zip').value || '').trim(),
+        country:  'US',
+      }),
+    });
+  } catch (e) {
+    console.error('Save address to Shopify failed:', e);
   }
 }
 
