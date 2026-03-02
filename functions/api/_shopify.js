@@ -88,6 +88,15 @@ export async function getShopifyToken(env) {
   const accessToken = tokenData.access_token;
   const newRefresh  = tokenData.refresh_token;
 
+  // Log token exchange result shape for debugging (no secrets)
+  console.log('Shopify token exchange result:', {
+    keys: Object.keys(tokenData),
+    hasAccessToken: !!accessToken,
+    accessTokenPrefix: accessToken ? accessToken.slice(0, 10) + '...' : 'MISSING',
+    hasRefreshToken: !!newRefresh,
+    scope: tokenData.scope || 'none',
+  });
+
   // Cache tokens in KV
   if (kv) {
     // Cache access token for 23 hours (tokens last ~24h)
@@ -121,14 +130,16 @@ export async function shopifyGQL(env, query, variables) {
   );
 
   if (res.status === 401 || res.status === 403) {
+    const body = await res.text().catch(() => '');
     // Token expired or invalid — clear cache so the next request re-rotates
     if (env.AUTH_KV) {
       await env.AUTH_KV.delete(KV_ACCESS);
     }
     throw new Error(
-      `Shopify ${res.status} — token may be invalid. Check your app scopes ` +
-      `(read_customers, write_customers, read_products, read_collections) ` +
-      `and environment variables.`
+      `Shopify ${res.status} — token may be invalid. ` +
+      `Token prefix: ${token.slice(0, 8)}... | ` +
+      `Response: ${body.slice(0, 300)} | ` +
+      `Check your app scopes (read_customers, write_customers, read_products, read_collections).`
     );
   }
 
