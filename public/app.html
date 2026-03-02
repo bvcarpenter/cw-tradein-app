@@ -320,6 +320,11 @@ body {
 .finalize-status.ok { color: #70d090; background: #143a24; border: 1px solid #2a5a3a; }
 .finalize-status.err { color: #e07070; background: #3a1414; border: 1px solid #5a2a2a; }
 
+/* NS-ONLY BUTTON */
+.btn-ns-only { background: linear-gradient(135deg, #2a3a5a, #1a2a4a); border: 1px solid #3a4a7a; color: #7090d0; font-family: 'Jost', sans-serif; font-size: 10px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; padding: 12px 24px; cursor: pointer; transition: all .2s; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
+.btn-ns-only:hover { background: linear-gradient(135deg, #3a4a7a, #2a3a5a); border-color: #4a5a9a; }
+.btn-ns-only:disabled { opacity: .35; cursor: not-allowed; }
+
 /* SCROLLBAR */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -792,6 +797,9 @@ body {
 
       <button class="btn-finalize" id="finalize-btn" onclick="finalizeCredit()" disabled>
         Finalize <em style="font-style:italic">//</em> Credit
+      </button>
+      <button class="btn-ns-only" id="ns-only-btn" onclick="issueNsOnly()" disabled>
+        Issue Credit Memo Only <em style="font-style:italic">//</em> NetSuite
       </button>
       <div id="finalize-status"></div>
     </section>
@@ -1490,6 +1498,8 @@ function resetSessionForm() {
   if (statusEl) { statusEl.className = ''; statusEl.textContent = ''; }
   const finBtn = document.getElementById('finalize-btn');
   if (finBtn) { finBtn.disabled = true; finBtn.innerHTML = 'Finalize <em style="font-style:italic">//</em> Credit'; }
+  const nsBtn = document.getElementById('ns-only-btn');
+  if (nsBtn) { nsBtn.disabled = true; nsBtn.innerHTML = 'Issue Credit Memo Only <em style="font-style:italic">//</em> NetSuite'; }
 }
 function clrSession() {
   if (!confirm('Clear all items and start a new session?')) return;
@@ -1576,13 +1586,42 @@ function itemsNeedingSerials() {
 }
 
 function validateFinalize() {
-  const btn = document.getElementById('finalize-btn');
-  if (!btn) return;
   const cm = (document.getElementById('cm-num').value || '').trim();
   const hasItems = sessionItems.length > 0;
   const hasCustomer = !!linkedCustomer;
   const missingSN = itemsNeedingSerials();
-  btn.disabled = !(cm && hasItems && hasCustomer && missingSN.length === 0);
+
+  const finBtn = document.getElementById('finalize-btn');
+  if (finBtn) finBtn.disabled = !(cm && hasItems && hasCustomer && missingSN.length === 0);
+
+  // NS-only button: requires items + CM#, but NOT a Shopify customer
+  const nsBtn = document.getElementById('ns-only-btn');
+  if (nsBtn) nsBtn.disabled = !(cm && hasItems && missingSN.length === 0);
+}
+
+/** Build the payload sent to /api/netsuite-credit-memo */
+function buildNsPayload() {
+  const cm = (document.getElementById('cm-num').value || '').trim();
+  const payload = {
+    customerEmail: (document.getElementById('c-email').value || '').trim(),
+    customerFirst: (document.getElementById('c-first').value || '').trim(),
+    customerLast:  (document.getElementById('c-last').value || '').trim(),
+    customerPhone: (document.getElementById('c-phone').value || '').trim(),
+    location: selLoc,
+    date: document.getElementById('txn-date').value || new Date().toISOString().split('T')[0],
+    items: sessionItems,
+    totalAmount: sessionItems.reduce((s, i) => s + i.net, 0),
+    associate: document.getElementById('assoc').value.trim(),
+  };
+  if (selLoc === 'shipping') {
+    payload.shippingAddress = {
+      str:  (document.getElementById('s-str').value || '').trim(),
+      city: (document.getElementById('s-city').value || '').trim(),
+      st:   (document.getElementById('s-st').value || '').trim(),
+      zip:  (document.getElementById('s-zip').value || '').trim(),
+    };
+  }
+  return payload;
 }
 
 // Hook into existing functions to re-validate
@@ -1653,21 +1692,14 @@ async function finalizeCredit() {
       const nsRes = await fetch('/api/netsuite-credit-memo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: selLoc,
-          cmNum: cm,
-          txnDate: document.getElementById('txn-date').value || new Date().toISOString().split('T')[0],
-          items: sessionItems,
-          totalNet,
-          associate: document.getElementById('assoc').value.trim()
-        }),
+        body: JSON.stringify(buildNsPayload()),
       });
       const nsData = await nsRes.json();
       if (nsData.success) {
         nsMsg = ` | NetSuite CM: ${nsData.tranId || nsData.creditMemoId}`;
       } else {
         console.warn('NetSuite CM failed:', nsData.error);
-        nsMsg = ' | NetSuite CM failed — check console';
+        nsMsg = ` | NetSuite: ${nsData.error || 'failed'}`;
       }
     } catch (nsErr) {
       console.warn('NetSuite CM call failed:', nsErr);
@@ -1680,6 +1712,55 @@ async function finalizeCredit() {
     showFinalizeStatus(`Failed: ${err.message}`, 'err');
     btn.disabled = false;
     btn.innerHTML = 'Finalize <em style="font-style:italic">//</em> Credit';
+  }
+}
+
+/** Issue only the NetSuite Credit Memo — no Shopify store credit. */
+async function issueNsOnly() {
+  const btn = document.getElementById('ns-only-btn');
+  const statusEl = document.getElementById('finalize-status');
+
+  const cm = (document.getElementById('cm-num').value || '').trim();
+  if (!cm) { showFinalizeStatus('Enter a Credit Memo # before issuing.', 'err'); return; }
+  if (!sessionItems.length) { showFinalizeStatus('No items in session.', 'err'); return; }
+
+  const missingSN = itemsNeedingSerials();
+  if (missingSN.length) {
+    const names = missingSN.map(it => it.name).join(', ');
+    showFinalizeStatus(`Serial numbers required for: ${names}`, 'err');
+    return;
+  }
+
+  const totalNet = sessionItems.reduce((s, i) => s + i.net, 0);
+  if (totalNet <= 0) { showFinalizeStatus('Net total must be greater than $0.', 'err'); return; }
+
+  const custFirst = (document.getElementById('c-first').value || '').trim();
+  const custLast  = (document.getElementById('c-last').value || '').trim();
+  const custName = [custFirst, custLast].filter(Boolean).join(' ') || 'customer';
+
+  if (!confirm(`Create NetSuite Credit Memo for ${custName}?\n\nAmount: $${totalNet.toFixed(2)}\nItems: ${sessionItems.length}\n\nNo Shopify store credit will be issued.`)) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Creating NetSuite CM…';
+  statusEl.className = '';
+  statusEl.textContent = '';
+
+  try {
+    const nsRes = await fetch('/api/netsuite-credit-memo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildNsPayload()),
+    });
+    const nsData = await nsRes.json();
+    if (!nsRes.ok || nsData.error) {
+      throw new Error(nsData.error || `HTTP ${nsRes.status}`);
+    }
+    showFinalizeStatus(`NetSuite CM created: ${nsData.tranId}`, 'ok');
+    btn.textContent = 'CM Created';
+  } catch (err) {
+    showFinalizeStatus(`Failed: ${err.message}`, 'err');
+    btn.disabled = false;
+    btn.innerHTML = 'Issue Credit Memo Only <em style="font-style:italic">//</em> NetSuite';
   }
 }
 
