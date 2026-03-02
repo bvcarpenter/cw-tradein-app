@@ -296,6 +296,30 @@ body {
 .mod-f { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 7px; }
 .print-prev { background: #fff; color: #111; padding: 22px 26px; font-family: 'Jost', sans-serif; font-size: 12px; }
 
+/* SHOPIFY CUSTOMER LINK */
+.cust-link { margin-top: 16px; }
+.cust-linked { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid #2a5a3a; background: #143a24; margin-top: 8px; }
+.cust-linked-info { flex: 1; }
+.cust-linked-name { font-size: 12px; font-weight: 400; color: #70d090; }
+.cust-linked-detail { font-size: 9px; color: var(--dim); letter-spacing: 0.04em; margin-top: 2px; }
+.cust-linked-badge { font-size: 8px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: #70d090; border: 1px solid #2a5a3a; padding: 3px 8px; white-space: nowrap; }
+.cust-unlink { background: none; border: none; color: #5a2a2a; cursor: pointer; font-size: 16px; transition: color .15s; }
+.cust-unlink:hover { color: #e07070; }
+.cust-srch-res { position: absolute; top: calc(100% + 2px); left: 0; right: 0; background: var(--bg3); border: 1px solid var(--acc-mid); max-height: 200px; overflow-y: auto; z-index: 300; }
+.cust-ri { padding: 10px 13px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background .1s; }
+.cust-ri:last-child { border-bottom: none; }
+.cust-ri:hover { background: var(--bg4); }
+.cust-ri-name { font-size: 12px; font-weight: 400; color: var(--white); }
+.cust-ri-detail { font-size: 9px; color: var(--dim); margin-top: 2px; letter-spacing: 0.04em; }
+
+/* FINALIZE BUTTON */
+.btn-finalize { background: linear-gradient(135deg, #2a5a3a, #1a4a2a); border: 1px solid #3a7a4a; color: #70d090; font-family: 'Jost', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; padding: 15px 24px; cursor: pointer; transition: all .2s; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; }
+.btn-finalize:hover { background: linear-gradient(135deg, #3a7a4a, #2a5a3a); border-color: #4a9a5a; }
+.btn-finalize:disabled { opacity: .35; cursor: not-allowed; }
+.finalize-status { font-size: 10px; letter-spacing: 0.06em; text-align: center; margin-top: 8px; padding: 8px 12px; }
+.finalize-status.ok { color: #70d090; background: #143a24; border: 1px solid #2a5a3a; }
+.finalize-status.err { color: #e07070; background: #3a1414; border: 1px solid #5a2a2a; }
+
 /* SCROLLBAR */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -396,6 +420,27 @@ body {
           <div class="fld"><label>City</label><input type="text" id="s-city" placeholder="Palm Springs"></div>
           <div class="fld"><label>State</label><input type="text" id="s-st" placeholder="CA" maxlength="2"></div>
           <div class="fld"><label>ZIP</label><input type="text" id="s-zip" placeholder="92262" maxlength="10"></div>
+        </div>
+      </div>
+
+      <div class="cust-link">
+        <span class="sl">Shopify Customer (for Store Credit)</span>
+        <div id="cust-link-area">
+          <div class="srch-wrap" id="cust-srch-wrap">
+            <span class="srch-icon">⌕</span>
+            <input class="srch-input" id="cust-search" type="text"
+              placeholder="Search Shopify customers by name or email…"
+              oninput="dCustSearch(this.value)" autocomplete="off">
+            <div class="cust-srch-res" id="cust-srch-res" style="display:none;"></div>
+          </div>
+        </div>
+        <div id="cust-linked" class="cust-linked" style="display:none;">
+          <div class="cust-linked-info">
+            <div class="cust-linked-name" id="cust-linked-name"></div>
+            <div class="cust-linked-detail" id="cust-linked-detail"></div>
+          </div>
+          <span class="cust-linked-badge">Linked</span>
+          <button class="cust-unlink" onclick="unlinkCustomer()" title="Unlink">×</button>
         </div>
       </div>
     </section>
@@ -744,6 +789,11 @@ body {
         <button class="btn btn-a" onclick="openPrint()">Print Credit Memo</button>
         <button class="btn btn-r" onclick="clrSession()">Clear Session</button>
       </div>
+
+      <button class="btn-finalize" id="finalize-btn" onclick="finalizeCredit()" disabled>
+        Finalize <em style="font-style:italic">//</em> Credit
+      </button>
+      <div id="finalize-status"></div>
     </section>
 
   </main>
@@ -1385,6 +1435,12 @@ function resetSessionForm() {
   selLoc = '';
   document.getElementById('ship-box').classList.remove('vis');
   document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
+  // Reset Shopify customer link
+  unlinkCustomer();
+  const statusEl = document.getElementById('finalize-status');
+  if (statusEl) { statusEl.className = ''; statusEl.textContent = ''; }
+  const finBtn = document.getElementById('finalize-btn');
+  if (finBtn) { finBtn.disabled = true; finBtn.innerHTML = 'Finalize <em style="font-style:italic">//</em> Credit'; }
 }
 function clrSession() {
   if (!confirm('Clear all items and start a new session?')) return;
@@ -1392,6 +1448,167 @@ function clrSession() {
 }
 function saveAndNew() {
   resetSessionForm();
+}
+
+// ─── SHOPIFY CUSTOMER LINK ───
+let linkedCustomer = null; // { id, first, last, email }
+let custSrchT = null;
+
+function dCustSearch(v) {
+  clearTimeout(custSrchT);
+  const el = document.getElementById('cust-srch-res');
+  if (v.length < 2) { el.style.display = 'none'; return; }
+  el.innerHTML = '<div class="no-res">Searching…</div>';
+  el.style.display = 'block';
+  custSrchT = setTimeout(() => runCustSearch(v), 300);
+}
+
+async function runCustSearch(q) {
+  const el = document.getElementById('cust-srch-res');
+  try {
+    const res = await fetch(`/api/customers?q=${encodeURIComponent(q)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const custs = data.customers || [];
+    if (!custs.length) {
+      el.innerHTML = '<div class="no-res">No customers found</div>';
+    } else {
+      el.innerHTML = custs.map((c, i) => {
+        const name = [c.first, c.last].filter(Boolean).join(' ') || 'Unknown';
+        const detail = [c.email, c.phone].filter(Boolean).join(' · ');
+        return `<div class="cust-ri" onclick="pickCustomer(${i})">
+          <div class="cust-ri-name">${name}</div>
+          <div class="cust-ri-detail">${detail}</div>
+        </div>`;
+      }).join('');
+      window._custSearchResults = custs;
+    }
+  } catch (err) {
+    el.innerHTML = `<div class="no-res" style="color:#e07070;">Search error: ${err.message}</div>`;
+  }
+}
+
+function pickCustomer(i) {
+  const c = window._custSearchResults[i];
+  if (!c) return;
+  linkedCustomer = c;
+  document.getElementById('cust-srch-res').style.display = 'none';
+  document.getElementById('cust-search').value = '';
+  document.getElementById('cust-srch-wrap').style.display = 'none';
+  const linked = document.getElementById('cust-linked');
+  linked.style.display = 'flex';
+  document.getElementById('cust-linked-name').textContent = [c.first, c.last].filter(Boolean).join(' ');
+  document.getElementById('cust-linked-detail').textContent = [c.email, c.phone].filter(Boolean).join(' · ');
+  // Auto-fill customer fields if empty
+  if (!document.getElementById('c-first').value) document.getElementById('c-first').value = c.first || '';
+  if (!document.getElementById('c-last').value) document.getElementById('c-last').value = c.last || '';
+  if (!document.getElementById('c-email').value) document.getElementById('c-email').value = c.email || '';
+  if (!document.getElementById('c-phone').value) document.getElementById('c-phone').value = c.phone || '';
+  validateFinalize();
+}
+
+function unlinkCustomer() {
+  linkedCustomer = null;
+  document.getElementById('cust-linked').style.display = 'none';
+  document.getElementById('cust-srch-wrap').style.display = 'block';
+  validateFinalize();
+}
+
+// Close customer search on outside click
+document.addEventListener('click', e => { if (!e.target.closest('#cust-srch-wrap')) document.getElementById('cust-srch-res').style.display = 'none'; });
+
+// ─── FINALIZE // CREDIT ───
+const SERIAL_REQUIRED_TYPES = new Set(['Bodies', 'Lenses']);
+
+function itemsNeedingSerials() {
+  return sessionItems.filter(it =>
+    SERIAL_REQUIRED_TYPES.has(it.itemType) && (!it.serial || !it.serial.trim())
+  );
+}
+
+function validateFinalize() {
+  const btn = document.getElementById('finalize-btn');
+  if (!btn) return;
+  const cm = (document.getElementById('cm-num').value || '').trim();
+  const hasItems = sessionItems.length > 0;
+  const hasCustomer = !!linkedCustomer;
+  const missingSN = itemsNeedingSerials();
+  btn.disabled = !(cm && hasItems && hasCustomer && missingSN.length === 0);
+}
+
+// Hook into existing functions to re-validate
+const _origRenderCart = renderCart;
+renderCart = function() {
+  _origRenderCart();
+  validateFinalize();
+};
+
+// Listen for CM# input
+document.addEventListener('DOMContentLoaded', () => {
+  const cmInput = document.getElementById('cm-num');
+  if (cmInput) cmInput.addEventListener('input', validateFinalize);
+});
+
+async function finalizeCredit() {
+  const btn = document.getElementById('finalize-btn');
+  const statusEl = document.getElementById('finalize-status');
+
+  // Validation
+  const cm = (document.getElementById('cm-num').value || '').trim();
+  if (!cm) { showFinalizeStatus('Enter a Credit Memo # before finalizing.', 'err'); return; }
+  if (!linkedCustomer) { showFinalizeStatus('Link a Shopify customer before issuing store credit.', 'err'); return; }
+  if (!sessionItems.length) { showFinalizeStatus('No items in session.', 'err'); return; }
+
+  const missingSN = itemsNeedingSerials();
+  if (missingSN.length) {
+    const names = missingSN.map(it => it.name).join(', ');
+    showFinalizeStatus(`Serial numbers required for: ${names}`, 'err');
+    return;
+  }
+
+  const totalNet = sessionItems.reduce((s, i) => s + i.net, 0);
+  if (totalNet <= 0) { showFinalizeStatus('Net total must be greater than $0.', 'err'); return; }
+
+  // Confirm
+  const custName = [linkedCustomer.first, linkedCustomer.last].filter(Boolean).join(' ');
+  if (!confirm(`Issue $${totalNet.toFixed(2)} store credit to ${custName}?\n\nCM: ${cm}\nItems: ${sessionItems.length}\n\nThis action cannot be undone.`)) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Processing…';
+  statusEl.className = '';
+  statusEl.textContent = '';
+
+  try {
+    const res = await fetch('/api/store-credit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerId: linkedCustomer.id,
+        amount: totalNet,
+        note: `Trade-in credit — ${cm}`
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+
+    const credited = parseFloat(data.storeCredit.credited).toFixed(2);
+    const balance = parseFloat(data.storeCredit.balance).toFixed(2);
+    showFinalizeStatus(`Store credit issued — $${credited} credited (account balance: $${balance})`, 'ok');
+    btn.textContent = 'Credited';
+  } catch (err) {
+    showFinalizeStatus(`Failed: ${err.message}`, 'err');
+    btn.disabled = false;
+    btn.innerHTML = 'Finalize <em style="font-style:italic">//</em> Credit';
+  }
+}
+
+function showFinalizeStatus(msg, type) {
+  const el = document.getElementById('finalize-status');
+  el.textContent = msg;
+  el.className = 'finalize-status ' + type;
 }
 </script>
 </body>
