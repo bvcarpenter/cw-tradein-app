@@ -450,7 +450,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
           <input id="ti-override-inp" type="number" step="5" min="0" placeholder="override"
             style="display:none;width:80px;background:#111;color:#f5f5f0;border:1px solid #d95e00;padding:3px 6px;font-family:inherit;font-size:13px;border-radius:2px;text-align:right;"
             onblur="commitTIOverride()" onkeydown="if(event.key==='Enter')commitTIOverride();" />
-          <div class="pbox-p">70% · click to override</div>
+          <div class="pbox-p" id="p-ti-pct">70% · click to override</div>
         </div>
         <div class="pbox">
           <div class="pbox-l">Sell Outright</div>
@@ -458,7 +458,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
           <input id="or-override-inp" type="number" step="5" min="0" placeholder="override"
             style="display:none;width:80px;background:#111;color:#f5f5f0;border:1px solid #d95e00;padding:3px 6px;font-family:inherit;font-size:13px;border-radius:2px;text-align:right;"
             onblur="commitOROverride()" onkeydown="if(event.key==='Enter')commitOROverride();" />
-          <div class="pbox-p">50% · click to override</div>
+          <div class="pbox-p" id="p-or-pct">TI − 25% · click to override</div>
         </div>
       </div>
       <div class="net-bar">
@@ -1069,12 +1069,38 @@ function pickGrade(g, btn) {
   selGrade = g;
   document.querySelectorAll('.gbtn').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
-  valAdd();
+  updPricing();
 }
 
 // ════════════════════════════════════════════
 // PRICING
 // ════════════════════════════════════════════
+
+// Grade-adjusted retail: catalog price is baseline for grade 10-.
+// Each grade step below 10- subtracts 5% from retail, rounded to nearest $5.
+const BASE_GRADE_IDX = 0; // index of '10-' in GRADES array
+function gradeAdjustedRetail(catalogPrice, grade) {
+  if (!catalogPrice || catalogPrice <= 0 || !grade) return catalogPrice || 0;
+  const idx = GRADES.indexOf(grade);
+  if (idx < 0) return catalogPrice;
+  const steps = idx - BASE_GRADE_IDX;
+  const adjusted = catalogPrice * (1 - steps * 0.05);
+  return Math.round(adjusted / 5) * 5;
+}
+
+// Trade-in rate by grade:
+//   10-, 9+, 9  → 70%
+//   8+          → 65%
+//   8, 7+       → 60%
+//   7 and below → 50%
+function tradeInRate(grade) {
+  if (!grade) return 0.70;
+  if (grade === '10-' || grade === '9+' || grade === '9') return 0.70;
+  if (grade === '8+') return 0.65;
+  if (grade === '8' || grade === '7+') return 0.60;
+  return 0.50;
+}
+
 function setPT(t) {
   selPT = t;
   document.getElementById('pt-ti').classList.toggle('on', t === 'tradein');
@@ -1089,8 +1115,10 @@ function clearOverrides() { _tiManual = 0; _orManual = 0; }
 
 function startTIOverride() {
   const ov  = parseFloat(document.getElementById('r-override').value);
-  const ret = ov > 0 ? ov : (selItem ? selItem.price : 0);
-  const cur = _tiManual > 0 ? _tiManual : roundToFive(ret * 0.70);
+  const base = selItem ? selItem.price : 0;
+  const ret = ov > 0 ? ov : gradeAdjustedRetail(base, selGrade);
+  const tiRate = tradeInRate(selGrade);
+  const cur = _tiManual > 0 ? _tiManual : roundToFive(ret * tiRate);
   const inp = document.getElementById('ti-override-inp');
   inp.value = cur || '';
   document.getElementById('p-ti').style.display = 'none';
@@ -1106,8 +1134,11 @@ function commitTIOverride() {
 }
 function startOROverride() {
   const ov  = parseFloat(document.getElementById('r-override').value);
-  const ret = ov > 0 ? ov : (selItem ? selItem.price : 0);
-  const cur = _orManual > 0 ? _orManual : roundToFive(ret * 0.50);
+  const base = selItem ? selItem.price : 0;
+  const ret = ov > 0 ? ov : gradeAdjustedRetail(base, selGrade);
+  const tiRate = tradeInRate(selGrade);
+  const ti  = _tiManual > 0 ? _tiManual : roundToFive(ret * tiRate);
+  const cur = _orManual > 0 ? _orManual : roundToFive(ti * 0.75);
   const inp = document.getElementById('or-override-inp');
   inp.value = cur || '';
   document.getElementById('p-or').style.display = 'none';
@@ -1123,12 +1154,14 @@ function commitOROverride() {
 }
 
 function updPricing() {
-  const ov  = parseFloat(document.getElementById('r-override').value);
-  const ret = ov > 0 ? ov : (selItem ? selItem.price : 0);
-  const ti  = _tiManual > 0 ? _tiManual : roundToFive(ret * 0.70);
-  const or  = _orManual > 0 ? _orManual : roundToFive(ret * 0.50);
-  const net = selPT === 'tradein' ? ti : or;
-  const fd  = v => v > 0 ? '$' + v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
+  const ov   = parseFloat(document.getElementById('r-override').value);
+  const base = selItem ? selItem.price : 0;
+  const ret  = ov > 0 ? ov : gradeAdjustedRetail(base, selGrade);
+  const tiRate = tradeInRate(selGrade);
+  const ti   = _tiManual > 0 ? _tiManual : roundToFive(ret * tiRate);
+  const or   = _orManual > 0 ? _orManual : roundToFive(ti * 0.75);
+  const net  = selPT === 'tradein' ? ti : or;
+  const fd   = v => v > 0 ? '$' + v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
   document.getElementById('p-ret').textContent = fd(ret);
   const tiEl = document.getElementById('p-ti');
   if (tiEl && tiEl.style.display !== 'none') tiEl.textContent = fd(ti);
@@ -1137,10 +1170,31 @@ function updPricing() {
   const svc = roundToFive(parseFloat(document.getElementById('svc-charge')?.value)||0);
   const netDisplay = Math.max(0, net - svc);
   document.getElementById('p-net').textContent = fd(netDisplay);
+  // Update rate labels
+  const tiPctEl = document.getElementById('p-ti-pct');
+  if (tiPctEl) tiPctEl.textContent = `${Math.round(tiRate * 100)}% · click to override`;
+  const orPctEl = document.getElementById('p-or-pct');
+  if (orPctEl) orPctEl.textContent = `TI − 25% · click to override`;
+  // Show grade adjustment info
+  const srcEl = document.getElementById('p-src');
+  if (srcEl) {
+    if (ov > 0) {
+      srcEl.textContent = 'Manual override';
+    } else if (base > 0 && selGrade && selGrade !== GRADES[BASE_GRADE_IDX]) {
+      const steps = GRADES.indexOf(selGrade) - BASE_GRADE_IDX;
+      srcEl.textContent = `Catalog $${base.toLocaleString()} −${steps * 5}% for grade ${selGrade}`;
+    } else if (base > 0) {
+      srcEl.textContent = 'From catalog';
+    } else {
+      srcEl.textContent = 'Enter retail price';
+    }
+  }
   valAdd();
 }
 function valAdd() {
-  const ret = parseFloat(document.getElementById('r-override').value) || (selItem ? selItem.price : 0);
+  const ov   = parseFloat(document.getElementById('r-override').value);
+  const base = selItem ? selItem.price : 0;
+  const ret  = ov > 0 ? ov : gradeAdjustedRetail(base, selGrade);
   document.getElementById('add-btn').disabled = !(selItem && selGrade && ret > 0);
 }
 
@@ -1152,9 +1206,10 @@ function addItem() {
   if (_editingId !== null) {
     const idx=sessionItems.findIndex(i=>i.id===_editingId);
     const ov=parseFloat(document.getElementById('r-override').value);
-    const ret=ov>0?ov:selItem.price;
-    const ti=_tiManual>0?_tiManual:roundToFive(ret*0.70);
-    const or=_orManual>0?_orManual:roundToFive(ret*0.50);
+    const ret=ov>0?ov:gradeAdjustedRetail(selItem.price,selGrade);
+    const _tiR=tradeInRate(selGrade);
+    const ti=_tiManual>0?_tiManual:roundToFive(ret*_tiR);
+    const or=_orManual>0?_orManual:roundToFive(ti*0.75);
     clearOverrides();
     const svcCharge=roundToFive(parseFloat(document.getElementById('svc-charge')?.value)||0);
     const svcReason=(document.getElementById('svc-reason')?.value||'').trim();
@@ -1173,9 +1228,10 @@ function addItem() {
     showToast('Item updated.');return;
   }
   const ov   = parseFloat(document.getElementById('r-override').value);
-  const ret  = ov > 0 ? ov : selItem.price;
-  const ti   = _tiManual > 0 ? _tiManual : roundToFive(ret * 0.70);
-  const or   = _orManual > 0 ? _orManual : roundToFive(ret * 0.50);
+  const ret  = ov > 0 ? ov : gradeAdjustedRetail(selItem.price, selGrade);
+  const _tiR = tradeInRate(selGrade);
+  const ti   = _tiManual > 0 ? _tiManual : roundToFive(ret * _tiR);
+  const or   = _orManual > 0 ? _orManual : roundToFive(ti * 0.75);
   clearOverrides();
   const svcCharge = roundToFive(parseFloat(document.getElementById('svc-charge')?.value)||0);
   const svcReason = (document.getElementById('svc-reason')?.value||'').trim();
