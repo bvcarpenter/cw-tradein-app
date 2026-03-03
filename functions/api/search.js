@@ -15,11 +15,17 @@
 const SHEET_ID = '1hy4RzljHDASz_K4XO__w9rztCaW7rnCg_z5wa2uBTH4';
 const GVIZ_BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
 
-// The first/default tab is the brand matrix (all buying guides).
-// "Shopify Product Catalog" is the 120-day pre-owned inventory.
+// 13 brand matrix tabs (searched first, prioritized in results)
+const BRAND_SHEETS = [
+  'Canon EOS R', 'Fujifilm GFX', 'Fujifilm X', 'Hasselblad X',
+  'Leica Accessories', 'Leica CL-TL', 'Leica M', 'Leica Q',
+  'Leica S', 'Leica SL', 'Nikon Z', 'Panasonic Lumix S', 'Sony Alpha',
+];
+
+// "Shopify Product Catalog" is the 120-day pre-owned inventory (lower priority).
 const SHOPIFY_SHEET = 'Shopify Product Catalog';
 
-const KV_KEY = 'catalog:v2';
+const KV_KEY = 'catalog:v3';
 const KV_TTL = 3600; // 1 hour
 
 // ── Category helpers ────────────────────────────────────────────────
@@ -116,15 +122,8 @@ function parseShopifyRow(row) {
 }
 
 // ── Sheet fetching ──────────────────────────────────────────────────
-function fetchBrandSheet() {
-  // No sheet param → returns the first/default tab (the brand matrix)
-  const url = `${GVIZ_BASE}?tqx=out:csv`;
-  return fetch(url, { cf: { cacheTtl: 3600, cacheEverything: true } })
-    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); });
-}
-
-function fetchShopifySheet() {
-  const url = `${GVIZ_BASE}?tqx=out:csv&sheet=${encodeURIComponent(SHOPIFY_SHEET)}`;
+function fetchSheet(sheetName) {
+  const url = `${GVIZ_BASE}?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
   return fetch(url, { cf: { cacheTtl: 3600, cacheEverything: true } })
     .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); });
 }
@@ -153,14 +152,21 @@ async function loadAll(kv) {
     } catch (e) { /* KV miss or parse error — continue to fetch */ }
   }
 
-  // 3. Fetch from Google Sheets (2 requests instead of 28)
-  const [brandCSV, shopifyCSV] = await Promise.all([
-    fetchBrandSheet().catch(() => ''),
-    fetchShopifySheet().catch(() => ''),
+  // 3. Fetch from Google Sheets (14 requests: 13 brand + 1 Shopify)
+  const results = await Promise.all([
+    ...BRAND_SHEETS.map(name =>
+      fetchSheet(name)
+        .then(csv => parseCSV(csv).map(parseBrandRow).filter(Boolean))
+        .catch(() => [])
+    ),
+    fetchSheet(SHOPIFY_SHEET)
+      .then(csv => parseCSV(csv).map(parseShopifyRow).filter(Boolean))
+      .catch(() => []),
   ]);
 
-  const brand   = brandCSV   ? parseCSV(brandCSV).map(parseBrandRow).filter(Boolean)     : [];
-  const shopify = shopifyCSV ? parseCSV(shopifyCSV).map(parseShopifyRow).filter(Boolean)  : [];
+  const brand = [];
+  for (let i = 0; i < BRAND_SHEETS.length; i++) brand.push(...results[i]);
+  const shopify = results[BRAND_SHEETS.length];
 
   _brand = brand;
   _shopify = shopify;
