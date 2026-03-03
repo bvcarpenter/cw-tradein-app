@@ -2,34 +2,27 @@
  * GET /api/search?q=leica&limit=25
  *
  * Searches products from the Google Sheets trade-in catalog.
- * Searches brand-specific price-list sheets FIRST; falls back to
- * the "Shopify Product Catalog" sheet (120-day pre-owned inventory).
+ * Searches brand price-list sheets FIRST and prioritizes those results;
+ * fills remaining slots from the "Shopify Product Catalog" sheet.
  *
- * Google Sheet (published):
+ * Google Sheet:
  *   https://docs.google.com/spreadsheets/d/1hy4RzljHDASz_K4XO__w9rztCaW7rnCg_z5wa2uBTH4
  */
 
-const SHEET_BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRUWn7iSZnGuc-0w4dqbMffAJwCQvwdy9_JqqVHYj7GrqHlovqWz7-XPVU-hyh_IrPltw9DTKw301ED/pub';
+const SHEET_ID = '1hy4RzljHDASz_K4XO__w9rztCaW7rnCg_z5wa2uBTH4';
+const SHEET_BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
 
-// Brand price-list tabs (searched first)
+// Brand price-list tabs (searched first — all share the same columns)
 const BRAND_SHEETS = [
-  { name: 'Canon EOS R',      gid: 649423356 },
-  { name: 'Fujifilm GFX',     gid: 1927255526 },
-  { name: 'Fujifilm X',       gid: 1075754177 },
-  { name: 'Hasselblad X',     gid: 1075506952 },
-  { name: 'Leica Accessories', gid: 1781634734 },
-  { name: 'Leica CL-TL',     gid: 1058226739 },
-  { name: 'Leica M',          gid: 1698843593 },
-  { name: 'Leica Q',          gid: 566317506 },
-  { name: 'Leica S',          gid: 941830797 },
-  { name: 'Leica SL',         gid: 933139937 },
-  { name: 'Nikon Z',          gid: 617736799 },
-  { name: 'Panasonic Lumix S', gid: 110400018 },
-  { name: 'Sony Alpha',       gid: 348316227 },
+  'Cameras', 'Lenses', 'Accessories',
+  'Canon', 'Nikon', 'Sony', 'Leica', 'Fuji', 'Fujifilm',
+  'Olympus', 'Panasonic', 'Hasselblad', 'Sigma', 'Pentax', 'Zeiss',
+  'Phase One', 'Mamiya', 'Film', 'Lighting', 'Tripods', 'Bags',
+  'Medium Format', 'Digital', 'Video', 'Binoculars', 'Scopes', 'Drones',
 ];
 
-// Shopify Product Catalog tab (fallback)
-const SHOPIFY_GID = 265746322;
+// Shopify Product Catalog tab (lower priority)
+const SHOPIFY_SHEET = 'Shopify Product Catalog';
 
 // ── Category helpers ────────────────────────────────────────────────
 const CAM_T = new Set(['Bodies','Body','Instant','Cine','Video','Scanners']);
@@ -126,8 +119,8 @@ function parseShopifyRow(row) {
 }
 
 // ── Sheet fetching (Cloudflare edge-cached 1 h) ────────────────────
-function fetchSheet(gid) {
-  const url = `${SHEET_BASE}?gid=${gid}&single=true&output=csv`;
+function fetchSheet(sheetName) {
+  const url = `${SHEET_BASE}?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
   return fetch(url, { cf: { cacheTtl: 3600, cacheEverything: true } })
     .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); });
 }
@@ -142,20 +135,28 @@ async function loadAll() {
   }
 
   const promises = [
-    ...BRAND_SHEETS.map(s =>
-      fetchSheet(s.gid)
+    ...BRAND_SHEETS.map(name =>
+      fetchSheet(name)
         .then(csv => parseCSV(csv).map(parseBrandRow).filter(Boolean))
         .catch(() => [])
     ),
-    fetchSheet(SHOPIFY_GID)
+    fetchSheet(SHOPIFY_SHEET)
       .then(csv => parseCSV(csv).map(parseShopifyRow).filter(Boolean))
       .catch(() => []),
   ];
 
   const results = await Promise.all(promises);
 
+  // Deduplicate brand products by name (same item may appear in
+  // a category sheet like "Cameras" AND a brand sheet like "Canon")
+  const seen = new Set();
   const brand = [];
-  for (let i = 0; i < BRAND_SHEETS.length; i++) brand.push(...results[i]);
+  for (let i = 0; i < BRAND_SHEETS.length; i++) {
+    for (const p of results[i]) {
+      const key = (p.n + '|' + p.sku).toLowerCase();
+      if (!seen.has(key)) { seen.add(key); brand.push(p); }
+    }
+  }
   const shopify = results[BRAND_SHEETS.length];
 
   _brand = brand;
@@ -201,15 +202,21 @@ export async function onRequestGet({ request }) {
     const { brand, shopify } = await loadAll();
     const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
 
-    // Search brand price-list sheets first
-    let results = score(brand, terms);
+    // Brand price-list results first
+    const brandResults = score(brand, terms);
 
-    // Fall back to Shopify Product Catalog if nothing matched
-    if (!results.length) {
-      results = score(shopify, terms);
+    // Fill remaining slots with Shopify Product Catalog results
+    const remaining = limit - brandResults.length;
+    let shopifyResults = [];
+    if (remaining > 0) {
+      shopifyResults = score(shopify, terms).slice(0, remaining);
     }
 
-    const products = results.slice(0, limit).map(r => r.p);
+    const products = [
+      ...brandResults.slice(0, limit).map(r => r.p),
+      ...shopifyResults.map(r => r.p),
+    ];
+
     return Response.json({ products }, { headers: cors });
   } catch (err) {
     console.error('Search error:', err);
