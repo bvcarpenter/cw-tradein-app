@@ -402,8 +402,9 @@ body {
   </div>
   <div class="sess-tabs">
     <button class="sess-tab on" onclick="setSessTab(this,'all')">All</button>
-    <button class="sess-tab" onclick="setSessTab(this,'web')">Web Submissions</button>
-    <button class="sess-tab" onclick="setSessTab(this,'saved')">Saved</button>
+    <button class="sess-tab" onclick="setSessTab(this,'web')">From Web</button>
+    <button class="sess-tab" onclick="setSessTab(this,'drafts')">Drafts</button>
+    <button class="sess-tab" onclick="setSessTab(this,'finalized')">Finalized</button>
   </div>
   <div class="sess-list" id="sess-list">
     <div class="sess-empty">Loading…</div>
@@ -1637,7 +1638,8 @@ function renderSessions() {
   const el = document.getElementById('sess-list');
   let filtered = sessionsCache;
   if (sessFilter === 'web') filtered = sessionsCache.filter(s => s.data?.source === 'web-form');
-  if (sessFilter === 'saved') filtered = sessionsCache.filter(s => s.data?.source !== 'web-form');
+  if (sessFilter === 'drafts') filtered = sessionsCache.filter(s => !s.data?.finalized && s.data?.source !== 'web-form');
+  if (sessFilter === 'finalized') filtered = sessionsCache.filter(s => s.data?.finalized);
 
   if (!filtered.length) {
     el.innerHTML = '<div class="sess-empty">No sessions found.</div>';
