@@ -1,6 +1,5 @@
-{% raw %}
-<!-- Camera West — Trade // Sell Form (Shopify Custom Liquid Block)
-     Paste this entire block into a Custom Liquid section/block in Shopify. -->
+<!-- Camera West — Trade // Sell Form
+     Loaded via iframe from Shopify Custom Liquid block. -->
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,300;0,400;0,700&display=swap');
@@ -790,4 +789,20 @@
   });
 })();
 </script>
-{% endraw %}
+
+<script>
+/* Auto-resize: tell parent iframe how tall the content is */
+(function() {
+  function postHeight() {
+    var h = document.documentElement.scrollHeight;
+    window.parent.postMessage({ cwTradeInHeight: h }, '*');
+  }
+  if (window.ResizeObserver) {
+    new ResizeObserver(postHeight).observe(document.body);
+  } else {
+    window.addEventListener('resize', postHeight);
+    setInterval(postHeight, 500);
+  }
+  postHeight();
+})();
+</script>
