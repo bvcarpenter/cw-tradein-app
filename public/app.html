@@ -1655,11 +1655,12 @@ function renderSessions() {
     const badgeText = isDone ? 'Finalized' : isWeb ? 'Web Form' : 'Draft';
     const email = d.customer?.email || '';
     const loc = d.loc || '';
+    const intent = isWeb && d.intention ? d.intention + ' · ' : '';
     return `<div class="sess-item" onclick="loadSessionFromPanel('${s.key}')">
       <div>
         <div class="sess-item-name">${name}</div>
         <div class="sess-item-detail">
-          ${email ? email + '<br>' : ''}${items} item${items !== 1 ? 's' : ''} · ${date}${loc ? ' · ' + loc : ''}
+          ${email ? email + '<br>' : ''}${intent}${items} item${items !== 1 ? 's' : ''} · ${date}${loc ? ' · ' + loc : ''}
         </div>
       </div>
       <span class="sess-item-badge ${badgeClass}">${badgeText}</span>
@@ -1749,16 +1750,17 @@ async function loadSessionFromPanel(key) {
   if (d.items && d.items.length) {
     const isWebForm = d.source === 'web-form';
     if (isWebForm) {
-      // Web submissions have description-only items — show summary, don't load into cart
-      const itemSummary = d.items.map(it => {
-        const parts = [it.name || it.description];
-        if (it.customerCondition) parts.push('[' + it.customerCondition + ']');
-        if (it.serial) parts.push('S/N: ' + it.serial);
-        if (it.customerAccessories) parts.push('Includes: ' + it.customerAccessories);
+      // Web submissions — show rich summary for staff to catalog-match
+      const intent = d.intention ? `Intention: ${d.intention}\n` : '';
+      const custNotes = d.customerNotes ? `Customer Notes: ${d.customerNotes}\n` : '';
+      const itemSummary = d.items.map((it, i) => {
+        const parts = [(i + 1) + '. ' + (it.name || '(no description)')];
+        if (it.customerCondition) parts.push('Condition: ' + it.customerCondition + (it.grade ? ' (' + it.grade + ')' : ''));
         if (it.customerNotes) parts.push('Notes: ' + it.customerNotes);
-        return parts.join(' — ');
+        if (it.photoLinks?.length) parts.push('Photos: ' + it.photoLinks.length + ' uploaded');
+        return parts.join('\n   ');
       }).join('\n');
-      alert('Web form submission loaded.\n\nCustomer-submitted items:\n' + itemSummary + '\n\nSearch and add items from the catalog to match these, then price and finalize.');
+      alert('Web form submission loaded.\n\n' + intent + custNotes + '\nItems:\n' + itemSummary + '\n\nSearch and add items from the catalog to match these, then price and finalize.');
     } else {
       // Internal session — load items directly into cart
       sessionItems = d.items;

@@ -4,9 +4,13 @@
  *
  * Body: {
  *   customer: { first, last, email, phone },
+ *   intention: "Trade In" | "Sell Outright",
  *   location: "Palm Springs" | "San Francisco" | "SoHo — New York" | "shipping",
- *   shipping?: { str, city, st, zip },
- *   items: [{ description, condition, serial, accessories, notes }]
+ *   notes: "...",
+ *   items: [{
+ *     description, condition, grade,
+ *     notes, photoLinks: [url, ...]
+ *   }]
  * }
  *
  * Creates a session with key "cwti_<timestamp>" and source:"web-form"
@@ -39,9 +43,8 @@ export async function onRequestPost({ request, env }) {
     return Response.json({ error: 'Invalid JSON' }, { status: 400, headers: CORS });
   }
 
-  const { customer, location, shipping, items } = body;
+  const { customer, intention, location, notes, items } = body;
 
-  // Basic validation
   if (!customer?.first || !customer?.last || !customer?.email) {
     return Response.json(
       { error: 'First name, last name, and email are required' },
@@ -59,14 +62,13 @@ export async function onRequestPost({ request, env }) {
   const key = 'cwti_' + now;
   const custName = [customer.first, customer.last].filter(Boolean).join(' ');
 
-  // Build session data matching the app's internal format.
-  // Items from the web form are "draft" items — no pricing, no catalog match yet.
   const sessionData = {
     savedAt: new Date(now).toISOString(),
     key,
     name: custName,
     source: 'web-form',
     status: 'pending',
+    intention: (intention || '').trim(),
     customer: {
       first: (customer.first || '').trim(),
       last: (customer.last || '').trim(),
@@ -74,25 +76,34 @@ export async function onRequestPost({ request, env }) {
       phone: (customer.phone || '').trim(),
     },
     loc: location || '',
-    shipping: location === 'shipping' && shipping ? {
-      str: (shipping.str || '').trim(),
-      city: (shipping.city || '').trim(),
-      st: (shipping.st || '').trim(),
-      zip: (shipping.zip || '').trim(),
-    } : { str: '', city: '', st: '', zip: '' },
+    shipping: { str: '', city: '', st: '', zip: '' },
+    customerNotes: (notes || '').trim(),
     items: items.map((it, i) => ({
       id: now + i,
       name: (it.description || '').trim(),
       customerCondition: (it.condition || '').trim(),
-      serial: (it.serial || '').trim(),
-      customerAccessories: (it.accessories || '').trim(),
+      grade: (it.grade || '').trim(),
       customerNotes: (it.notes || '').trim(),
-      // Unpriced — staff will fill these in
-      grade: '',
+      photoLinks: it.photoLinks || [],
+      // Unpriced — staff fills in from the app
+      vendor: '',
+      systemId: '',
+      itemType: '',
+      medium: '',
+      format: '',
+      category: '',
+      sku: '',
+      serial: '',
+      catalog: '',
+      accessories: [],
+      notes: '',
       retail: 0,
       tradein: 0,
       outright: 0,
       net: 0,
+      priceType: intention === 'Sell Outright' ? 'outright' : 'tradein',
+      svcCharge: 0,
+      svcReason: '',
     })),
     cmNum: '',
     tracking: '',
@@ -105,7 +116,6 @@ export async function onRequestPost({ request, env }) {
   try {
     await kv.put(key, JSON.stringify(sessionData));
 
-    // Update the index
     const index = await getIndex(kv);
     index.push({
       key,
