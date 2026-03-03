@@ -564,12 +564,11 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
 // ════════════════════════════════════════════
 // CONFIG — build 1772314901884
 // ════════════════════════════════════════════
-const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS_H21bO2pMN_DyNQa5M6I0eRmQQT0lOOoptRxHPNIePTkKrz-RXOkxXyCwvTDE1v1M4DaaXcx-srS3/pub?output=csv';
+const SEARCH_API = '/api/search';
 
 // ════════════════════════════════════════════
 // STATE
 // ════════════════════════════════════════════
-let PRODUCTS = [], productsLoaded = false;
 let selItem = null, selGrade = null, selPT = 'tradein';
 let sessionItems = [], srchT = null, selLoc = '';
 let searchResultsCache = [];
@@ -695,7 +694,6 @@ const LEN_T = new Set(['Lenses','Close Up','Teleconverters','Filters','UV Filter
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
   buildGrades();
-  loadCSV();
   autoFillAssociate();
 });
 
@@ -774,66 +772,7 @@ function stripToModel(raw) {
 }
 
 // ════════════════════════════════════════════
-// CSV LOADING
-// ════════════════════════════════════════════
-async function loadCSV() {
-  if (productsLoaded) return;
-  try {
-    const res   = await fetch(CSV_URL);
-    const text  = await res.text();
-    const lines = text.trim().split(/\r?\n/);
-
-    // Parse header row
-    const hdrs = parseCSVLine(lines[0]).map(h => h.replace(/\r$/,'').trim());
-    const idx  = {};
-    hdrs.forEach((h, i) => idx[h] = i);
-
-    PRODUCTS = lines.slice(1).map(line => {
-      const cols  = parseCSVLine(line);
-      const get   = k => (cols[idx[k]] || '').replace(/\r$/,'').trim();
-
-      const rawTitle = get('Title');
-      const sku      = get('SKU');
-      if (!sku && !rawTitle) return null;
-
-      const cleanedTitle = stripToModel(rawTitle);
-      const grade  = get('Pre-Owned Grade');
-      const si     = get('System ID');
-      const it     = get('Type');
-      const m      = get('Medium');
-      const fmt    = get('Format');
-      const asin   = get('Amazon ASIN');
-      const price  = parseFloat(get('Price')) || 0;
-
-      let cat = 'accessory';
-      if (CAM_T.has(it)) cat = 'camera';
-      else if (LEN_T.has(it)) cat = 'lens';
-
-      return { n: cleanedTitle, rawTitle, si, it, m, fmt, asin, grade, p: price, cat, sku };
-    }).filter(Boolean);
-
-    productsLoaded = true;
-    console.log('CSV loaded:', PRODUCTS.length, 'items');
-  } catch(e) {
-    console.error('CSV load failed:', e);
-    window._csvError = e.message || String(e);
-  }
-}
-
-function parseCSVLine(line) {
-  const out = []; let cur = '', inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') { inQ = !inQ; }
-    else if (c === ',' && !inQ) { out.push(cur); cur = ''; }
-    else { cur += c; }
-  }
-  out.push(cur);
-  return out;
-}
-
-// ════════════════════════════════════════════
-// SEARCH
+// SEARCH (via /api/search — Google Sheets catalog)
 // ════════════════════════════════════════════
 function dSearch(v) {
   clearTimeout(srchT);
@@ -846,51 +785,39 @@ function dSearch(v) {
 
 async function runSearch(q) {
   const el = document.getElementById('srch-res');
-  if (!productsLoaded) await loadCSV();
-  if (!PRODUCTS.length) {
-    el.innerHTML = `<div class="no-res" style="color:#e07070;">Catalog unavailable — ${window._csvError || 'unknown error'}</div>`;
-    return;
-  }
 
-  const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
-  const scored = [];
+  try {
+    const res = await fetch(SEARCH_API + '?q=' + encodeURIComponent(q) + '&limit=25');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const top = data.products || [];
+    searchResultsCache = top;
 
-  for (const p of PRODUCTS) {
-    // Search across: cleaned title, raw title, SKU, system, type, medium, format, grade
-    const hay = [p.n, p.rawTitle, p.sku, p.si, p.it, p.m, p.fmt, p.grade]
-      .filter(Boolean).join(' ').toLowerCase();
-    let sc = 0, ok = true;
-    for (const t of terms) {
-      if (hay.includes(t)) sc += t.length;
-      else { ok = false; break; }
+    if (!top.length) {
+      el.innerHTML = '<div class="no-res">No results — try Manual Entry</div>';
+    } else {
+      el.innerHTML = top.map((p, i) => {
+        const pr   = p.p ? '$' + p.p.toLocaleString('en-US', {minimumFractionDigits:0}) : '';
+        const meta = [p.si, p.it, p.m].filter(Boolean).join(' · ');
+        const skuLabel = p.sku ? `<span style="opacity:.35;margin-left:4px;font-size:9px;">#${p.sku}</span>` : '';
+        const srcTag = p.src === 'shopify' ? '<span style="opacity:.35;margin-left:4px;font-size:8px;background:#f0f0f0;padding:1px 4px;border-radius:3px;">Shopify</span>' : '';
+        return `<div class="ri" onclick="pickResult(${i})">
+          <div style="flex:1;min-width:0;">
+            <div class="ri-n">${esc(p.n)}${skuLabel}${srcTag}</div>
+            <div class="ri-m">${esc(meta)}</div>
+          </div>
+          <div class="ri-r">
+            ${pr ? `<div class="ri-p">${pr}</div>` : ''}
+            ${p.grade ? `<div class="ri-g" style="color:${gradeColor(p.grade).c};background:${gradeColor(p.grade).bg};border-color:${gradeColor(p.grade).bd}">${esc(p.grade)}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
     }
-    if (ok && sc) scored.push({ p, sc });
+    el.style.display = 'block';
+  } catch(err) {
+    el.innerHTML = `<div class="no-res" style="color:#e07070;">Search failed — ${esc(err.message)}</div>`;
+    el.style.display = 'block';
   }
-
-  scored.sort((a, b) => b.sc - a.sc);
-  const top = scored.slice(0, 25);
-  searchResultsCache = top.map(r => r.p);
-
-  if (!top.length) {
-    el.innerHTML = '<div class="no-res">No results — try Manual Entry</div>';
-  } else {
-    el.innerHTML = top.map(({ p }, i) => {
-      const pr   = p.p ? '$' + p.p.toLocaleString('en-US', {minimumFractionDigits:0}) : '';
-      const meta = [p.si, p.it, p.m].filter(Boolean).join(' · ');
-      const skuLabel = p.sku ? `<span style="opacity:.35;margin-left:4px;font-size:9px;">#${p.sku}</span>` : '';
-      return `<div class="ri" onclick="pickResult(${i})">
-        <div style="flex:1;min-width:0;">
-          <div class="ri-n">${esc(p.n)}${skuLabel}</div>
-          <div class="ri-m">${esc(meta)}</div>
-        </div>
-        <div class="ri-r">
-          ${pr ? `<div class="ri-p">${pr}</div>` : ''}
-          ${p.grade ? `<div class="ri-g" style="color:${gradeColor(p.grade).c};background:${gradeColor(p.grade).bg};border-color:${gradeColor(p.grade).bd}">${esc(p.grade)}</div>` : ''}
-        </div>
-      </div>`;
-    }).join('');
-  }
-  el.style.display = 'block';
 }
 
 function pickResult(i) { const p = searchResultsCache[i]; if (p) selProduct(p); }
