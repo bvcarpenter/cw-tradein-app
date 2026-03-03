@@ -9,7 +9,11 @@
 import { shopifyGQL } from './_shopify.js';
 
 export async function onRequestGet({ request, env }) {
-  const corsHeaders = { 'Content-Type': 'application/json' };
+  const corsHeaders = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+  };
+
 
   const url   = new URL(request.url);
   const query = (url.searchParams.get('q') || '').trim();
@@ -80,4 +84,14 @@ export async function onRequestGet({ request, env }) {
       { status: 502, headers: corsHeaders }
     );
   }
+}
+
+export function onRequestOptions() {
+  return new Response(null, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET,OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
 }
