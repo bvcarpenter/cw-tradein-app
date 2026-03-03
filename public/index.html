@@ -820,13 +820,17 @@ async function sendOtp() {
   const btn = document.getElementById('otp-send-btn');
   btn.disabled = true; btn.textContent = 'Sending…';
   try {
+    // Build the pending CM preview to include in the email
+    let summaryHtml = '';
+    try { summaryHtml = typeof buildPrint === 'function' ? buildPrint() : ''; } catch(e) { /* ignore */ }
+    const requestedBy = _loggedInEmail || document.getElementById('assoc')?.value?.trim() || 'An associate';
     const r = await fetch('/api/approve-otp', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ action: 'send', email: mgr })
+      body: JSON.stringify({ action: 'send', email: mgr, requestedBy, summaryHtml })
     });
     const text = await r.text();
     let d;
-    try { d = JSON.parse(text); } catch { throw new Error('Server error: ' + (text.slice(0,100) || 'empty response')); }
+    try { d = JSON.parse(text); } catch { throw new Error('Server error: ' + (text.slice(0,200) || 'empty response (endpoint may not be deployed yet)')); }
     if (!r.ok) throw new Error(d.error || 'Send failed (HTTP ' + r.status + ')');
     _otpManager = mgr;
     document.getElementById('otp-sent-to').textContent = mgr;
