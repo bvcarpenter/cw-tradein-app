@@ -812,6 +812,22 @@ document.getElementById('tradeForm').addEventListener('input', e => {
     document.getElementById('ccInput').value = e.target.value;
   }
 });
+
+// ── Iframe height reporting (for Shopify embed) ──────────────────────────
+(function() {
+  if (window.self === window.top) return; // not in an iframe
+  var lastH = 0;
+  function postHeight() {
+    var h = document.documentElement.scrollHeight;
+    if (h !== lastH) { lastH = h; window.parent.postMessage({ cwTradeInHeight: h }, '*'); }
+  }
+  if (window.ResizeObserver) {
+    new ResizeObserver(postHeight).observe(document.documentElement);
+  } else {
+    setInterval(postHeight, 300);
+  }
+  postHeight();
+})();
 </script>
 </body>
 </html>
