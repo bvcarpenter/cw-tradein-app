@@ -95,6 +95,7 @@ ${previewSection}
       };
 
       let mailStatus = 'sent';
+      let mailDetail = '';
       try {
         const r = await fetch('https://api.mailchannels.net/tx/v1/send', {
           method: 'POST',
@@ -105,13 +106,15 @@ ${previewSection}
           const errText = await r.text().catch(() => '');
           console.error('MailChannels OTP error:', r.status, errText);
           mailStatus = 'mail_error_' + r.status;
+          mailDetail = errText.slice(0, 300);
         }
       } catch (e) {
         console.error('MailChannels OTP send failed:', e);
         mailStatus = 'mail_exception';
+        mailDetail = e.message;
       }
 
-      return json({ ok: true, message: 'Code sent to ' + norm, mailStatus });
+      return json({ ok: true, message: 'Code sent to ' + norm, mailStatus, mailDetail });
     }
 
     // ════════════════════════════════════════════════
