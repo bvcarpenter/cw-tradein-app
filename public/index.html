@@ -820,9 +820,24 @@ async function sendOtp() {
   const btn = document.getElementById('otp-send-btn');
   btn.disabled = true; btn.textContent = 'Sending…';
   try {
-    // Build the pending CM preview to include in the email
+    // Build a lightweight summary for the approval email (not the full print HTML)
     let summaryHtml = '';
-    try { summaryHtml = typeof buildPrint === 'function' ? buildPrint() : ''; } catch(e) { /* ignore */ }
+    try {
+      const cm = document.getElementById('cm-num').value.trim() || 'PENDING';
+      const cust = [document.getElementById('c-first').value.trim(), document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || 'Unknown';
+      const totNet = sessionItems.reduce((s,i) => s + i.net, 0);
+      const rows = sessionItems.map(it =>
+        `<tr><td style="padding:6px 8px;border-bottom:1px solid #eee;">${esc(it.name)}${it.serial?' ('+esc(it.serial)+')':''}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center;">${it.grade}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${ff(it.net)}</td></tr>`
+      ).join('');
+      summaryHtml = `<div style="color:#111;font-family:Arial,sans-serif;font-size:13px;">
+        <p style="margin:0 0 8px;"><strong>CM:</strong> ${esc(cm)} &nbsp; <strong>Customer:</strong> ${esc(cust)} &nbsp; <strong>Items:</strong> ${sessionItems.length}</p>
+        <table width="100%" style="border-collapse:collapse;font-size:12px;">
+          <thead><tr style="background:#f0f0f0;"><th style="padding:6px 8px;text-align:left;">Item</th><th style="padding:6px 8px;text-align:center;">Grade</th><th style="padding:6px 8px;text-align:right;">Net</th></tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr style="background:#f5f5f0;"><td colspan="2" style="padding:8px;text-align:right;font-weight:bold;">Total:</td><td style="padding:8px;text-align:right;font-weight:bold;color:#d95e00;">${ff(totNet)}</td></tr></tfoot>
+        </table>
+      </div>`;
+    } catch(e) { /* ignore — email will just omit the preview */ }
     const requestedBy = _loggedInEmail || document.getElementById('assoc')?.value?.trim() || 'An associate';
     const r = await fetch('/api/auth/request', {
       method: 'POST', headers: {'Content-Type':'application/json'},
@@ -832,13 +847,17 @@ async function sendOtp() {
     let d;
     try { d = JSON.parse(text); } catch { throw new Error('Server error: ' + (text.slice(0,200) || 'empty response')); }
     if (!r.ok) throw new Error(d.error || 'Send failed (HTTP ' + r.status + ')');
+    if (d.mailStatus && d.mailStatus !== 'sent') {
+      showOtpMsg('Code saved but email may not have sent (' + d.mailStatus + '). Try again or contact the manager directly.', true);
+    } else {
+      showOtpMsg('Code sent — check email', false);
+    }
     _otpManager = mgr;
     document.getElementById('otp-sent-to').textContent = mgr;
     document.getElementById('otp-step-send').style.display = 'none';
     document.getElementById('otp-step-verify').style.display = 'block';
     document.getElementById('otp-code').value = '';
     document.getElementById('otp-code').focus();
-    showOtpMsg('Code sent — check email', false);
   } catch(e) {
     showOtpMsg(e.message, true);
   } finally {
