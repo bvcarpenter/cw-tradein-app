@@ -100,6 +100,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
 .ri:last-child{border-bottom:none}
 .ri:hover{background:var(--bg4)}
 .ri-n{font-size:12px;font-weight:400;color:var(--white);line-height:1.35}
+.ri-mpn{font-size:9px;color:var(--dim);margin-top:1px;letter-spacing:.04em;font-style:italic}
 .ri-m{font-size:9px;color:var(--dim);margin-top:3px;letter-spacing:.04em}
 .ri-r{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
 .ri-p{font-size:11px;color:var(--accent)}
@@ -805,9 +806,10 @@ async function runSearch(q) {
         } else if (p.grade) {
           badge = `<div class="ri-g" style="color:${gradeColor(p.grade).c};background:${gradeColor(p.grade).bg};border-color:${gradeColor(p.grade).bd}">${esc(p.grade)}</div>`;
         }
+        const mpn = p.sku || '';
         return `<div class="ri" onclick="pickResult(${i})">
           <div style="flex:1;min-width:0;">
-            <div class="ri-n">${esc(p.n)}</div>
+            <div class="ri-n">${esc(p.n)}</div>${mpn ? `<div class="ri-mpn">MPN: ${esc(mpn)}</div>` : ''}
             <div class="ri-m">${esc(meta)}</div>
           </div>
           <div class="ri-r">
@@ -987,7 +989,7 @@ function showDet() {
     `<div class="achip" onclick="this.classList.toggle('on')"><div class="achk"></div><span>${a}</span></div>`).join('');
   document.getElementById('r-override').value = '';
   document.getElementById('serial').value = '';
-  document.getElementById('catalog').value = '';
+  document.getElementById('catalog').value = selItem.sku || '';
   document.getElementById('asin').value = selItem.asin || '';
   document.getElementById('notes').value = '';
   updPricing();
