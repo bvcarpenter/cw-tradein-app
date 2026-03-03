@@ -824,13 +824,13 @@ async function sendOtp() {
     let summaryHtml = '';
     try { summaryHtml = typeof buildPrint === 'function' ? buildPrint() : ''; } catch(e) { /* ignore */ }
     const requestedBy = _loggedInEmail || document.getElementById('assoc')?.value?.trim() || 'An associate';
-    const r = await fetch('/api/approve-otp', {
+    const r = await fetch('/api/auth/request', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ action: 'send', email: mgr, requestedBy, summaryHtml })
+      body: JSON.stringify({ action: 'otp-send', email: mgr, requestedBy, summaryHtml })
     });
     const text = await r.text();
     let d;
-    try { d = JSON.parse(text); } catch { throw new Error('Server error: ' + (text.slice(0,200) || 'empty response (endpoint may not be deployed yet)')); }
+    try { d = JSON.parse(text); } catch { throw new Error('Server error: ' + (text.slice(0,200) || 'empty response')); }
     if (!r.ok) throw new Error(d.error || 'Send failed (HTTP ' + r.status + ')');
     _otpManager = mgr;
     document.getElementById('otp-sent-to').textContent = mgr;
@@ -851,13 +851,13 @@ async function verifyOtp() {
   const btn = document.getElementById('otp-verify-btn');
   btn.disabled = true; btn.textContent = 'Verifying…';
   try {
-    const r = await fetch('/api/approve-otp', {
+    const r = await fetch('/api/auth/request', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ action: 'verify', email: _otpManager, code })
+      body: JSON.stringify({ action: 'otp-verify', email: _otpManager, code })
     });
     const text = await r.text();
     let d;
-    try { d = JSON.parse(text); } catch { throw new Error('Server error: ' + (text.slice(0,100) || 'empty response')); }
+    try { d = JSON.parse(text); } catch { throw new Error('Server error: ' + (text.slice(0,200) || 'empty response')); }
     if (!r.ok) throw new Error(d.error || 'Verification failed (HTTP ' + r.status + ')');
     closeOtp();
     showToast('Manager approval verified');
