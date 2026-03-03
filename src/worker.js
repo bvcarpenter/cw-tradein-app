@@ -4,7 +4,9 @@
  */
 import { onRequestGet as sessionsGet, onRequestPost as sessionsPost, onRequestDelete as sessionsDelete, onRequestOptions as sessionsOptions } from '../functions/api/sessions.js';
 import { onRequestGet as catalogGet } from '../functions/api/catalog.js';
-import { onRequestGet as searchGet } from '../functions/api/search.js';
+import { onRequestGet as searchGet, onRequestOptions as searchOptions } from '../functions/api/search.js';
+import { onRequestPost as tradeFormPost, onRequestOptions as tradeFormOptions } from '../functions/api/trade-form.js';
+import { onRequestPost as customerAddressPost, onRequestOptions as customerAddressOptions } from '../functions/api/customer-address.js';
 import { onRequestGet as customersGet, onRequestPost as customersPost, onRequestOptions as customersOptions } from '../functions/api/customers.js';
 import { onRequestPost as storeCreditPost, onRequestOptions as storeCreditOptions } from '../functions/api/store-credit.js';
 import { onRequestPost as creditMemoPost, onRequestOptions as creditMemoOptions } from '../functions/api/netsuite-credit-memo.js';
@@ -31,8 +33,19 @@ export default {
       return catalogGet(c);
     }
 
-    if (path === '/api/search' && method === 'GET') {
-      return searchGet(c);
+    if (path === '/api/search') {
+      if (method === 'OPTIONS') return searchOptions(c);
+      if (method === 'GET')     return searchGet(c);
+    }
+
+    if (path === '/api/trade-form') {
+      if (method === 'OPTIONS') return tradeFormOptions(c);
+      if (method === 'POST')    return tradeFormPost(c);
+    }
+
+    if (path === '/api/customer-address') {
+      if (method === 'OPTIONS') return customerAddressOptions(c);
+      if (method === 'POST')    return customerAddressPost(c);
     }
 
     if (path === '/api/customers') {
