@@ -531,6 +531,53 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
   </div>
 </div>
 
+<!-- MANAGER OTP APPROVAL MODAL -->
+<div class="mo" id="mo-otp">
+  <div class="mod" style="max-width:420px;">
+    <div class="mod-h"><h3>Manager Approval Required</h3><button class="mod-x" onclick="closeOtp()">&#215;</button></div>
+    <div class="mod-b" style="padding:22px 26px;">
+      <div id="otp-step-send">
+        <p style="font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:16px;">
+          Select a manager to send a one-time approval code. They will receive an email with a 6-digit code that expires in 5 minutes.
+        </p>
+        <div class="fld" style="margin-bottom:14px;">
+          <label>Approving Manager</label>
+          <select id="otp-manager">
+            <option value="">Select manager…</option>
+            <option value="sam@leicastoresf.com">Sam (Leica SF)</option>
+            <option value="sean@camerawest.com">Sean</option>
+            <option value="ben@camerawest.com">Ben</option>
+            <option value="kyle@camerawest.com">Kyle</option>
+            <option value="allegra@cwwatchshop.com">Allegra</option>
+            <option value="devyn@camerawest.com">Devyn</option>
+            <option value="norman@camerawest.com">Norman</option>
+            <option value="adam@camerawest.com">Adam</option>
+            <option value="armando@camerawest.com">Armando</option>
+            <option value="festa@camerawest.com">Festa</option>
+          </select>
+        </div>
+        <button class="btn" id="otp-send-btn" onclick="sendOtp()" style="width:100%;background:var(--accent);color:#fff;border:1px solid var(--accent);">Send Approval Code</button>
+      </div>
+      <div id="otp-step-verify" style="display:none;">
+        <p style="font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:14px;">
+          Code sent to <strong id="otp-sent-to" style="color:var(--white);"></strong>. Enter the 6-digit code below.
+        </p>
+        <div class="fld" style="margin-bottom:14px;">
+          <label>Approval Code</label>
+          <input type="text" id="otp-code" placeholder="000000" maxlength="6"
+            style="text-align:center;font-size:24px;letter-spacing:0.3em;font-weight:600;"
+            oninput="this.value=this.value.replace(/\D/g,'')">
+        </div>
+        <button class="btn" id="otp-verify-btn" onclick="verifyOtp()" style="width:100%;background:#2a6e3f;color:#fff;border:1px solid #2a6e3f;">Verify &amp; Approve</button>
+        <div style="text-align:center;margin-top:10px;">
+          <button style="background:none;border:none;color:var(--dim);font-size:10px;letter-spacing:0.06em;cursor:pointer;text-decoration:underline;" onclick="showOtpSend()">Send to a different manager</button>
+        </div>
+      </div>
+      <div id="otp-msg" style="display:none;margin-top:12px;font-size:11px;padding:8px 12px;border:1px solid var(--border);"></div>
+    </div>
+  </div>
+</div>
+
 <!-- SESSIONS MANAGER MODAL -->
 <div class="mo" id="mo-sessions">
   <div class="mod" style="max-width:860px;width:100%;">
@@ -540,7 +587,22 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
         <button class="tnav on" id="sm-tab-draft" onclick="smTab('draft',this)">Drafts</button>
         <button class="tnav" id="sm-tab-final" onclick="smTab('final',this)">Finalized</button>
       </div>
-      <div style="padding:12px 20px 0;"><input id="sm-search" type="text" placeholder="Search by name, email, item, serial…" oninput="renderSessionsMgr()" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--white);font-family:'Jost',sans-serif;font-size:12px;padding:9px 12px;outline:none;box-sizing:border-box;"></div>
+      <div style="padding:12px 20px 0;">
+        <input id="sm-search" type="text" placeholder="Search by name, email, item, serial…" oninput="renderSessionsMgr()" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--white);font-family:'Jost',sans-serif;font-size:12px;padding:9px 12px;outline:none;box-sizing:border-box;margin-bottom:8px;">
+        <div style="display:flex;gap:8px;">
+          <select id="sm-filter-loc" onchange="renderSessionsMgr()" style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--dim);font-family:'Jost',sans-serif;font-size:11px;padding:7px 10px;outline:none;appearance:none;-webkit-appearance:none;cursor:pointer;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(245,245,240,0.35)'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 10px center;padding-right:26px;">
+            <option value="">All Locations</option>
+            <option value="Leica SF">Leica SF</option>
+            <option value="Palm Springs">Palm Springs</option>
+            <option value="San Francisco">San Francisco</option>
+            <option value="SoHo — New York">SoHo — New York</option>
+            <option value="shipping">Requires Shipping</option>
+          </select>
+          <select id="sm-filter-assoc" onchange="renderSessionsMgr()" style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--dim);font-family:'Jost',sans-serif;font-size:11px;padding:7px 10px;outline:none;appearance:none;-webkit-appearance:none;cursor:pointer;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(245,245,240,0.35)'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 10px center;padding-right:26px;">
+            <option value="">All Associates</option>
+          </select>
+        </div>
+      </div>
       <div style="padding:12px 20px;overflow-y:auto;max-height:55vh;" id="sm-list"></div>
     </div>
     <div class="mod-f"><button class="btn btn-ol" onclick="closeSessionsMgr()">Close</button></div>
@@ -699,8 +761,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Allowed emails for CM# entry, finalize, and issuing store credit
 const FINALIZE_ALLOWED = [
-  'ben@camerawest.com','sean@camerawest.com','sam@leicastoresf.com',
-  'adam@camerawest.com','kyle@camerawest.com'
+  'sam@leicastoresf.com','sean@camerawest.com','ben@camerawest.com',
+  'kyle@camerawest.com','allegra@cwwatchshop.com','devyn@camerawest.com',
+  'norman@camerawest.com','adam@camerawest.com','armando@camerawest.com',
+  'festa@camerawest.com'
 ];
 let _loggedInEmail = '';
 
@@ -724,13 +788,84 @@ async function autoFillAssociate() {
 }
 
 function applyFinalizePermissions() {
-  const allowed = FINALIZE_ALLOWED.includes(_loggedInEmail);
-  const scBtn = document.getElementById('sc-btn');
-  if (!allowed) {
-    scBtn.disabled = true;
-    scBtn.style.opacity = '.3';
-    scBtn.title = 'You do not have permission to issue store credit';
+  // OTP approval flow now gates credit/CM issuance — no static button disabling needed
+}
+
+// ════════════════════════════════════════════
+// OTP MANAGER APPROVAL FLOW
+// ════════════════════════════════════════════
+let _otpCallback = null; // function to call after successful OTP verify
+let _otpManager = '';
+
+function requestOtpApproval(callback) {
+  _otpCallback = callback;
+  _otpManager = '';
+  showOtpSend();
+  document.getElementById('otp-code').value = '';
+  document.getElementById('otp-msg').style.display = 'none';
+  document.getElementById('mo-otp').style.display = 'flex';
+}
+function closeOtp() {
+  document.getElementById('mo-otp').style.display = 'none';
+  _otpCallback = null;
+}
+function showOtpSend() {
+  document.getElementById('otp-step-send').style.display = 'block';
+  document.getElementById('otp-step-verify').style.display = 'none';
+  document.getElementById('otp-msg').style.display = 'none';
+}
+async function sendOtp() {
+  const mgr = document.getElementById('otp-manager').value;
+  if (!mgr) { showOtpMsg('Select a manager', true); return; }
+  const btn = document.getElementById('otp-send-btn');
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    const r = await fetch('/api/approve-otp', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ action: 'send', email: mgr })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Send failed');
+    _otpManager = mgr;
+    document.getElementById('otp-sent-to').textContent = mgr;
+    document.getElementById('otp-step-send').style.display = 'none';
+    document.getElementById('otp-step-verify').style.display = 'block';
+    document.getElementById('otp-code').value = '';
+    document.getElementById('otp-code').focus();
+    showOtpMsg('Code sent — check email', false);
+  } catch(e) {
+    showOtpMsg(e.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Send Approval Code';
   }
+}
+async function verifyOtp() {
+  const code = document.getElementById('otp-code').value.trim();
+  if (code.length !== 6) { showOtpMsg('Enter the 6-digit code', true); return; }
+  const btn = document.getElementById('otp-verify-btn');
+  btn.disabled = true; btn.textContent = 'Verifying…';
+  try {
+    const r = await fetch('/api/approve-otp', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ action: 'verify', email: _otpManager, code })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Verification failed');
+    closeOtp();
+    showToast('Manager approval verified');
+    if (_otpCallback) _otpCallback();
+  } catch(e) {
+    showOtpMsg(e.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Verify & Approve';
+  }
+}
+function showOtpMsg(msg, isErr) {
+  const el = document.getElementById('otp-msg');
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.color = isErr ? '#e07070' : '#70d090';
+  el.style.borderColor = isErr ? '#5a2a2a' : '#2a5a3a';
 }
 
 function doLogout() {
@@ -1730,16 +1865,35 @@ async function renderSessionsMgr() {
   } catch(e) { console.warn('localStorage merge err', e); }
 
   const q = (document.getElementById('sm-search')?.value || '').toLowerCase().trim();
+  const filterLoc = document.getElementById('sm-filter-loc')?.value || '';
+  const filterAssoc = document.getElementById('sm-filter-assoc')?.value || '';
+
+  // Build unique associate list for the dropdown
+  const assocSet = new Set();
+  sessions.forEach(s => { const a = (s.data?.assoc || '').trim(); if (a) assocSet.add(a); });
+  const assocSelect = document.getElementById('sm-filter-assoc');
+  if (assocSelect) {
+    const cur = assocSelect.value;
+    const opts = ['<option value="">All Associates</option>'];
+    [...assocSet].sort().forEach(a => opts.push(`<option value="${esc(a)}"${a === cur ? ' selected' : ''}>${esc(a)}</option>`));
+    assocSelect.innerHTML = opts.join('');
+  }
+
   const rows = sessions.filter(s => {
     const d = s.data || {};
     if (_smTab === 'final' ? !d.finalized : !!d.finalized) return false;
+    // Location filter
+    if (filterLoc && (d.loc || '') !== filterLoc) return false;
+    // Associate filter
+    if (filterAssoc && (d.assoc || '').trim() !== filterAssoc) return false;
     if (!q) return true;
     const cust  = ((d.customer?.first || '') + ' ' + (d.customer?.last || '')).toLowerCase();
     const email = (d.customer?.email || '').toLowerCase();
+    const assoc = (d.assoc || '').toLowerCase();
     const items = d.items || [];
     const inames = items.map(i => (i.name || '').toLowerCase()).join(' ');
     const sers   = items.map(i => (i.serial || '').toLowerCase()).join(' ');
-    return cust.includes(q) || email.includes(q) || inames.includes(q) || sers.includes(q);
+    return cust.includes(q) || email.includes(q) || inames.includes(q) || sers.includes(q) || assoc.includes(q);
   });
 
   if (!rows.length) {
@@ -1751,7 +1905,8 @@ async function renderSessionsMgr() {
     const d    = s.data || {};
     const cust  = d.customer ? [d.customer.first, d.customer.last].filter(Boolean).join(' ') || 'Unknown' : 'Unknown';
     const email = d.customer?.email || '';
-    const loc   = d.location || '—';
+    const loc   = d.loc || '—';
+    const assoc = d.assoc || '';
     const items = d.items || [];
     const net   = items.reduce((sum, i) => sum + (i.net || 0), 0);
     const svc   = items.reduce((sum, i) => sum + (i.svcCharge || 0), 0);
@@ -1764,7 +1919,7 @@ async function renderSessionsMgr() {
       <div>
         <div style="font-size:13px;font-weight:500;margin-bottom:3px;">${esc(cust)}${email ? ` <span style="font-size:10px;color:var(--dim);font-weight:300;">&lt;${esc(email)}&gt;</span>` : ''}</div>
         <div style="font-size:10px;color:var(--dim);margin-bottom:7px;line-height:1.9;">
-          ${esc(loc)} &nbsp;&middot;&nbsp; ${items.length} item${items.length !== 1 ? 's' : ''}
+          ${esc(loc)}${assoc ? ` &nbsp;&middot;&nbsp; ${esc(assoc)}` : ''} &nbsp;&middot;&nbsp; ${items.length} item${items.length !== 1 ? 's' : ''}
           &nbsp;&middot;&nbsp; Net: <strong style="color:var(--accent);">${ff(net)}</strong>
           ${svc > 0 ? `&nbsp;&middot;&nbsp; <span style="color:#e07070;">Svc: &#8722;${ff(svc)}</span>` : ''}
           &nbsp;&middot;&nbsp; ${dt}
@@ -1828,6 +1983,7 @@ async function saveSerialPopup() {
 // ════════════════════════════════════════════
 // Lock credit buttons after a CM# has been assigned (prevent double-issue)
 function lockCreditButtons(cmNum) {
+  _otpApproved = false; // Reset OTP after successful issuance
   const scBtn = document.getElementById('sc-btn');
   const cmBtn = document.getElementById('cm-only-btn');
   scBtn.disabled = true;
@@ -1840,8 +1996,9 @@ function lockCreditButtons(cmNum) {
   cmBtn.style.cursor = 'not-allowed';
 }
 
+let _otpApproved = false;
 async function issueStoreCredit() {
-  if (!FINALIZE_ALLOWED.includes(_loggedInEmail)) { showToast('You do not have permission to issue store credit'); return; }
+  if (!_otpApproved) { requestOtpApproval(() => { _otpApproved = true; issueStoreCredit(); }); return; }
   if (!sessionItems.length) { showToast('No items in session'); return; }
   const custId = window._shopifyCustId;
   if (!custId) { showToast('Select a Shopify customer first'); return; }
@@ -2058,7 +2215,7 @@ async function execStoreCredit() {
 }
 // ── ISSUE CM ONLY (no Shopify credit) ──
 function issueCmOnly() {
-  if (!FINALIZE_ALLOWED.includes(_loggedInEmail)) { showToast('You do not have permission'); return; }
+  if (!_otpApproved) { requestOtpApproval(() => { _otpApproved = true; issueCmOnly(); }); return; }
   if (!sessionItems.length) { showToast('No items in session'); return; }
   const net = sessionItems.reduce((s, i) => s + i.net, 0);
   if (net <= 0) { showToast('No net value to credit'); return; }
