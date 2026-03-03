@@ -33,11 +33,9 @@ export async function onRequestGet({ request, env }) {
             vendor
             productType
             priceRangeV2 { minVariantPrice { amount } }
-            metafields(identifiers: [
-              {namespace: "custom", key: "system_id"},
-              {namespace: "custom", key: "item_type"},
-              {namespace: "custom", key: "medium"}
-            ]) { key value }
+            system_id: metafield(namespace: "custom", key: "system_id") { value }
+            item_type: metafield(namespace: "custom", key: "item_type") { value }
+            medium: metafield(namespace: "custom", key: "medium") { value }
           }
         }
       }
@@ -55,10 +53,10 @@ export async function onRequestGet({ request, env }) {
                            'Square Filters','Lens Mount Adapters']);
 
     const products = edges.map(({ node }) => {
-      const meta     = {};
-      (node.metafields || []).forEach(mf => { if (mf) meta[mf.key] = mf.value; });
+      const systemId = node.system_id?.value || '';
+      const itemType = node.item_type?.value || node.productType || '';
+      const medium   = node.medium?.value || '';
       const price    = parseFloat(node.priceRangeV2?.minVariantPrice?.amount || 0);
-      const itemType = meta['item_type'] || node.productType || '';
       let   cat      = 'accessory';
       if (CAM_T.has(itemType)) cat = 'camera';
       else if (LEN_T.has(itemType)) cat = 'lens';
@@ -66,9 +64,9 @@ export async function onRequestGet({ request, env }) {
       return {
         n:   node.title,
         v:   node.vendor   || '',
-        si:  meta['system_id'] || '',
+        si:  systemId,
         it:  itemType,
-        m:   meta['medium'] || '',
+        m:   medium,
         p:   price,
         cat,
         sku: node.id.split('/').pop(),
