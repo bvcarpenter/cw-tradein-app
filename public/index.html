@@ -824,8 +824,10 @@ async function sendOtp() {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ action: 'send', email: mgr })
     });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || 'Send failed');
+    const text = await r.text();
+    let d;
+    try { d = JSON.parse(text); } catch { throw new Error('Server error: ' + (text.slice(0,100) || 'empty response')); }
+    if (!r.ok) throw new Error(d.error || 'Send failed (HTTP ' + r.status + ')');
     _otpManager = mgr;
     document.getElementById('otp-sent-to').textContent = mgr;
     document.getElementById('otp-step-send').style.display = 'none';
@@ -849,8 +851,10 @@ async function verifyOtp() {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ action: 'verify', email: _otpManager, code })
     });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || 'Verification failed');
+    const text = await r.text();
+    let d;
+    try { d = JSON.parse(text); } catch { throw new Error('Server error: ' + (text.slice(0,100) || 'empty response')); }
+    if (!r.ok) throw new Error(d.error || 'Verification failed (HTTP ' + r.status + ')');
     closeOtp();
     showToast('Manager approval verified');
     if (_otpCallback) _otpCallback();
