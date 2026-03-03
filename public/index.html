@@ -797,17 +797,22 @@ async function runSearch(q) {
     } else {
       el.innerHTML = top.map((p, i) => {
         const pr   = p.p ? '$' + p.p.toLocaleString('en-US', {minimumFractionDigits:0}) : '';
-        const meta = [p.si, p.it, p.m].filter(Boolean).join(' · ');
-        const skuLabel = p.sku ? `<span style="opacity:.35;margin-left:4px;font-size:9px;">#${p.sku}</span>` : '';
-        const srcTag = p.src === 'shopify' ? '<span style="opacity:.35;margin-left:4px;font-size:8px;background:#f0f0f0;padding:1px 4px;border-radius:3px;">Shopify</span>' : '';
+        const meta = [p.it, p.m, p.fmt].filter(Boolean).join(' · ');
+        // Brand/matrix items → blue MATRIX badge; Shopify items → grade badge
+        let badge = '';
+        if (p.src === 'brand') {
+          badge = `<div class="ri-g" style="color:#1a6fc4;background:rgba(26,111,196,.10);border-color:rgba(26,111,196,.40)">MATRIX</div>`;
+        } else if (p.grade) {
+          badge = `<div class="ri-g" style="color:${gradeColor(p.grade).c};background:${gradeColor(p.grade).bg};border-color:${gradeColor(p.grade).bd}">${esc(p.grade)}</div>`;
+        }
         return `<div class="ri" onclick="pickResult(${i})">
           <div style="flex:1;min-width:0;">
-            <div class="ri-n">${esc(p.n)}${skuLabel}${srcTag}</div>
+            <div class="ri-n">${esc(p.n)}</div>
             <div class="ri-m">${esc(meta)}</div>
           </div>
           <div class="ri-r">
             ${pr ? `<div class="ri-p">${pr}</div>` : ''}
-            ${p.grade ? `<div class="ri-g" style="color:${gradeColor(p.grade).c};background:${gradeColor(p.grade).bg};border-color:${gradeColor(p.grade).bd}">${esc(p.grade)}</div>` : ''}
+            ${badge}
           </div>
         </div>`;
       }).join('');

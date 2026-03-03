@@ -2,27 +2,25 @@
  * GET /api/search?q=leica&limit=25
  *
  * Searches products from the Google Sheets trade-in catalog.
- * Searches brand price-list sheets FIRST and prioritizes those results;
- * fills remaining slots from the "Shopify Product Catalog" sheet.
+ * Brand (matrix) price-list results appear first;
+ * remaining slots are filled from the "Shopify Product Catalog" sheet.
+ *
+ * Data is cached in Cloudflare KV (AUTH_KV) for 1 hour so searches
+ * are fast even on cold worker starts.
  *
  * Google Sheet:
  *   https://docs.google.com/spreadsheets/d/1hy4RzljHDASz_K4XO__w9rztCaW7rnCg_z5wa2uBTH4
  */
 
 const SHEET_ID = '1hy4RzljHDASz_K4XO__w9rztCaW7rnCg_z5wa2uBTH4';
-const SHEET_BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
+const GVIZ_BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
 
-// Brand price-list tabs (searched first — all share the same columns)
-const BRAND_SHEETS = [
-  'Cameras', 'Lenses', 'Accessories',
-  'Canon', 'Nikon', 'Sony', 'Leica', 'Fuji', 'Fujifilm',
-  'Olympus', 'Panasonic', 'Hasselblad', 'Sigma', 'Pentax', 'Zeiss',
-  'Phase One', 'Mamiya', 'Film', 'Lighting', 'Tripods', 'Bags',
-  'Medium Format', 'Digital', 'Video', 'Binoculars', 'Scopes', 'Drones',
-];
-
-// Shopify Product Catalog tab (lower priority)
+// The first/default tab is the brand matrix (all buying guides).
+// "Shopify Product Catalog" is the 120-day pre-owned inventory.
 const SHOPIFY_SHEET = 'Shopify Product Catalog';
+
+const KV_KEY = 'catalog:v2';
+const KV_TTL = 3600; // 1 hour
 
 // ── Category helpers ────────────────────────────────────────────────
 const CAM_T = new Set(['Bodies','Body','Instant','Cine','Video','Scanners']);
@@ -79,7 +77,6 @@ function parseBrandRow(row) {
     it:    type,
     m:     row['Medium'] || '',
     fmt:   row['Format'] || '',
-    grade: row['Pre-Owned Grade'] || '',
     p:     price,
     cat:   categorize(type),
     sku:   row['MPN'] || '',
@@ -92,6 +89,7 @@ function stripToModel(raw) {
   t = t.replace(/\s*\([A-Z0-9+\-]{1,5}\)\s*$/i, '').trim();
   t = t.replace(/,\s*Boxed\s*\d*\s*$/i, '').trim();
   t = t.replace(/[,\s]+[A-Z0-9]{5,}\s*$/i, '').trim();
+  t = t.replace(/,\s*#?\d{4,}\s*$/i, '').trim();
   t = t.replace(/,\s*$/, '').trim();
   return t;
 }
@@ -113,56 +111,67 @@ function parseShopifyRow(row) {
     p:     parseFloat(row['Price']) || 0,
     cat:   categorize(type),
     sku,
-    asin:  row['Amazon ASIN'] || '',
     src:   'shopify',
   };
 }
 
-// ── Sheet fetching (Cloudflare edge-cached 1 h) ────────────────────
-function fetchSheet(sheetName) {
-  const url = `${SHEET_BASE}?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+// ── Sheet fetching ──────────────────────────────────────────────────
+function fetchBrandSheet() {
+  // No sheet param → returns the first/default tab (the brand matrix)
+  const url = `${GVIZ_BASE}?tqx=out:csv`;
   return fetch(url, { cf: { cacheTtl: 3600, cacheEverything: true } })
     .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); });
 }
 
-// ── In-memory product cache (survives within a single isolate) ──────
-let _brand = null, _shopify = null, _ts = 0;
-const MEM_TTL = 5 * 60 * 1000; // 5 min in-memory, CDN handles the rest
+function fetchShopifySheet() {
+  const url = `${GVIZ_BASE}?tqx=out:csv&sheet=${encodeURIComponent(SHOPIFY_SHEET)}`;
+  return fetch(url, { cf: { cacheTtl: 3600, cacheEverything: true } })
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); });
+}
 
-async function loadAll() {
+// ── In-memory cache (survives within a single worker isolate) ───────
+let _brand = null, _shopify = null, _ts = 0;
+const MEM_TTL = 5 * 60 * 1000; // 5 min
+
+async function loadAll(kv) {
+  // 1. In-memory cache (fastest)
   if (_brand && _shopify && Date.now() - _ts < MEM_TTL) {
     return { brand: _brand, shopify: _shopify };
   }
 
-  const promises = [
-    ...BRAND_SHEETS.map(name =>
-      fetchSheet(name)
-        .then(csv => parseCSV(csv).map(parseBrandRow).filter(Boolean))
-        .catch(() => [])
-    ),
-    fetchSheet(SHOPIFY_SHEET)
-      .then(csv => parseCSV(csv).map(parseShopifyRow).filter(Boolean))
-      .catch(() => []),
-  ];
-
-  const results = await Promise.all(promises);
-
-  // Deduplicate brand products by name (same item may appear in
-  // a category sheet like "Cameras" AND a brand sheet like "Canon")
-  const seen = new Set();
-  const brand = [];
-  for (let i = 0; i < BRAND_SHEETS.length; i++) {
-    for (const p of results[i]) {
-      const key = (p.n + '|' + p.sku).toLowerCase();
-      if (!seen.has(key)) { seen.add(key); brand.push(p); }
-    }
+  // 2. KV cache (fast, survives cold starts)
+  if (kv) {
+    try {
+      const cached = await kv.get(KV_KEY, 'json');
+      if (cached && cached.brand && cached.shopify) {
+        _brand = cached.brand;
+        _shopify = cached.shopify;
+        _ts = Date.now();
+        console.log(`Catalog from KV: ${cached.brand.length} brand, ${cached.shopify.length} shopify`);
+        return cached;
+      }
+    } catch (e) { /* KV miss or parse error — continue to fetch */ }
   }
-  const shopify = results[BRAND_SHEETS.length];
+
+  // 3. Fetch from Google Sheets (2 requests instead of 28)
+  const [brandCSV, shopifyCSV] = await Promise.all([
+    fetchBrandSheet().catch(() => ''),
+    fetchShopifySheet().catch(() => ''),
+  ]);
+
+  const brand   = brandCSV   ? parseCSV(brandCSV).map(parseBrandRow).filter(Boolean)     : [];
+  const shopify = shopifyCSV ? parseCSV(shopifyCSV).map(parseShopifyRow).filter(Boolean)  : [];
 
   _brand = brand;
   _shopify = shopify;
   _ts = Date.now();
-  console.log(`Catalog loaded: ${brand.length} brand, ${shopify.length} shopify products`);
+  console.log(`Catalog fetched: ${brand.length} brand, ${shopify.length} shopify products`);
+
+  // Write to KV in the background (non-blocking)
+  if (kv) {
+    kv.put(KV_KEY, JSON.stringify({ brand, shopify }), { expirationTtl: KV_TTL }).catch(() => {});
+  }
+
   return { brand, shopify };
 }
 
@@ -170,7 +179,7 @@ async function loadAll() {
 function score(products, terms) {
   const scored = [];
   for (const p of products) {
-    const hay = [p.n, p.v, p.si, p.it, p.m, p.fmt, p.grade, p.sku]
+    const hay = [p.n, p.v, p.si, p.it, p.m, p.fmt, p.sku]
       .filter(Boolean).join(' ').toLowerCase();
     let sc = 0, ok = true;
     for (const t of terms) {
@@ -184,7 +193,7 @@ function score(products, terms) {
 }
 
 // ── Request handler ─────────────────────────────────────────────────
-export async function onRequestGet({ request }) {
+export async function onRequestGet({ request, env }) {
   const cors = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
@@ -199,13 +208,13 @@ export async function onRequestGet({ request }) {
   }
 
   try {
-    const { brand, shopify } = await loadAll();
+    const { brand, shopify } = await loadAll(env?.AUTH_KV);
     const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
 
-    // Brand price-list results first
+    // Brand (matrix) results first
     const brandResults = score(brand, terms);
 
-    // Fill remaining slots with Shopify Product Catalog results
+    // Fill remaining slots with Shopify Product Catalog
     const remaining = limit - brandResults.length;
     let shopifyResults = [];
     if (remaining > 0) {

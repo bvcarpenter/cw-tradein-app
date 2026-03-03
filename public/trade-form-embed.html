@@ -474,11 +474,16 @@
           el.innerHTML = '<div class="item-no-res">No results \u2014 type in Make &amp; Model manually below</div>';
         } else {
           el.innerHTML = products.map(function(p, idx) {
-            var pr = p.p ? '$' + p.p.toLocaleString('en-US', {minimumFractionDigits: 0}) : '';
-            var meta = [p.v, p.si, p.it].filter(Boolean).join(' \u00b7 ');
+            var meta = [p.it, p.m, p.fmt].filter(Boolean).join(' \u00b7 ');
             var name = p.n.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            var badge = '';
+            if (p.src === 'brand') {
+              badge = '<span style="display:inline-block;font-size:8px;font-weight:700;color:#1a6fc4;background:rgba(26,111,196,.10);border:1px solid rgba(26,111,196,.40);padding:1px 6px;border-radius:3px;margin-left:8px;vertical-align:middle;">MATRIX</span>';
+            } else if (p.grade) {
+              badge = '<span style="display:inline-block;font-size:8px;font-weight:700;color:#888;background:#f0f0f0;border:1px solid #ddd;padding:1px 6px;border-radius:3px;margin-left:8px;vertical-align:middle;">' + p.grade.replace(/</g, '&lt;') + '</span>';
+            }
             return '<div class="item-ri" onclick="cwPickItemResult(' + i + ',' + idx + ')">'
-              + '<div><div class="item-ri-n">' + name + '</div><div class="item-ri-m">' + meta + '</div></div>'
+              + '<div><div class="item-ri-n">' + name + badge + '</div><div class="item-ri-m">' + meta + '</div></div>'
               + '</div>';
           }).join('');
         }
