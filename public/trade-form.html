@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trade // Sell Your Gear — Camera West</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Jost', 'Roboto Condensed', sans-serif;
+  background: #fff;
+  color: #151515;
+  font-size: 15px;
+  font-weight: 300;
+  letter-spacing: 0.03em;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 40px 20px 60px;
+}
+
+.logo {
+  text-align: center;
+  margin-bottom: 10px;
+}
+.logo svg { width: 200px; }
+
+h1 {
+  font-family: 'Jost', sans-serif;
+  font-weight: 300;
+  font-size: 28px;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+h1 em { font-style: italic; color: #d95e00; }
+
+.subtitle {
+  text-align: center;
+  font-size: 13px;
+  color: #888;
+  letter-spacing: 0.06em;
+  margin-bottom: 32px;
+}
+
+.sec-lbl {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #d95e00;
+  margin-bottom: 14px;
+}
+
+/* ── Form fields ── */
+.fg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.fg.full { grid-template-columns: 1fr; }
+.fld { display: flex; flex-direction: column; gap: 4px; }
+.fld.span { grid-column: 1 / -1; }
+
+.fld label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #555;
+}
+
+.fld input, .fld select, .fld textarea {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  background: #fafafa;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 300;
+  color: #151515;
+  transition: border-color 0.2s;
+}
+.fld input:focus, .fld select:focus, .fld textarea:focus {
+  outline: none;
+  border-color: #d95e00;
+  background: #fff;
+}
+.fld textarea { resize: vertical; min-height: 70px; }
+
+/* ── Items section ── */
+.items-wrap {
+  margin-top: 28px;
+  margin-bottom: 28px;
+}
+
+.item-card {
+  border: 1px solid #e8e8e8;
+  padding: 18px;
+  margin-bottom: 14px;
+  position: relative;
+  background: #fafafa;
+}
+.item-card:hover { border-color: #ccc; }
+
+.item-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.item-num {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #d95e00;
+}
+.item-rm {
+  background: none;
+  border: 1px solid #ddd;
+  color: #999;
+  font-size: 11px;
+  padding: 3px 10px;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  transition: all 0.2s;
+}
+.item-rm:hover { border-color: #c00; color: #c00; }
+
+.btn-add {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border: 1px dashed #ccc;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-add:hover { border-color: #d95e00; color: #d95e00; }
+
+/* ── Condition selector ── */
+.cond-row {
+  display: flex;
+  gap: 0;
+  flex-wrap: wrap;
+}
+.cond-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 4px;
+  border: 1px solid #ddd;
+  margin-right: -1px;
+  background: #fafafa;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  color: #555;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+}
+.cond-btn:first-child { border-radius: 0; }
+.cond-btn:last-child { margin-right: 0; border-radius: 0; }
+.cond-btn:hover { background: #f0f0f0; }
+.cond-btn.on {
+  background: #151515;
+  color: #fff;
+  border-color: #151515;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Submit ── */
+.btn-submit {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  border: none;
+  background: #151515;
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  margin-top: 10px;
+}
+.btn-submit:hover { opacity: 0.85; }
+.btn-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.status {
+  text-align: center;
+  margin-top: 14px;
+  font-size: 13px;
+  padding: 10px 14px;
+  display: none;
+}
+.status.ok { display: block; color: #2a7a4a; background: #eaf7ef; border: 1px solid #c0e8cf; }
+.status.err { display: block; color: #c00; background: #fff0f0; border: 1px solid #f5c0c0; }
+
+.note {
+  text-align: center;
+  font-size: 12px;
+  color: #aaa;
+  margin-top: 24px;
+  line-height: 1.7;
+}
+
+/* ── Location ── */
+.loc-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.loc-btn {
+  flex: 1;
+  min-width: 120px;
+  padding: 10px 8px;
+  border: 1px solid #ddd;
+  background: #fafafa;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: #555;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+}
+.loc-btn:hover { background: #f0f0f0; }
+.loc-btn.on {
+  background: #151515;
+  color: #fff;
+  border-color: #151515;
+}
+
+.ship-box {
+  display: none;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid #e8e8e8;
+  background: #fafafa;
+}
+.ship-box.vis { display: block; }
+
+hr.sep {
+  border: none;
+  border-top: 1px solid #e8e8e8;
+  margin: 28px 0;
+}
+
+@media (max-width: 500px) {
+  .fg { grid-template-columns: 1fr; }
+  .loc-row { flex-direction: column; }
+  .cond-row { flex-wrap: wrap; }
+  .cond-btn { min-width: 60px; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="logo">
+    <svg viewBox="0 0 300 75" xmlns="http://www.w3.org/2000/svg">
+      <rect width="300" height="75" fill="#151515" rx="0"/>
+      <text x="150" y="35" fill="#fff" font-family="'Jost',sans-serif" font-size="12" font-weight="300"
+            letter-spacing="6" text-anchor="middle" dominant-baseline="middle">CAMERA WEST</text>
+      <text x="150" y="55" fill="#d95e00" font-family="'Jost',sans-serif" font-size="9" font-weight="400"
+            letter-spacing="3" text-anchor="middle" dominant-baseline="middle">TRADE // SELL</text>
+    </svg>
+  </div>
+
+  <h1>Trade <em>//</em> Sell Your Gear</h1>
+  <p class="subtitle">Submit your items for evaluation. We'll review and get back to you with an offer.</p>
+
+  <form id="trade-form" onsubmit="return submitForm(event)">
+
+    <!-- Customer -->
+    <div class="sec-lbl">Your Information</div>
+    <div class="fg">
+      <div class="fld"><label>First Name *</label><input type="text" id="f-first" required placeholder="Jane"></div>
+      <div class="fld"><label>Last Name *</label><input type="text" id="f-last" required placeholder="Smith"></div>
+      <div class="fld"><label>Email *</label><input type="email" id="f-email" required placeholder="jane@email.com"></div>
+      <div class="fld"><label>Phone</label><input type="tel" id="f-phone" placeholder="(760) 555-0100"></div>
+    </div>
+
+    <!-- Location -->
+    <div class="sec-lbl">Preferred Location</div>
+    <div class="loc-row">
+      <button type="button" class="loc-btn" onclick="setLoc(this,'Palm Springs')">Palm Springs</button>
+      <button type="button" class="loc-btn" onclick="setLoc(this,'San Francisco')">San Francisco</button>
+      <button type="button" class="loc-btn" onclick="setLoc(this,'SoHo — New York')">SoHo — New York</button>
+      <button type="button" class="loc-btn" onclick="setLoc(this,'shipping')">Ship to Us</button>
+    </div>
+
+    <div class="ship-box" id="ship-box">
+      <div class="sec-lbl" style="margin-bottom:10px;">Shipping Address</div>
+      <div class="fg">
+        <div class="fld span"><label>Street Address</label><input type="text" id="f-str" placeholder="123 Main Street"></div>
+        <div class="fld"><label>City</label><input type="text" id="f-city" placeholder="Palm Springs"></div>
+        <div class="fld"><label>State</label><input type="text" id="f-st" placeholder="CA" maxlength="2"></div>
+        <div class="fld"><label>ZIP</label><input type="text" id="f-zip" placeholder="92262" maxlength="10"></div>
+      </div>
+    </div>
+
+    <hr class="sep">
+
+    <!-- Items -->
+    <div class="sec-lbl">Items for Trade-In / Sale</div>
+    <div class="items-wrap" id="items-wrap"></div>
+    <button type="button" class="btn-add" onclick="addItem()">+ Add Another Item</button>
+
+    <hr class="sep">
+
+    <button type="submit" class="btn-submit" id="submit-btn">Submit for Review</button>
+    <div class="status" id="status"></div>
+  </form>
+
+  <p class="note">
+    A Camera West specialist will review your submission and contact you<br>
+    with a trade-in or purchase offer, typically within 1–2 business days.
+  </p>
+
+</div>
+
+<script>
+let selectedLoc = '';
+let itemCount = 0;
+
+function setLoc(btn, loc) {
+  document.querySelectorAll('.loc-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  selectedLoc = loc;
+  const sb = document.getElementById('ship-box');
+  if (loc === 'shipping') sb.classList.add('vis');
+  else sb.classList.remove('vis');
+}
+
+function setCond(btn, itemIdx) {
+  const row = btn.closest('.cond-row');
+  row.querySelectorAll('.cond-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+function addItem() {
+  itemCount++;
+  const idx = itemCount;
+  const div = document.createElement('div');
+  div.className = 'item-card';
+  div.id = 'item-' + idx;
+  div.innerHTML = `
+    <div class="item-hdr">
+      <span class="item-num">Item ${idx}</span>
+      ${idx > 1 ? `<button type="button" class="item-rm" onclick="rmItem(${idx})">Remove</button>` : ''}
+    </div>
+    <div class="fg full">
+      <div class="fld"><label>Item Description *</label><input type="text" name="item-desc-${idx}" required placeholder="e.g. Leica M11 Black, Canon EF 50mm f/1.2L"></div>
+    </div>
+    <div class="fld" style="margin-bottom:14px;">
+      <label>Condition</label>
+      <div class="cond-row">
+        <button type="button" class="cond-btn" onclick="setCond(this,${idx})">Mint</button>
+        <button type="button" class="cond-btn" onclick="setCond(this,${idx})">Excellent</button>
+        <button type="button" class="cond-btn" onclick="setCond(this,${idx})">Good</button>
+        <button type="button" class="cond-btn" onclick="setCond(this,${idx})">Fair</button>
+        <button type="button" class="cond-btn" onclick="setCond(this,${idx})">Poor</button>
+      </div>
+    </div>
+    <div class="fg">
+      <div class="fld"><label>Serial Number</label><input type="text" name="item-serial-${idx}" placeholder="Optional"></div>
+      <div class="fld"><label>Accessories Included</label><input type="text" name="item-acc-${idx}" placeholder="Box, charger, strap…"></div>
+    </div>
+    <div class="fg full">
+      <div class="fld"><label>Notes</label><textarea name="item-notes-${idx}" placeholder="Any additional details — cosmetic issues, modifications, etc." rows="2"></textarea></div>
+    </div>
+  `;
+  document.getElementById('items-wrap').appendChild(div);
+  renumber();
+}
+
+function rmItem(idx) {
+  const el = document.getElementById('item-' + idx);
+  if (el) el.remove();
+  renumber();
+}
+
+function renumber() {
+  const cards = document.querySelectorAll('.item-card');
+  cards.forEach((c, i) => {
+    c.querySelector('.item-num').textContent = 'Item ' + (i + 1);
+  });
+}
+
+function getItems() {
+  const cards = document.querySelectorAll('.item-card');
+  const items = [];
+  cards.forEach(c => {
+    const desc = c.querySelector('input[name^="item-desc"]');
+    const serial = c.querySelector('input[name^="item-serial"]');
+    const acc = c.querySelector('input[name^="item-acc"]');
+    const notes = c.querySelector('textarea[name^="item-notes"]');
+    const condBtn = c.querySelector('.cond-btn.on');
+    if (desc && desc.value.trim()) {
+      items.push({
+        description: desc.value.trim(),
+        condition: condBtn ? condBtn.textContent.trim() : '',
+        serial: serial ? serial.value.trim() : '',
+        accessories: acc ? acc.value.trim() : '',
+        notes: notes ? notes.value.trim() : '',
+      });
+    }
+  });
+  return items;
+}
+
+async function submitForm(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  const status = document.getElementById('status');
+  status.className = 'status';
+  status.textContent = '';
+
+  const items = getItems();
+  if (!items.length) {
+    status.className = 'status err';
+    status.textContent = 'Please add at least one item.';
+    return false;
+  }
+
+  const payload = {
+    customer: {
+      first: document.getElementById('f-first').value.trim(),
+      last: document.getElementById('f-last').value.trim(),
+      email: document.getElementById('f-email').value.trim(),
+      phone: document.getElementById('f-phone').value.trim(),
+    },
+    location: selectedLoc,
+    items: items,
+  };
+
+  if (selectedLoc === 'shipping') {
+    payload.shipping = {
+      str: document.getElementById('f-str').value.trim(),
+      city: document.getElementById('f-city').value.trim(),
+      st: document.getElementById('f-st').value.trim(),
+      zip: document.getElementById('f-zip').value.trim(),
+    };
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+
+  try {
+    const res = await fetch('/api/trade-form', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'Submission failed');
+
+    status.className = 'status ok';
+    status.textContent = 'Thank you! Your submission has been received. A Camera West specialist will review your items and contact you within 1–2 business days.';
+    btn.textContent = 'Submitted';
+    document.getElementById('trade-form').reset();
+    document.getElementById('items-wrap').innerHTML = '';
+    itemCount = 0;
+    selectedLoc = '';
+    document.querySelectorAll('.loc-btn').forEach(b => b.classList.remove('on'));
+    document.getElementById('ship-box').classList.remove('vis');
+    addItem(); // re-add first item slot
+  } catch (err) {
+    status.className = 'status err';
+    status.textContent = 'Something went wrong: ' + err.message + '. Please try again or contact us directly.';
+    btn.disabled = false;
+    btn.textContent = 'Submit for Review';
+  }
+  return false;
+}
+
+// Start with one item slot
+addItem();
+</script>
+
+</body>
+</html>
