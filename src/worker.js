@@ -79,6 +79,15 @@ export default {
     }
 
     // ── Static assets ──────────────────────────────────────
-    return env.ASSETS.fetch(request);
+    const res = await env.ASSETS.fetch(request);
+
+    // Add CORS headers for embeddable assets (loaded from Shopify pages)
+    if (path.startsWith('/trade-form')) {
+      const corsRes = new Response(res.body, res);
+      corsRes.headers.set('Access-Control-Allow-Origin', '*');
+      return corsRes;
+    }
+
+    return res;
   }
 };

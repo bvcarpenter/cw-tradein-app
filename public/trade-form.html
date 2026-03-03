@@ -499,7 +499,6 @@ async function runItemSearch(i, q) {
         var name = p.n.replace(/</g, '&lt;').replace(/>/g, '&gt;');
         return '<div class="item-ri" onclick="pickItemResult(' + i + ',' + idx + ')">'
           + '<div><div class="item-ri-n">' + name + '</div><div class="item-ri-m">' + meta + '</div></div>'
-          + (pr ? '<div class="item-ri-p">' + pr + '</div>' : '')
           + '</div>';
       }).join('');
     }
@@ -530,7 +529,7 @@ function pickItemResult(i, idx) {
   var pick = document.getElementById('ipick-' + i);
   document.getElementById('ipick-n-' + i).textContent = p.n;
   document.getElementById('ipick-m-' + i).textContent = [p.v, p.si, p.it].filter(Boolean).join(' \u00b7 ');
-  document.getElementById('ipick-p-' + i).textContent = p.p ? '$' + p.p.toLocaleString('en-US', {minimumFractionDigits: 0}) : '';
+  document.getElementById('ipick-p-' + i).textContent = '';
   pick.classList.add('vis');
   // Hide search, clear input
   document.getElementById('isrch-' + i).value = '';
