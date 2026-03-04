@@ -2089,10 +2089,12 @@ async function verifyApprovalCode() {
     if (!res.ok || data.error) throw new Error(data.error || 'Invalid code');
 
     approvedManager = data.manager || email;
+    // Save mode BEFORE closing (closeApprovalModal nulls pendingFinalizeMode)
+    const mode = pendingFinalizeMode;
     closeApprovalModal();
 
     // Now proceed with actual finalization
-    if (pendingFinalizeMode === 'full') {
+    if (mode === 'full') {
       executeFinalizeCredit();
     } else {
       executeIssueNsOnly();
