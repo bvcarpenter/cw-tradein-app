@@ -946,9 +946,6 @@ body {
 
 <script>
 // ─── DATA ───
-// ── CONFIG — set this to your deployed Cloudflare Worker URL ──────────────
-const WORKER_URL = 'https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev';
-// ─────────────────────────────────────────────────────────────────────────
 
 const PRODUCTS = []; // not used in live mode — search calls the worker
 let selItem = null, selGrade = null, selPT = 'tradein';
@@ -984,13 +981,6 @@ const SERIAL_REQUIRED_TYPES = new Set(['Bodies', 'Lenses']);
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
   buildGrades();
-  // Validate worker URL on load
-  if (WORKER_URL.includes('YOUR_WORKER')) {
-    const el = document.getElementById('srch-res');
-    document.getElementById('item-search').placeholder =
-      'Configure WORKER_URL in script to enable live search…';
-    document.getElementById('item-search').disabled = true;
-  }
 });
 
 // ─── LOCATION ───
@@ -1031,7 +1021,7 @@ async function runSearch(q) {
   activeSearch = new AbortController();
 
   try {
-    const url = `${WORKER_URL}?q=${encodeURIComponent(q)}&limit=20`;
+    const url = `/api/search?q=${encodeURIComponent(q)}&limit=20`;
     const res = await fetch(url, { signal: activeSearch.signal });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1059,7 +1049,7 @@ async function runSearch(q) {
   } catch (err) {
     if (err.name === 'AbortError') return; // cancelled, ignore
     el.innerHTML = `<div class="no-res" style="color:#e07070;">
-      Search unavailable — check Worker URL config or use Manual Entry.<br>
+      Search unavailable — use Manual Entry.<br>
       <span style="font-size:9px;opacity:.6;">${err.message}</span>
     </div>`;
     el.style.display = 'block';
