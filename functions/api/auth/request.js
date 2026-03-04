@@ -17,7 +17,7 @@
  *     → Verifies the OTP, one-time use, returns { ok:true, manager }
  *
  * KV bindings:  AUTH_KV
- * Env vars:     APP_URL, FROM_EMAIL, RESEND_API_KEY (get from resend.com)
+ * Env vars:     APP_URL, FROM_EMAIL, RESEND_API_KEY (resend.com API key)
  */
 
 const MANAGER_EMAILS = [
