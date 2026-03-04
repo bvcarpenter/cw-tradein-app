@@ -44,9 +44,21 @@ export async function onRequestGet({ request, env }) {
   `;
 
   try {
-    // Simple full-text search — Shopify handles matching across name/email/phone.
-    // Field-specific infix wildcards (first_name:*q*) are not supported by Shopify.
-    const searchQuery = q;
+    // Build a Shopify-compatible search query.
+    // If the input looks like an email, search the email field directly.
+    // Otherwise, search across first_name, last_name, and email with prefix wildcards.
+    let searchQuery;
+    if (q.includes('@')) {
+      searchQuery = `email:${q}*`;
+    } else {
+      const parts = q.split(/\s+/).filter(Boolean);
+      if (parts.length >= 2) {
+        // "John Smith" → search first + last name
+        searchQuery = `first_name:${parts[0]}* AND last_name:${parts.slice(1).join(' ')}*`;
+      } else {
+        searchQuery = `first_name:${q}* OR last_name:${q}* OR email:${q}*`;
+      }
+    }
     const data = await shopifyGQL(env, gql, { query: searchQuery });
     const customers = (data.customers?.edges || []).map(({ node }) => ({
       id: node.id,
