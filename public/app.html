@@ -794,15 +794,21 @@ body {
       </div>
 
       <div class="fg" style="margin-bottom:18px;">
-        <div class="fld"><label>Serial Number</label><input type="text" id="serial" placeholder="Optional"></div>
+        <div class="fld"><label id="serial-label">Serial Number</label><input type="text" id="serial" placeholder="Optional"></div>
         <div class="fld"><label>Catalog Number (MPN)</label><input type="text" id="catalog" placeholder="Optional"></div>
       </div>
 
       <span class="sl">Cosmetic Grade *</span>
       <div class="grade-row" id="grade-row"></div>
 
-      <span class="sl">Comes With</span>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <span class="sl" style="margin-bottom:0;">Comes With</span>
+        <button class="btn btn-ol" onclick="addCustomAccessory()" style="font-size:8px;padding:5px 10px;letter-spacing:0.1em;">+ Add Item</button>
+      </div>
       <div class="acc-row" id="acc-row"></div>
+      <div id="acc-note-prompt" style="display:none;margin-bottom:14px;padding:10px 14px;border:1px solid var(--acc-mid);background:var(--acc-dim);">
+        <p style="font-size:10px;color:var(--accent);margin-bottom:6px;letter-spacing:0.08em;text-transform:uppercase;font-weight:500;">Accessories selected — please note them in Trade-In Notes below</p>
+      </div>
 
       <div class="fld" style="margin-bottom:18px;"><label>Trade-In Notes</label><textarea id="notes" placeholder="Condition observations, cosmetic details, functional notes…"></textarea></div>
 
@@ -873,6 +879,56 @@ body {
   </main>
 </div>
 
+<!-- APPROVAL MODAL -->
+<div class="mo" id="approval-mo">
+  <div class="mod" style="max-width:440px;">
+    <div class="mod-h">
+      <h3>Manager Approval</h3>
+      <button class="mod-x" onclick="closeApprovalModal()">×</button>
+    </div>
+    <div class="mod-b" style="padding:22px;">
+      <div id="approval-step-send">
+        <p style="font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:16px;">
+          Select a manager to send an approval code. The code expires in 5 minutes.
+        </p>
+        <div class="fld" style="margin-bottom:14px;">
+          <label>Manager Email *</label>
+          <select id="approval-manager" style="width:100%;padding:8px 10px;background:var(--bg2);color:var(--white);border:1px solid var(--border);font-family:inherit;font-size:13px;">
+            <option value="">— Select manager —</option>
+            <option value="sam@leicastoresf.com">Sam (Leica SF)</option>
+            <option value="sean@camerawest.com">Sean</option>
+            <option value="ben@camerawest.com">Ben</option>
+            <option value="kyle@camerawest.com">Kyle</option>
+            <option value="allegra@cwwatchshop.com">Allegra</option>
+            <option value="devyn@camerawest.com">Devyn</option>
+            <option value="norman@camerawest.com">Norman</option>
+            <option value="adam@camerawest.com">Adam</option>
+            <option value="armando@camerawest.com">Armando</option>
+            <option value="festa@camerawest.com">Festa</option>
+          </select>
+        </div>
+        <button class="btn btn-w btn-full" id="send-otp-btn" onclick="sendApprovalCode()">Send Approval Code</button>
+        <div id="send-otp-status" style="margin-top:8px;"></div>
+      </div>
+      <div id="approval-step-verify" style="display:none;">
+        <p style="font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:16px;">
+          Enter the 6-digit code sent to <strong id="approval-sent-to" style="color:var(--white);"></strong>.
+        </p>
+        <div class="fld" style="margin-bottom:14px;">
+          <label>Approval Code *</label>
+          <input type="text" id="approval-code" maxlength="6" placeholder="000000"
+            style="text-align:center;font-size:24px;letter-spacing:0.3em;font-weight:600;color:var(--accent);">
+        </div>
+        <button class="btn btn-w btn-full" id="verify-otp-btn" onclick="verifyApprovalCode()">Verify &amp; Issue Credit</button>
+        <div style="text-align:center;margin-top:10px;">
+          <button class="btn btn-ol" onclick="showApprovalStep('send')" style="font-size:9px;padding:8px 14px;">Resend Code</button>
+        </div>
+        <div id="verify-otp-status" style="margin-top:8px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- PRINT MODAL -->
 <div class="mo" id="mo">
   <div class="mod">
@@ -914,7 +970,7 @@ const GRADE_COLORS = {
 };
 function gradeColor(g){return GRADE_COLORS[g]||{c:'var(--accent)',bg:'var(--acc-dim)',bd:'var(--acc-mid)'};}
 const ACC_MAP = {
-  camera:    ['Box','Charger','Battery','Battery Grip','Strap','Body Cap','Manual','Accessories'],
+  camera:    ['Body Cap','Battery','Battery Charger','Box','Papers','Accessories'],
   lens:      ['Front Cap','Rear Cap','Case / Pouch','Box','Hood','Filters','Manual','Accessories'],
   accessory: ['Box','Original Packaging','Manual','Accessories'],
   default:   ['Box','Original Packaging','Accessories']
@@ -922,6 +978,7 @@ const ACC_MAP = {
 const CAM_T = new Set(['Bodies','Instant','Cine','Video','Scanners']);
 const LEN_T = new Set(['Lenses','Close Up','Teleconverters','Filters','UV Filters',
                        'ND Filters','C-Pol Filters','IR Filters','Color Filters','Square Filters']);
+const SERIAL_REQUIRED_TYPES = new Set(['Bodies', 'Lenses']);
 
 // ─── INIT ───
 window.addEventListener('DOMContentLoaded', () => {
@@ -949,6 +1006,7 @@ function setLoc(btn, loc) {
     document.getElementById('s-dest-store').value = '';
     document.getElementById('s-save-addr').checked = false;
   }
+  validateFinalize();
 }
 
 // ─── SEARCH ───
@@ -1057,10 +1115,21 @@ function showDet() {
   document.getElementById('sel-meta').textContent =
     [selItem.systemId, selItem.itemType, selItem.medium, selItem.format, selItem.vendor].filter(Boolean).join(' · ');
   document.getElementById('p-src').textContent = selItem.price > 0 ? 'From catalog' : 'Enter retail price';
+  // Serial number — required for Bodies and Lenses
+  const snLabel = document.getElementById('serial-label');
+  const snInput = document.getElementById('serial');
+  if (SERIAL_REQUIRED_TYPES.has(selItem.itemType)) {
+    snLabel.textContent = 'Serial Number *';
+    snInput.placeholder = 'Required';
+  } else {
+    snLabel.textContent = 'Serial Number';
+    snInput.placeholder = 'Optional';
+  }
   // Accessories
   const accs = ACC_MAP[selItem.category] || ACC_MAP.default;
   document.getElementById('acc-row').innerHTML = accs.map(a =>
-    `<div class="achip" onclick="this.classList.toggle('on')"><div class="achk"></div><span>${a}</span></div>`).join('');
+    `<div class="achip" onclick="toggleAccessory(this,'${a}')"><div class="achk"></div><span>${a}</span></div>`).join('');
+  document.getElementById('acc-note-prompt').style.display = 'none';
   selGrade = null;
   document.querySelectorAll('.gbtn').forEach(b => b.classList.remove('on'));
   document.getElementById('r-override').value = '';
@@ -1071,6 +1140,31 @@ function showDet() {
   document.getElementById('det-sec').classList.add('vis');
   document.getElementById('det-sec').scrollIntoView({behavior:'smooth', block:'nearest'});
 }
+function toggleAccessory(chip, name) {
+  chip.classList.toggle('on');
+  // If "Accessories" is toggled on, show prompt to note them
+  if (name === 'Accessories') {
+    const prompt = document.getElementById('acc-note-prompt');
+    if (chip.classList.contains('on')) {
+      prompt.style.display = 'block';
+      document.getElementById('notes').focus();
+    } else {
+      prompt.style.display = 'none';
+    }
+  }
+}
+
+function addCustomAccessory() {
+  const name = prompt('Enter the accessory or included item name:');
+  if (!name || !name.trim()) return;
+  const row = document.getElementById('acc-row');
+  const chip = document.createElement('div');
+  chip.className = 'achip on';
+  chip.innerHTML = `<div class="achk"></div><span>${name.trim()}</span>`;
+  chip.onclick = function() { toggleAccessory(this, name.trim()); };
+  row.appendChild(chip);
+}
+
 function clrItem() {
   selItem = null; selGrade = null;
   document.getElementById('det-sec').classList.remove('vis');
@@ -1165,6 +1259,20 @@ function valAdd() {
 // ─── ADD ITEM ───
 function addItem() {
   if (!selItem || !selGrade) return;
+  // Require serial number for Bodies and Lenses
+  const serialVal = document.getElementById('serial').value.trim();
+  if (SERIAL_REQUIRED_TYPES.has(selItem.itemType) && !serialVal) {
+    alert('Serial Number is required for ' + selItem.itemType + '.');
+    document.getElementById('serial').focus();
+    return;
+  }
+  // If Accessories is checked, require notes
+  const accChips = [...document.querySelectorAll('.achip.on')].map(c => c.querySelector('span').textContent);
+  if (accChips.includes('Accessories') && !document.getElementById('notes').value.trim()) {
+    alert('Please describe the accessories in the Trade-In Notes field.');
+    document.getElementById('notes').focus();
+    return;
+  }
   const ov = parseFloat(document.getElementById('r-override').value);
   const ret = ov > 0 ? ov : gradeAdjustedRetail(selItem.price, selGrade);
   const tiRate = tradeInRate(selGrade);
@@ -1843,8 +1951,6 @@ function unlinkCustomer() {
 document.addEventListener('click', e => { if (!e.target.closest('#cust-srch-wrap')) document.getElementById('cust-srch-res').style.display = 'none'; });
 
 // ─── FINALIZE // CREDIT ───
-const SERIAL_REQUIRED_TYPES = new Set(['Bodies', 'Lenses']);
-
 function itemsNeedingSerials() {
   return sessionItems.filter(it =>
     SERIAL_REQUIRED_TYPES.has(it.itemType) && (!it.serial || !it.serial.trim())
@@ -1854,14 +1960,15 @@ function itemsNeedingSerials() {
 function validateFinalize() {
   const hasItems = sessionItems.length > 0;
   const hasCustomer = !!linkedCustomer;
+  const hasLoc = !!selLoc;
   const missingSN = itemsNeedingSerials();
 
   const finBtn = document.getElementById('finalize-btn');
-  if (finBtn) finBtn.disabled = !(hasItems && hasCustomer && missingSN.length === 0);
+  if (finBtn) finBtn.disabled = !(hasItems && hasCustomer && hasLoc && missingSN.length === 0);
 
-  // NS-only button: requires items, but NOT a Shopify customer or CM#
+  // NS-only button: requires items + location, but NOT a Shopify customer
   const nsBtn = document.getElementById('ns-only-btn');
-  if (nsBtn) nsBtn.disabled = !(hasItems && missingSN.length === 0);
+  if (nsBtn) nsBtn.disabled = !(hasItems && hasLoc && missingSN.length === 0);
 }
 
 /** Build the payload sent to /api/netsuite-credit-memo */
@@ -1902,8 +2009,141 @@ document.addEventListener('DOMContentLoaded', () => {
   validateFinalize();
 });
 
+// ─── MANAGER APPROVAL FLOW ───
+let pendingFinalizeMode = null; // 'full' or 'ns-only'
+let approvedManager = null;
+
+function openApprovalModal(mode) {
+  pendingFinalizeMode = mode;
+  approvedManager = null;
+  showApprovalStep('send');
+  document.getElementById('approval-manager').value = '';
+  document.getElementById('approval-code').value = '';
+  document.getElementById('send-otp-status').textContent = '';
+  document.getElementById('verify-otp-status').textContent = '';
+  document.getElementById('approval-mo').classList.add('open');
+}
+
+function closeApprovalModal() {
+  document.getElementById('approval-mo').classList.remove('open');
+  pendingFinalizeMode = null;
+}
+
+function showApprovalStep(step) {
+  document.getElementById('approval-step-send').style.display = step === 'send' ? '' : 'none';
+  document.getElementById('approval-step-verify').style.display = step === 'verify' ? '' : 'none';
+}
+
+async function sendApprovalCode() {
+  const email = document.getElementById('approval-manager').value;
+  const statusEl = document.getElementById('send-otp-status');
+  if (!email) { statusEl.textContent = 'Select a manager.'; statusEl.className = 'finalize-status err'; return; }
+
+  const btn = document.getElementById('send-otp-btn');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+
+  const requester = (document.getElementById('assoc').value || '').trim() || 'An associate';
+  const custEmail = (document.getElementById('c-email').value || '').trim();
+  const custName = [
+    (document.getElementById('c-first').value || '').trim(),
+    (document.getElementById('c-last').value || '').trim()
+  ].filter(Boolean).join(' ');
+  const location = selLoc || '—';
+
+  try {
+    const res = await fetch('/api/approve-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'send',
+        email,
+        requestedBy: requester,
+        summaryHtml: buildPrintForEmail(),
+        customerEmail: custEmail,
+        customerName: custName,
+        preferredLocation: location,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'Failed');
+    document.getElementById('approval-sent-to').textContent = email;
+    showApprovalStep('verify');
+    statusEl.className = '';
+  } catch (err) {
+    statusEl.textContent = 'Error: ' + err.message;
+    statusEl.className = 'finalize-status err';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send Approval Code';
+  }
+}
+
+async function verifyApprovalCode() {
+  const email = document.getElementById('approval-manager').value;
+  const code = document.getElementById('approval-code').value.trim();
+  const statusEl = document.getElementById('verify-otp-status');
+  if (!code || code.length < 6) { statusEl.textContent = 'Enter the 6-digit code.'; statusEl.className = 'finalize-status err'; return; }
+
+  const btn = document.getElementById('verify-otp-btn');
+  btn.disabled = true;
+  btn.textContent = 'Verifying…';
+
+  try {
+    const res = await fetch('/api/approve-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'verify', email, code }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'Invalid code');
+
+    approvedManager = data.manager || email;
+    closeApprovalModal();
+
+    // Now proceed with actual finalization
+    if (pendingFinalizeMode === 'full') {
+      executeFinalizeCredit();
+    } else {
+      executeIssueNsOnly();
+    }
+  } catch (err) {
+    statusEl.textContent = err.message;
+    statusEl.className = 'finalize-status err';
+    btn.disabled = false;
+    btn.textContent = 'Verify & Issue Credit';
+  }
+}
+
+/** Build a simplified HTML version of the credit memo for email */
+function buildPrintForEmail() {
+  const cm = document.getElementById('cm-num').value.trim() || 'PENDING';
+  const asc = document.getElementById('assoc').value.trim() || '—';
+  const dt = document.getElementById('txn-date').value || new Date().toISOString().split('T')[0];
+  const cust = [(document.getElementById('c-first').value || '').trim(), (document.getElementById('c-last').value || '').trim()].filter(Boolean).join(' ') || '—';
+  const email = (document.getElementById('c-email').value || '').trim();
+  const loc = selLoc === 'shipping' ? 'Requires Shipping' : (selLoc || '—');
+  const totNet = sessionItems.reduce((s, i) => s + i.net, 0);
+  const rows = sessionItems.map(it => {
+    const ac = it.accessories.length ? `<br><span style="color:#777;font-size:10px;">Includes: ${it.accessories.join(', ')}</span>` : '';
+    return `<tr>
+      <td style="padding:6px;border-bottom:1px solid #333;color:#f5f5f0;">${it.name}${ac}</td>
+      <td style="padding:6px;border-bottom:1px solid #333;text-align:center;color:#f5f5f0;">${it.grade}</td>
+      <td style="padding:6px;border-bottom:1px solid #333;text-align:right;color:#d95e00;">$${it.net.toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+  return `<div style="font-family:sans-serif;font-size:12px;color:#f5f5f0;">
+    <div style="margin-bottom:10px;"><strong>CM:</strong> ${cm} &nbsp; <strong>Date:</strong> ${dt} &nbsp; <strong>Associate:</strong> ${asc}</div>
+    <div style="margin-bottom:10px;"><strong>Customer:</strong> ${cust}${email ? ' (' + email + ')' : ''} &nbsp; <strong>Location:</strong> ${loc}</div>
+    <table style="width:100%;border-collapse:collapse;">
+      <tr style="background:#1a1a1a;"><th style="padding:6px;text-align:left;color:#aaa;font-size:10px;">ITEM</th><th style="padding:6px;text-align:center;color:#aaa;font-size:10px;">GRADE</th><th style="padding:6px;text-align:right;color:#aaa;font-size:10px;">NET</th></tr>
+      ${rows}
+      <tr style="background:#1a1a1a;"><td colspan="2" style="padding:8px;text-align:right;color:#aaa;font-weight:bold;">TOTAL</td><td style="padding:8px;text-align:right;color:#d95e00;font-weight:bold;">$${totNet.toFixed(2)}</td></tr>
+    </table>
+  </div>`;
+}
+
 async function finalizeCredit() {
-  const btn = document.getElementById('finalize-btn');
   const statusEl = document.getElementById('finalize-status');
 
   // Validation
@@ -1935,9 +2175,17 @@ async function finalizeCredit() {
     }
   }
 
-  // Confirm
+  // Open approval modal instead of directly issuing
+  openApprovalModal('full');
+}
+
+/** Execute the actual credit issuance after manager approval */
+async function executeFinalizeCredit() {
+  const btn = document.getElementById('finalize-btn');
+  const statusEl = document.getElementById('finalize-status');
+
+  const totalNet = sessionItems.reduce((s, i) => s + i.net, 0);
   const custName = [linkedCustomer.first, linkedCustomer.last].filter(Boolean).join(' ');
-  if (!confirm(`Issue store credit to ${custName}?\n\nEst. subtotal: $${totalNet.toFixed(2)} (final amount includes tax)\nItems: ${sessionItems.length}\n\nThis will create a Credit Memo, Customer Refund, and Shopify store credit.\nThis action cannot be undone.`)) return;
 
   btn.disabled = true;
   btn.textContent = 'Creating NetSuite CM…';
@@ -1948,6 +2196,7 @@ async function finalizeCredit() {
     // Step 1: Create Credit Memo + Customer Refund in NetSuite
     const nsPayload = buildNsPayload();
     nsPayload.createRefund = true;
+    nsPayload.issuedBy = approvedManager || '';
 
     const nsRes = await fetch('/api/netsuite-credit-memo', {
       method: 'POST',
@@ -1963,7 +2212,6 @@ async function finalizeCredit() {
     applyNsResult(nsData);
 
     // Grand total from the saved CM (includes tax calculated by AVATAX)
-    // IMPORTANT: use explicit null check — 0 is falsy in JS so || would skip valid zeros
     const creditAmount = (nsData.grandTotal != null && nsData.grandTotal > 0)
       ? nsData.grandTotal
       : totalNet;
@@ -1974,10 +2222,8 @@ async function finalizeCredit() {
     let nsMsg = `CM: ${nsData.tranId}`;
     if (nsData.refundTranId) nsMsg += ` | Refund: ${nsData.refundTranId}`;
 
-    // Show refund error prominently
     if (nsData.refundError) {
       showFinalizeStatus(`CM created but Refund failed: ${nsData.refundError}`, 'err');
-      // Don't return — still issue Shopify credit
     }
 
     // Step 2: Issue Shopify store credit using the grand total (with tax)
@@ -2009,6 +2255,9 @@ async function finalizeCredit() {
 
     // Save address to Shopify if checkbox is checked (non-blocking)
     maybeSaveAddressToShopify();
+
+    // Step 3: Send CM confirmation email to the approving manager (non-blocking)
+    sendCmConfirmationEmail(nsData, credited, balance);
   } catch (err) {
     showFinalizeStatus(`Failed: ${err.message}`, 'err');
     btn.disabled = false;
@@ -2018,7 +2267,6 @@ async function finalizeCredit() {
 
 /** Issue only the NetSuite Credit Memo — no Shopify store credit. */
 async function issueNsOnly() {
-  const btn = document.getElementById('ns-only-btn');
   const statusEl = document.getElementById('finalize-status');
 
   if (!sessionItems.length) { showFinalizeStatus('No items in session.', 'err'); return; }
@@ -2048,11 +2296,14 @@ async function issueNsOnly() {
     }
   }
 
-  const custFirst = (document.getElementById('c-first').value || '').trim();
-  const custLast  = (document.getElementById('c-last').value || '').trim();
-  const custName = [custFirst, custLast].filter(Boolean).join(' ') || 'customer';
+  // Open approval modal instead of directly issuing
+  openApprovalModal('ns-only');
+}
 
-  if (!confirm(`Create NetSuite Credit Memo for ${custName}?\n\nEst. subtotal: $${totalNet.toFixed(2)}\nItems: ${sessionItems.length}\n\nNo Shopify store credit or Customer Refund will be issued.`)) return;
+/** Execute NS-only credit memo after manager approval */
+async function executeIssueNsOnly() {
+  const btn = document.getElementById('ns-only-btn');
+  const statusEl = document.getElementById('finalize-status');
 
   btn.disabled = true;
   btn.textContent = 'Creating NetSuite CM…';
@@ -2060,10 +2311,13 @@ async function issueNsOnly() {
   statusEl.textContent = '';
 
   try {
+    const nsPayload = buildNsPayload();
+    nsPayload.issuedBy = approvedManager || '';
+
     const nsRes = await fetch('/api/netsuite-credit-memo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(buildNsPayload()),
+      body: JSON.stringify(nsPayload),
     });
     const nsData = await nsRes.json();
     if (!nsRes.ok || nsData.error) {
@@ -2075,6 +2329,9 @@ async function issueNsOnly() {
 
     // Save address to Shopify if checkbox is checked (non-blocking)
     maybeSaveAddressToShopify();
+
+    // Send CM confirmation email (non-blocking)
+    sendCmConfirmationEmail(nsData, null, null);
   } catch (err) {
     showFinalizeStatus(`Failed: ${err.message}`, 'err');
     btn.disabled = false;
@@ -2123,6 +2380,42 @@ function buildTimelineNote(nsData) {
   const gt = (nsData.grandTotal != null && nsData.grandTotal > 0) ? nsData.grandTotal : sessionItems.reduce((s, i) => s + i.net, 0);
   lines.push(`Total: ${f(gt)}`);
   return lines.join('\n');
+}
+
+/** Send CM confirmation email to the approving manager after credit is issued */
+async function sendCmConfirmationEmail(nsData, credited, balance) {
+  if (!approvedManager) return;
+  const custName = [(document.getElementById('c-first').value || '').trim(), (document.getElementById('c-last').value || '').trim()].filter(Boolean).join(' ');
+  const custEmail = (document.getElementById('c-email').value || '').trim();
+  const location = selLoc || '—';
+  const associate = (document.getElementById('assoc').value || '').trim();
+  const dt = document.getElementById('txn-date').value || new Date().toISOString().split('T')[0];
+  const totalNet = sessionItems.reduce((s, i) => s + i.net, 0);
+  const grandTotal = nsData.grandTotal || totalNet;
+
+  try {
+    await fetch('/api/approve-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'confirm',
+        email: approvedManager,
+        tranId: nsData.tranId || '',
+        refundTranId: nsData.refundTranId || '',
+        grandTotal: grandTotal,
+        credited: credited,
+        balance: balance,
+        customerName: custName,
+        customerEmail: custEmail,
+        preferredLocation: location,
+        associate: associate,
+        date: dt,
+        summaryHtml: buildPrintForEmail(),
+      }),
+    });
+  } catch (e) {
+    console.error('CM confirmation email failed:', e);
+  }
 }
 
 /** Update sidebar and CM# field after NetSuite returns grand total */
