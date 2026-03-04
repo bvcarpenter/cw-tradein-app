@@ -18,7 +18,8 @@
     "NS_CONSUMER_SECRET": "cb629fe9e7875a708c93660ccc64a90aa9b6515825b9f54c3cd00884c8d209e2",
     "NS_TOKEN_ID": "72a2fdab5b6aa013dd9612f05133ef1950bc373eb73c9a67d6eb85187ca9a3bd",
     "NS_TOKEN_SECRET": "f3439f191dccc1e1018d7ac055f516d1b059f07a0da0bac6850431951a41dd24",
-    "NS_RESTLET_URL": "https://3999009.restlets.api.netsuite.com/app/site/hosting/restlet.nl?script=915&deploy=1"
+    "NS_RESTLET_URL": "https://3999009.restlets.api.netsuite.com/app/site/hosting/restlet.nl?script=915&deploy=1",
+    "RESEND_API_KEY": "re_L3c7N1Aq_NikG7HeHPRW63KB2iSSM9Dh7"
   },
   "kv_namespaces": [
     { "binding": "AUTH_KV", "id": "91d5bcedfb494fdda4137fdb243dfbe5" }
