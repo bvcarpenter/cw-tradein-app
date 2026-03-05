@@ -1796,6 +1796,7 @@ async function kvDeleteSession(key) {
 }
 
 async function saveSession() {
+  if (!selLoc) { alert('Please select a preferred location.'); return null; }
   const data = getSessionData();
   const name = (data.customer.first + ' ' + data.customer.last).trim()
     || 'Session ' + new Date().toLocaleDateString();
@@ -2382,6 +2383,7 @@ async function saveAndNew() {
   let result = null;
   if (hasData) {
     result = await saveSession();
+    if (result === null) return; // validation failed
   }
   resetSessionForm();
   if (!hasData) showToast('New session started');
