@@ -134,6 +134,8 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
 .achip:hover{border-color:var(--dim);color:var(--white)}
 .achip.on{border-color:var(--acc-mid);color:var(--accent);background:var(--acc-dim)}
 .achk{width:13px;height:13px;border:1px solid currentColor;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px}.achip.on .achk::after{content:"\2713";line-height:1}
+.acc-add-btn{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px dashed var(--border-l);cursor:pointer;background:transparent;color:var(--dim);font-size:18px;font-weight:300;transition:all .15s;user-select:none}
+.acc-add-btn:hover{border-color:var(--accent);color:var(--accent)}
 .div{height:1px;background:var(--border);margin:18px 0}
 
 /* PRICE TYPE */
@@ -1149,7 +1151,8 @@ function showDet() {
   document.getElementById('p-src').textContent = selItem.price > 0 ? 'From catalog' : 'Enter retail price';
   const accs = ACC_MAP[selItem.category] || ACC_MAP.default;
   document.getElementById('acc-row').innerHTML = accs.map(a =>
-    `<div class="achip" onclick="this.classList.toggle('on')"><div class="achk"></div><span>${a}</span></div>`).join('');
+    `<div class="achip" onclick="this.classList.toggle('on')"><div class="achk"></div><span>${a}</span></div>`).join('')
+    + `<div class="acc-add-btn" onclick="addCustomAccessory()" title="Add custom accessory">+</div>`;
   document.getElementById('r-override').value = '';
   document.getElementById('serial').value = '';
   document.getElementById('catalog').value = selItem.sku || '';
@@ -1158,6 +1161,27 @@ function showDet() {
   updPricing();
   document.getElementById('det-sec').classList.add('vis');
   document.getElementById('det-sec').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function addCustomAccessory() {
+  const name = prompt('Enter accessory name:');
+  if (!name || !name.trim()) return;
+  const label = name.trim();
+  // Check if already exists
+  const existing = [...document.querySelectorAll('#acc-row .achip span')].map(s => s.textContent);
+  if (existing.includes(label)) {
+    // Just toggle it on
+    document.querySelectorAll('#acc-row .achip').forEach(chip => {
+      if (chip.querySelector('span')?.textContent === label) chip.classList.add('on');
+    });
+    return;
+  }
+  const chip = document.createElement('div');
+  chip.className = 'achip on';
+  chip.onclick = () => chip.classList.toggle('on');
+  chip.innerHTML = `<div class="achk"></div><span>${label}</span>`;
+  const addBtn = document.querySelector('#acc-row .acc-add-btn');
+  document.getElementById('acc-row').insertBefore(chip, addBtn);
 }
 
 function clrItem() {
@@ -1448,6 +1472,18 @@ function editItem(id) {
   document.querySelectorAll('.gbtn').forEach(b=>b.classList.toggle('on',b.textContent===it.grade));
   document.getElementById('pt-ti').classList.toggle('on',it.priceType==='tradein');
   document.getElementById('pt-or').classList.toggle('on',it.priceType==='outright');
+  // Add custom accessories that aren't in the default list
+  const defaultAccs = ACC_MAP[it.category] || ACC_MAP.default;
+  const addBtn = document.querySelector('#acc-row .acc-add-btn');
+  (it.accessories||[]).forEach(a => {
+    if (!defaultAccs.includes(a)) {
+      const chip = document.createElement('div');
+      chip.className = 'achip';
+      chip.onclick = () => chip.classList.toggle('on');
+      chip.innerHTML = `<div class="achk"></div><span>${a}</span>`;
+      document.getElementById('acc-row').insertBefore(chip, addBtn);
+    }
+  });
   document.querySelectorAll('.achip').forEach(chip=>{
     const lbl=chip.querySelector('span')?.textContent;
     chip.classList.toggle('on',(it.accessories||[]).includes(lbl));
