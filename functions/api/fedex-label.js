@@ -32,10 +32,12 @@ export async function onRequestPost({ request, env }) {
     return Response.json({ error: 'Invalid JSON' }, { status: 400, headers: cors });
   }
 
-  // Validate required env
-  if (!env.FEDEX_API_KEY || !env.FEDEX_SECRET_KEY || !env.FEDEX_ACCOUNT_NUMBER) {
+  // Validate required env — log which keys are missing for debugging
+  const missingEnv = ['FEDEX_API_KEY', 'FEDEX_SECRET_KEY', 'FEDEX_ACCOUNT_NUMBER'].filter(k => !env[k]);
+  if (missingEnv.length) {
+    console.error('Missing FedEx env vars:', missingEnv.join(', '));
     return Response.json(
-      { error: 'FedEx credentials not configured (FEDEX_API_KEY, FEDEX_SECRET_KEY, FEDEX_ACCOUNT_NUMBER)' },
+      { error: `FedEx credentials not configured: ${missingEnv.join(', ')}` },
       { status: 500, headers: cors },
     );
   }
