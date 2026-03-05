@@ -8,8 +8,12 @@
  *   FEDEX_API_KEY, FEDEX_SECRET_KEY, FEDEX_ACCOUNT_NUMBER
  */
 
-const FEDEX_AUTH_URL = 'https://apis.fedex.com/oauth/token';
-const FEDEX_SHIP_URL = 'https://apis.fedex.com/ship/v1/shipments';
+// Set FEDEX_SANDBOX=true in Cloudflare vars to use sandbox endpoints
+function fedexBaseUrl(env) {
+  return env.FEDEX_SANDBOX === 'true'
+    ? 'https://apis-sandbox.fedex.com'
+    : 'https://apis.fedex.com';
+}
 
 /**
  * Destination store addresses — update with real addresses.
@@ -57,7 +61,7 @@ const STORE_ADDRESSES = {
  * Get an OAuth2 access token from FedEx.
  */
 async function getFedExToken(env) {
-  const res = await fetch(FEDEX_AUTH_URL, {
+  const res = await fetch(fedexBaseUrl(env) + '/oauth/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -161,7 +165,7 @@ export async function createFedExLabel(env, shipper, destStore, reference) {
     }];
   }
 
-  const res = await fetch(FEDEX_SHIP_URL, {
+  const res = await fetch(fedexBaseUrl(env) + '/ship/v1/shipments', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
