@@ -16,22 +16,22 @@ const FEDEX_SHIP_URL = 'https://apis.fedex.com/ship/v1/shipments';
  */
 const STORE_ADDRESSES = {
   'San Francisco': {
-    streetLines: ['2275 Market Street'],
+    streetLines: ['120 Maiden Ln'],
     city: 'San Francisco',
     stateOrProvinceCode: 'CA',
-    postalCode: '94114',
+    postalCode: '94108',
     countryCode: 'US',
     residential: false,
-    contact: { personName: 'Camera West SF', phoneNumber: '4155551234', companyName: 'Camera West' },
+    contact: { personName: 'Camera West SF', phoneNumber: '9259351424', companyName: 'Camera West' },
   },
   'Palm Springs': {
-    streetLines: ['4501 E Palm Canyon Drive'],
-    city: 'Palm Springs',
+    streetLines: ['70177 CA-111'],
+    city: 'Rancho Mirage',
     stateOrProvinceCode: 'CA',
-    postalCode: '92264',
+    postalCode: '92270',
     countryCode: 'US',
     residential: false,
-    contact: { personName: 'Camera West PS', phoneNumber: '7605551234', companyName: 'Camera West' },
+    contact: { personName: 'Camera West PS', phoneNumber: '7609925422', companyName: 'Camera West' },
   },
   'SoHo — New York': {
     streetLines: ['460 W Broadway'],
@@ -40,16 +40,16 @@ const STORE_ADDRESSES = {
     postalCode: '10012',
     countryCode: 'US',
     residential: false,
-    contact: { personName: 'Camera West SoHo', phoneNumber: '2125551234', companyName: 'Camera West' },
+    contact: { personName: 'Camera West SoHo', phoneNumber: '6464762308', companyName: 'Camera West' },
   },
   'Leica SF': {
-    streetLines: ['463 Bush Street'],
+    streetLines: ['463 Bush St'],
     city: 'San Francisco',
     stateOrProvinceCode: 'CA',
     postalCode: '94108',
     countryCode: 'US',
     residential: false,
-    contact: { personName: 'Leica Store SF', phoneNumber: '4155555678', companyName: 'Leica Store San Francisco' },
+    contact: { personName: 'Leica Store SF', phoneNumber: '4158015066', companyName: 'Leica Store San Francisco' },
   },
 };
 
