@@ -2100,6 +2100,7 @@ function lockCreditButtons(cmNum) {
 
 let _otpApproved = false;
 async function issueStoreCredit() {
+  if (!selLoc) { alert('Please select a preferred location before proceeding.'); return; }
   if (!_otpApproved) { requestOtpApproval(() => { _otpApproved = true; issueStoreCredit(); }); return; }
   if (!sessionItems.length) { showToast('No items in session'); return; }
   const custId = window._shopifyCustId;
@@ -2317,6 +2318,7 @@ async function execStoreCredit() {
 }
 // ── ISSUE CM ONLY (no Shopify credit) ──
 function issueCmOnly() {
+  if (!selLoc) { alert('Please select a preferred location before proceeding.'); return; }
   if (!_otpApproved) { requestOtpApproval(() => { _otpApproved = true; issueCmOnly(); }); return; }
   if (!sessionItems.length) { showToast('No items in session'); return; }
   const net = sessionItems.reduce((s, i) => s + i.net, 0);
