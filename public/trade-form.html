@@ -32,8 +32,8 @@
   }
   .hero { padding: 72px 48px 60px; border-bottom: 1px solid var(--border); max-width: 900px; margin: 0 auto; text-align: center; }
   .hero-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 20px; }
-  .hero h1 { font-family: 'Palatino Linotype', 'Palatino', 'Book Antiqua', Georgia, serif; font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 400; line-height: 1.05; color: var(--ink); margin-bottom: 22px; }
-  .hero-desc { font-size: 16px; color: var(--ink-mid); line-height: 1.75; max-width: 520px; margin: 0 auto; }
+  .hero h1 { font-family: 'Palatino Linotype', 'Palatino', 'Book Antiqua', Georgia, serif; font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 400; line-height: 1.05; color: var(--ink); margin-bottom: 32px; }
+  .hero-desc { font-size: 16px; color: var(--ink-mid); line-height: 1.75; max-width: 520px; margin: 0 auto; text-align: center; }
   .perks-bar { border-bottom: 1px solid var(--border); display: flex; justify-content: center; max-width: 900px; margin: 0 auto; flex-wrap: wrap; }
   .perk { display: flex; align-items: center; gap: 9px; padding: 14px 28px; border-right: 1px solid var(--border); font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-mid); }
   .perk:last-child { border-right: none; }
@@ -292,7 +292,11 @@
       </div>
       <div class="review-body" id="reviewGear"></div>
     </div>
-    <div class="review-section">
+    <button type="button" class="add-item-btn" onclick="addItemFromReview()">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Another Item
+    </button>
+    <div class="review-section" style="margin-top:14px;">
       <div class="review-section-head">
         <span class="review-section-title">Contact Details</span>
         <button class="edit-btn" onclick="goBack('contact')">
@@ -373,6 +377,15 @@ function goBack(scrollTo) {
   } else if (scrollTo === 'items') {
     setTimeout(() => document.getElementById('itemsContainer').scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   }
+}
+function addItemFromReview() {
+  showPage('pagForm');
+  createItem();
+  setTimeout(() => {
+    const blocks = document.querySelectorAll('.item-block');
+    const last = blocks[blocks.length - 1];
+    if (last) last.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 50);
 }
 
 // ── Item blocks ───────────────────────────────────────────────────────────
