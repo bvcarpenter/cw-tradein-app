@@ -198,3 +198,44 @@ export async function createFedExLabel(env, shipper, destStore, reference) {
 
   return { trackingNumber, labelPdf, totalCharge };
 }
+
+/**
+ * Track a FedEx shipment by tracking number.
+ *
+ * @param {object} env            — Cloudflare env bindings
+ * @param {string} trackingNumber — FedEx tracking number
+ * @returns {{ status: string, statusDetail: string, delivered: boolean }}
+ */
+export async function trackFedExShipment(env, trackingNumber) {
+  const token = await getFedExToken(env);
+
+  const res = await fetch(fedexBaseUrl(env) + '/track/v1/trackingnumbers', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      includeDetailedScans: false,
+      trackingInfo: [{
+        trackingNumberInfo: { trackingNumber },
+      }],
+    }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok || data.errors?.length) {
+    const msg = data.errors?.map(e => e.message).join('; ') || `HTTP ${res.status}`;
+    throw new Error(`FedEx Track API: ${msg}`);
+  }
+
+  const result = data.output?.completeTrackResults?.[0]?.trackResults?.[0];
+  if (!result) throw new Error('No tracking result returned');
+
+  const statusCode = result.latestStatusDetail?.code || '';
+  const statusDesc = result.latestStatusDetail?.description || result.latestStatusDetail?.statusByLocale || '';
+  const delivered = statusCode === 'DL';
+
+  return { status: statusCode, statusDetail: statusDesc, delivered };
+}

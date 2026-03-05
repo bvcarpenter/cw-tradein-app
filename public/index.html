@@ -611,6 +611,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
       <div style="display:flex;border-bottom:1px solid var(--border);padding:0 20px;">
         <button class="tnav on" id="sm-tab-draft" onclick="smTab('draft',this)">Drafts</button>
         <button class="tnav" id="sm-tab-transit" onclick="smTab('transit',this)">In Transit</button>
+        <button class="tnav" id="sm-tab-landed" onclick="smTab('landed',this)">Landed</button>
         <button class="tnav" id="sm-tab-final" onclick="smTab('final',this)">Finalized</button>
       </div>
       <div style="padding:12px 20px 0;">
@@ -1850,6 +1851,7 @@ function getSessionData() {
     },
     cmNum:    document.getElementById('cm-num').value,
     tracking: document.getElementById('tracking-num').value,
+    trackingStatus: window._trackingStatus || '',
     finalTot: document.getElementById('final-total').value,
     assoc:    document.getElementById('assoc').value,
     txnDate:  document.getElementById('txn-date').value,
@@ -1865,6 +1867,7 @@ function restoreSessionData(d) {
   document.getElementById('c-phone').value = d.customer.phone || '';
   document.getElementById('cm-num').value    = d.cmNum    || '';
   document.getElementById('tracking-num').value = d.tracking || '';
+  window._trackingStatus = d.trackingStatus || '';
   document.getElementById('final-total').value  = d.finalTot || '';
   document.getElementById('assoc').value   = d.assoc    || '';
   document.getElementById('txn-date').value = d.txnDate  || '';
@@ -1890,11 +1893,51 @@ function restoreSessionData(d) {
 
 
 
-function openSessionsMgr() {
+async function openSessionsMgr() {
   document.getElementById('mo-sessions').style.display = 'flex';
   _smTab = 'draft';
-  document.querySelectorAll('.sm-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'draft'));
-  renderSessionsMgr();
+  document.querySelectorAll('#mo-sessions .tnav').forEach(t => t.classList.remove('on'));
+  document.getElementById('sm-tab-draft')?.classList.add('on');
+  await renderSessionsMgr();
+  // Refresh tracking statuses in background
+  refreshTrackingStatuses();
+}
+
+async function refreshTrackingStatuses() {
+  try {
+    const sessions = await kvReadSessions();
+    const needCheck = sessions.filter(s => {
+      const d = s.data || {};
+      return d.tracking && d.tracking.trim() && d.trackingStatus !== 'DL' && !d.finalized;
+    });
+    if (!needCheck.length) return;
+    const trackingNumbers = needCheck.map(s => s.data.tracking.trim());
+    const res = await fetch('/api/fedex-track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trackingNumbers }),
+    });
+    if (!res.ok) return;
+    const { results } = await res.json();
+    const statusMap = {};
+    for (const r of results) statusMap[r.trackingNumber] = r.status;
+    let changed = false;
+    for (const s of needCheck) {
+      const tn = s.data.tracking.trim();
+      const newStatus = statusMap[tn];
+      if (newStatus && newStatus !== s.data.trackingStatus) {
+        s.data.trackingStatus = newStatus;
+        changed = true;
+        // Persist updated status to KV
+        fetch('/api/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: s.key, data: s.data }),
+        });
+      }
+    }
+    if (changed) renderSessionsMgr();
+  } catch (e) { console.warn('refreshTrackingStatuses error', e); }
 }
 function closeSessionsMgr() {
   document.getElementById('mo-sessions').style.display = 'none';
@@ -2056,14 +2099,18 @@ async function renderSessionsMgr() {
 
   const rows = sessions.filter(s => {
     const d = s.data || {};
+    const hasTracking = d.tracking && d.tracking.trim();
+    const delivered = d.trackingStatus === 'DL';
     if (_smTab === 'transit') {
-      if (!d.tracking || !d.tracking.trim() || d.finalized) return false;
+      if (!hasTracking || delivered || d.finalized) return false;
+    } else if (_smTab === 'landed') {
+      if (!hasTracking || !delivered || d.finalized) return false;
     } else if (_smTab === 'final') {
       if (!d.finalized) return false;
     } else {
-      // draft: not finalized and not in transit
+      // draft: not finalized and no tracking
       if (d.finalized) return false;
-      if (d.tracking && d.tracking.trim()) return false;
+      if (hasTracking) return false;
     }
     // Location filter
     if (filterLoc && (d.loc || '') !== filterLoc) return false;
@@ -2080,7 +2127,7 @@ async function renderSessionsMgr() {
   });
 
   if (!rows.length) {
-    const tabLabel = _smTab === 'final' ? 'finalized' : _smTab === 'transit' ? 'in-transit' : 'draft';
+    const tabLabel = _smTab === 'final' ? 'finalized' : _smTab === 'transit' ? 'in-transit' : _smTab === 'landed' ? 'landed' : 'draft';
     el.innerHTML = `<div style="font-size:12px;color:var(--dim);padding:28px;text-align:center;">No ${tabLabel} sessions${q ? ' matching "' + q + '"' : ''}.</div>`;
     return;
   }
@@ -2108,7 +2155,7 @@ async function renderSessionsMgr() {
           ${svc > 0 ? `&nbsp;&middot;&nbsp; <span style="color:#e07070;">Svc: &#8722;${ff(svc)}</span>` : ''}
           &nbsp;&middot;&nbsp; ${dt}
           ${finDt ? `&nbsp;&middot;&nbsp; <span style="color:#70d090;">&#10003; Finalized ${finDt}</span>` : ''}
-          ${d.tracking ? `&nbsp;&middot;&nbsp; <span style="color:#d9a040;">&#9992; ${esc(d.tracking)}</span>` : ''}
+          ${d.tracking ? `&nbsp;&middot;&nbsp; <span style="color:${d.trackingStatus === 'DL' ? '#70d090' : '#d9a040'};">${d.trackingStatus === 'DL' ? '&#10003; Delivered' : '&#9992; In Transit'} · ${esc(d.tracking)}</span>` : ''}
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;">${chips}</div>
       </div>
@@ -2517,6 +2564,7 @@ async function updTax() {
 function resetSessionForm() {
   sessionItems = []; selItem = null; selGrade = null;
   window._shopifyCustId = '';
+  window._trackingStatus = '';
   _loadedSessionKey = null;
   _nsGrandTotal = 0;
   renderCart(); clrItem();
@@ -2636,6 +2684,7 @@ function autoBrand(name) {
 // FEDEX LABEL GENERATION
 // ════════════════════════════════════════════
 let cachedFedExLabel = null; // { trackingNumber, labelPdf, totalCharge }
+window._trackingStatus = '';
 
 /** Determine the document type label based on shipping and finalization state */
 function getDocLabel() {
@@ -2728,8 +2777,9 @@ async function generateFedExLabel() {
     const result = await fetchFedExLabel();
     cachedFedExLabel = result;
 
-    // Populate read-only tracking field
+    // Populate read-only tracking field and mark as in-transit
     document.getElementById('tracking-num').value = result.trackingNumber || '';
+    window._trackingStatus = 'IT';
 
     let msg = 'Tracking: ' + result.trackingNumber;
     if (result.totalCharge) msg += ' | Charge: $' + parseFloat(result.totalCharge).toFixed(2);
