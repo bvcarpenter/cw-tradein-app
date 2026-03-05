@@ -234,6 +234,12 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
   .fg,.fg.t3{grid-template-columns:1fr}
   .pgrid{grid-template-columns:1fr}
 }
+.btn-fedex-label { background: linear-gradient(135deg, #5a3a2a, #4a2a1a); border: 1px solid #7a5a3a; color: #d0a070; font-family: 'Jost', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; padding: 14px 24px; cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-fedex-label:hover { background: linear-gradient(135deg, #7a5a3a, #5a3a2a); border-color: #9a7a4a; }
+.btn-fedex-label:disabled { opacity: .35; cursor: not-allowed; }
+.fedex-label-status { font-size: 10px; letter-spacing: 0.06em; text-align: center; margin-top: 8px; padding: 8px 12px; }
+.fedex-label-status.ok { color: #d0a070; background: #3a2a14; border: 1px solid #5a3a2a; }
+.fedex-label-status.err { color: #e07070; background: #3a1414; border: 1px solid #5a2a2a; }
 </style>
 </head>
 <body>
@@ -498,12 +504,27 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
       </div>
       <div class="exp-acts">
         <button class="btn btn-g" onclick="exportXLSX()">Export NetSuite XLSX</button>
-        <button class="btn btn-a" onclick="openPrint()">Print Credit Memo</button>
+        <button class="btn btn-a" id="print-btn" onclick="openPrint()">Print Credit Memo</button>
         <button class="btn" id="sc-btn" onclick="issueStoreCredit()" style="background:#2a6e3f;color:#fff;border:1px solid #2a6e3f;">Issue Store Credit</button>
         <button class="btn" id="cm-only-btn" onclick="issueCmOnly()" style="background:#1a2a4a;color:#7090d0;border:1px solid #3a4a7a;">Issue CM Only</button>
         <button class="btn btn-r" onclick="clrSession()">Clear Session</button>
       </div>
       <div id="sc-msg" style="display:none;font-size:11px;padding:8px 12px;margin-top:6px;border-left:2px solid var(--border);background:var(--bg3);line-height:1.5;"></div>
+
+      <div id="fedex-label-section" style="display:none;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--dim);">FedEx Shipping Label</span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-fedex-label" id="fedex-label-btn" onclick="generateFedExLabel()" style="flex:1;">
+            Generate FedEx Label <em style="font-style:italic">//</em> Express Saver One Rate
+          </button>
+          <button class="btn-fedex-label" id="print-label-btn" onclick="printLabelOnly()" style="flex:0 0 auto;display:none;">
+            Print Label
+          </button>
+        </div>
+        <div id="fedex-label-status"></div>
+      </div>
     </section>
   </main>
 </div>
@@ -1598,25 +1619,74 @@ function exportXLSX() {
 // ════════════════════════════════════════════
 // PRINT
 // ════════════════════════════════════════════
-function openPrint() {
+async function openPrint() {
   if (!document.getElementById('c-first').value.trim()) { alert('Customer first name is required.'); document.getElementById('c-first').focus(); return; }
   if (!document.getElementById('c-last').value.trim()) { alert('Customer last name is required.'); document.getElementById('c-last').focus(); return; }
   if (!document.getElementById('c-email').value.trim()) { alert('Customer email is required.'); document.getElementById('c-email').focus(); return; }
   if (!selLoc) { alert('Please select a preferred location.'); return; }
   if (!sessionItems.length) { alert('No items to print.'); return; }
-  document.getElementById('prev').innerHTML = `<div class="print-prev">${buildPrint()}</div>`;
+
+  if (selLoc === 'shipping' && !cachedFedExLabel) {
+    const printBtn = document.getElementById('print-btn');
+    const origText = printBtn.textContent;
+    printBtn.textContent = 'Generating label…';
+    printBtn.disabled = true;
+    try {
+      cachedFedExLabel = await fetchFedExLabel();
+    } catch (err) {
+      alert('FedEx label error: ' + err.message);
+      printBtn.textContent = origText;
+      printBtn.disabled = false;
+      return;
+    }
+    printBtn.textContent = origText;
+    printBtn.disabled = false;
+    // Show Print Label button
+    const plBtn = document.getElementById('print-label-btn');
+    if (plBtn) plBtn.style.display = '';
+    // Update status
+    const statusEl = document.getElementById('fedex-label-status');
+    if (statusEl) {
+      let msg = 'Tracking: ' + cachedFedExLabel.trackingNumber;
+      if (cachedFedExLabel.totalCharge) msg += ' | Charge: $' + parseFloat(cachedFedExLabel.totalCharge).toFixed(2);
+      statusEl.textContent = msg;
+      statusEl.className = 'fedex-label-status ok';
+    }
+  }
+
+  const title = getDocLabel() + ' — Preview';
+  document.querySelector('#mo .mod-h h3').textContent = title;
+  const previewHtml = selLoc === 'shipping' && cachedFedExLabel
+    ? `<div class="print-prev">${buildPrint()}</div>
+       <div style="margin-top:16px;padding:12px;background:#f5f5f0;border:1px solid #ddd;border-radius:4px;font-size:11px;color:#555;">
+         FedEx label will print on a separate page &nbsp;·&nbsp; Tracking: <strong>${cachedFedExLabel.trackingNumber}</strong>
+         ${cachedFedExLabel.totalCharge ? ' &nbsp;·&nbsp; Charge: $' + parseFloat(cachedFedExLabel.totalCharge).toFixed(2) : ''}
+       </div>`
+    : `<div class="print-prev">${buildPrint()}</div>`;
+  document.getElementById('prev').innerHTML = previewHtml;
   document.getElementById('mo').classList.add('open');
 }
 function closeMo() { document.getElementById('mo').classList.remove('open'); }
 function doPrint() {
+  const printTitle = 'Camera West — ' + getDocLabel();
   const w = window.open('','_blank','width=820,height=720');
   w.document.write(`<!DOCTYPE html><html><head>
-  <title>Camera West — Credit Memo</title><meta charset="UTF-8">
+  <title>${printTitle}</title><meta charset="UTF-8">
   <link href="https://fonts.googleapis.com/css2?family=&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>body{font-family:'Jost',sans-serif;color:#111;margin:0;padding:0;font-size:12px;font-weight:300;-webkit-font-smoothing:antialiased;}@page{margin:18mm 14mm;}</style>
   </head><body>${buildPrint()}</body></html>`);
   w.document.close(); w.focus();
   setTimeout(()=>{ w.print(); w.close(); }, 750);
+
+  // Open FedEx label PDF in a second tab for printing
+  if (selLoc === 'shipping' && cachedFedExLabel?.labelPdf) {
+    const byteChars = atob(cachedFedExLabel.labelPdf);
+    const byteArr = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+    const blob = new Blob([byteArr], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  }
 }
 
 function buildPrint() {
@@ -1662,7 +1732,7 @@ function buildPrint() {
       <div style="font-size:10px;color:#666;margin-top:6px;letter-spacing:.04em;line-height:1.8;">${(STORE_INFO[selLoc]?.address)||'camerawest.com'}<br>${(STORE_INFO[selLoc]?.phone)||''} &nbsp;·&nbsp; support@camerawest.com</div>
     </td>
     <td style="text-align:right;vertical-align:top;">
-      <div style="font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#aaa;margin-bottom:3px;">Credit Memo</div>
+      <div style="font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#aaa;margin-bottom:3px;">${getDocLabel()}</div>
       <div style="font-family:'Palatino Linotype',serif;font-size:22px;font-weight:300;color:#d95e00;">${esc(cm)}</div>
       <div style="font-size:10px;color:#666;margin-top:3px;line-height:1.8;">${dt}<br>Associate: ${esc(asc)}${_loggedInEmail ? '<br>Issued by: ' + esc(_loggedInEmail) : ''}</div>
     </td>
@@ -1674,9 +1744,9 @@ function buildPrint() {
       ${email?`<div style="font-size:10px;color:#555;margin-top:2px;">${esc(email)}</div>`:''}
       ${phone?`<div style="font-size:10px;color:#555;">${esc(phone)}</div>`:''}
       ${loc!=='—'?`<div style="font-size:10px;color:#777;margin-top:3px;">Location: ${esc(loc)}</div>`:''}
-      ${shipTo?`<div style="font-size:10px;color:#777;">Ship To: ${esc(shipTo)}</div>`:''}
-      ${destStore?`<div style="font-size:10px;color:#d95e00;margin-top:2px;font-weight:500;">Destination Store: ${esc(destStore)}</div>`:''}
-      ${tracking?`<div style="font-size:10px;color:#d95e00;margin-top:2px;">Tracking: ${esc(tracking)}</div>`:''}
+      ${shipTo?`<div style="font-size:10px;color:#777;">Ship From: ${esc(shipTo)}</div>`:''}
+      ${destStore?`<div style="font-size:10px;color:#777;">Ship To: ${esc(destStore)}</div>`:''}
+      ${cachedFedExLabel?.trackingNumber?`<div style="font-size:10px;color:#d95e00;margin-top:2px;font-weight:500;">FedEx Tracking: ${cachedFedExLabel.trackingNumber}</div>`:(tracking?`<div style="font-size:10px;color:#d95e00;margin-top:2px;">Tracking: ${esc(tracking)}</div>`:'')}
     </td>
     <td style="vertical-align:top;text-align:right;">
       <div style="font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#aaa;margin-bottom:4px;">Transaction</div>
@@ -2549,6 +2619,146 @@ function autoBrand(name) {
   const match = BRANDS.find(b => lower.startsWith(b.toLowerCase()));
   const ve = document.getElementById('m-vendor');
   if (match && (!ve.dataset.userEdited || ve.dataset.userEdited === 'false')) ve.value = match;
+}
+
+// ════════════════════════════════════════════
+// FEDEX LABEL GENERATION
+// ════════════════════════════════════════════
+let cachedFedExLabel = null; // { trackingNumber, labelPdf, totalCharge }
+
+/** Determine the document type label based on shipping and finalization state */
+function getDocLabel() {
+  const hasCM = document.getElementById('cm-num').value.trim() && document.getElementById('cm-num').value.trim() !== 'PENDING';
+  if (selLoc === 'shipping') return hasCM ? 'Credit Memo & Label' : 'Estimate & Label';
+  return hasCM ? 'Credit Memo' : 'Estimate';
+}
+
+/** Update print button label and show/hide FedEx section based on location */
+function updateFedExSection() {
+  const sec = document.getElementById('fedex-label-section');
+  if (sec) sec.style.display = selLoc === 'shipping' ? '' : 'none';
+  // Reset label state when location changes
+  cachedFedExLabel = null;
+  const plBtn = document.getElementById('print-label-btn');
+  if (plBtn) plBtn.style.display = 'none';
+  const fedBtn = document.getElementById('fedex-label-btn');
+  if (fedBtn) { fedBtn.disabled = false; fedBtn.innerHTML = 'Generate FedEx Label <em style="font-style:italic">//</em> Express Saver One Rate'; }
+  const statusEl = document.getElementById('fedex-label-status');
+  if (statusEl) { statusEl.className = ''; statusEl.textContent = ''; }
+  const printBtn = document.getElementById('print-btn');
+  if (printBtn) printBtn.textContent = 'Print ' + getDocLabel();
+}
+
+// Patch setLoc to also update FedEx section visibility
+const _origSetLoc = setLoc;
+setLoc = function(el, loc) {
+  _origSetLoc(el, loc);
+  updateFedExSection();
+};
+
+/** Validate shipping fields and call FedEx API */
+async function fetchFedExLabel() {
+  const shipperName = [(document.getElementById('c-first').value || '').trim(), (document.getElementById('c-last').value || '').trim()].filter(Boolean).join(' ');
+  const shipperPhone = (document.getElementById('c-phone').value || '').trim();
+  const shipperStreet = (document.getElementById('s-str').value || '').trim();
+  const shipperCity = (document.getElementById('s-city').value || '').trim();
+  const shipperState = (document.getElementById('s-st').value || '').trim();
+  const shipperZip = (document.getElementById('s-zip').value || '').trim();
+  const destStore = _destStore || '';
+
+  const missing = [];
+  if (!shipperName) missing.push('Customer Name');
+  if (!shipperStreet) missing.push('Street Address');
+  if (!shipperCity) missing.push('City');
+  if (!shipperState) missing.push('State');
+  if (!shipperZip) missing.push('ZIP');
+  if (!destStore) missing.push('Destination Store');
+
+  if (missing.length) {
+    throw new Error('Missing: ' + missing.join(', '));
+  }
+
+  const cmNum = (document.getElementById('cm-num').value || '').trim();
+
+  const res = await fetch('/api/fedex-label', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      shipperName,
+      shipperPhone,
+      shipperStreet,
+      shipperCity,
+      shipperState,
+      shipperZip,
+      destStore,
+      reference: cmNum || undefined,
+    }),
+  });
+
+  const data = await res.json();
+  if (!res.ok || data.error) {
+    throw new Error(data.error || 'HTTP ' + res.status);
+  }
+
+  return { trackingNumber: data.trackingNumber, labelPdf: data.labelPdf, totalCharge: data.totalCharge };
+}
+
+/** Generate a FedEx label (standalone button) */
+async function generateFedExLabel() {
+  const btn = document.getElementById('fedex-label-btn');
+  const statusEl = document.getElementById('fedex-label-status');
+
+  btn.disabled = true;
+  btn.textContent = 'Generating label…';
+  statusEl.className = '';
+  statusEl.textContent = '';
+
+  try {
+    const result = await fetchFedExLabel();
+    cachedFedExLabel = result;
+
+    let msg = 'Tracking: ' + result.trackingNumber;
+    if (result.totalCharge) msg += ' | Charge: $' + parseFloat(result.totalCharge).toFixed(2);
+    statusEl.textContent = msg;
+    statusEl.className = 'fedex-label-status ok';
+
+    // Open PDF label in new tab
+    if (result.labelPdf) {
+      const byteChars = atob(result.labelPdf);
+      const byteArr = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteArr], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    }
+
+    btn.textContent = 'Label Generated';
+    // Show "Print Label" button
+    const plBtn = document.getElementById('print-label-btn');
+    if (plBtn) plBtn.style.display = '';
+    // Update print button text
+    const printBtn = document.getElementById('print-btn');
+    if (printBtn) printBtn.textContent = 'Print ' + getDocLabel();
+  } catch (err) {
+    statusEl.textContent = 'Failed: ' + err.message;
+    statusEl.className = 'fedex-label-status err';
+    btn.disabled = false;
+    btn.innerHTML = 'Generate FedEx Label <em style="font-style:italic">//</em> Express Saver One Rate';
+  }
+}
+
+/** Print just the FedEx label PDF (no estimate) */
+function printLabelOnly() {
+  if (!cachedFedExLabel?.labelPdf) {
+    alert('No label generated yet. Generate a FedEx label first.');
+    return;
+  }
+  const byteChars = atob(cachedFedExLabel.labelPdf);
+  const byteArr = new Uint8Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+  const blob = new Blob([byteArr], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
 }
 </script>
 </body>
