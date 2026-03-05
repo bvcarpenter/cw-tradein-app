@@ -1443,7 +1443,7 @@ async function openPrint() {
     printBtn.disabled = false;
   }
 
-  const title = selLoc === 'shipping' ? 'Estimate + Label — Preview' : 'Credit Memo — Preview';
+  const title = getDocLabel() + ' — Preview';
   document.querySelector('#mo .mod-h h3').textContent = title;
   const previewHtml = selLoc === 'shipping' && cachedFedExLabel
     ? `<div class="print-prev">${buildPrint()}</div>
@@ -1457,7 +1457,7 @@ async function openPrint() {
 }
 function closeMo() { document.getElementById('mo').classList.remove('open'); }
 function doPrint() {
-  const printTitle = selLoc === 'shipping' ? 'Camera West — Estimate' : 'Camera West — Credit Memo';
+  const printTitle = 'Camera West — ' + getDocLabel();
   const w = window.open('','_blank','width=820,height=720');
   w.document.write(`<!DOCTYPE html><html><head>
   <title>${printTitle}</title><meta charset="UTF-8">
@@ -1529,7 +1529,7 @@ function buildPrint() {
         </div>
       </td>
       <td style="text-align:right;vertical-align:top;">
-        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:#aaa;margin-bottom:3px;">Credit Memo</div>
+        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:#aaa;margin-bottom:3px;">${lastNsResult?.tranId ? 'Credit Memo' : 'Estimate'}</div>
         <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;color:#d95e00;">${cm}</div>
         <div style="font-size:10px;color:#666;margin-top:3px;line-height:1.8;">${dt}<br>Associate: ${asc}</div>
       </td>
@@ -2487,17 +2487,31 @@ function applyNsResult(nsData) {
   if (nsData.tranId) {
     document.getElementById('cm-num').value = nsData.tranId;
   }
+
+  // Update print button label now that we have a Credit Memo
+  updatePrintBtnLabel();
 }
 
 // ─── FEDEX LABEL GENERATION ───
+
+/** Determine the document type label based on shipping and finalization state */
+function getDocLabel() {
+  if (selLoc === 'shipping') return 'Estimate + Label';
+  return lastNsResult?.tranId ? 'Credit Memo' : 'Estimate';
+}
 
 /** Update print button label and show/hide FedEx section based on location */
 function updateFedExSection() {
   const sec = document.getElementById('fedex-label-section');
   if (sec) sec.style.display = selLoc === 'shipping' ? '' : 'none';
-  const printBtn = document.getElementById('print-btn');
-  if (printBtn) printBtn.textContent = selLoc === 'shipping' ? 'Print Estimate + Label' : 'Print Credit Memo';
+  updatePrintBtnLabel();
   cachedFedExLabel = null; // Clear cached label when location changes
+}
+
+/** Refresh the print button text based on current state */
+function updatePrintBtnLabel() {
+  const printBtn = document.getElementById('print-btn');
+  if (printBtn) printBtn.textContent = 'Print ' + getDocLabel();
 }
 
 // Patch setLoc to also update FedEx section visibility
