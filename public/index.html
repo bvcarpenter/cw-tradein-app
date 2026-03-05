@@ -548,7 +548,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
           <label>Approving Manager</label>
           <select id="otp-manager">
             <option value="">Select manager…</option>
-            <option value="sam@leicastoresf.com">Sam (Leica SF)</option>
+            <option value="sam@leicastoresf.com">Sam</option>
             <option value="sean@camerawest.com">Sean</option>
             <option value="ben@camerawest.com">Ben</option>
             <option value="kyle@camerawest.com">Kyle</option>
@@ -2103,19 +2103,20 @@ function lockCreditButtons(cmNum) {
 let _otpApproved = false;
 async function issueStoreCredit() {
   if (!selLoc) { alert('Please select a preferred location before proceeding.'); return; }
-  if (!_otpApproved) { requestOtpApproval(() => { _otpApproved = true; issueStoreCredit(); }); return; }
   if (!sessionItems.length) { showToast('No items in session'); return; }
   const custId = window._shopifyCustId;
   if (!custId) { showToast('Select a Shopify customer first'); return; }
   const net = sessionItems.reduce((s, i) => s + i.net, 0);
   if (net <= 0) { showToast('No net value to credit'); return; }
 
-  // Check for missing serial numbers first
+  // Check for missing serial numbers on Bodies/Lenses before manager approval
   const missing = needsSerialItems();
   if (missing.length > 0) {
     openSerialPopup(missing, () => issueStoreCredit());
     return;
   }
+
+  if (!_otpApproved) { requestOtpApproval(() => { _otpApproved = true; issueStoreCredit(); }); return; }
 
   // Build confirmation summary with estimated tax
   const cust = (document.getElementById('c-first').value.trim() + ' ' + document.getElementById('c-last').value.trim()).trim();
@@ -2321,13 +2322,15 @@ async function execStoreCredit() {
 // ── ISSUE CM ONLY (no Shopify credit) ──
 function issueCmOnly() {
   if (!selLoc) { alert('Please select a preferred location before proceeding.'); return; }
-  if (!_otpApproved) { requestOtpApproval(() => { _otpApproved = true; issueCmOnly(); }); return; }
   if (!sessionItems.length) { showToast('No items in session'); return; }
   const net = sessionItems.reduce((s, i) => s + i.net, 0);
   if (net <= 0) { showToast('No net value to credit'); return; }
 
+  // Check for missing serial numbers on Bodies/Lenses before manager approval
   const missing = needsSerialItems();
   if (missing.length > 0) { openSerialPopup(missing, () => issueCmOnly()); return; }
+
+  if (!_otpApproved) { requestOtpApproval(() => { _otpApproved = true; issueCmOnly(); }); return; }
 
   const custFirst = document.getElementById('c-first').value.trim();
   const custLast = document.getElementById('c-last').value.trim();
