@@ -326,6 +326,14 @@ body {
 .btn-ns-only:hover { background: linear-gradient(135deg, #3a4a7a, #2a3a5a); border-color: #4a5a9a; }
 .btn-ns-only:disabled { opacity: .55; cursor: not-allowed; }
 
+/* FEDEX SHIPPING LABEL BUTTON */
+.btn-fedex-label { background: linear-gradient(135deg, #5a3a2a, #4a2a1a); border: 1px solid #7a5a3a; color: #d0a070; font-family: 'Jost', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; padding: 14px 24px; cursor: pointer; transition: all .2s; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; }
+.btn-fedex-label:hover { background: linear-gradient(135deg, #7a5a3a, #5a3a2a); border-color: #9a7a4a; }
+.btn-fedex-label:disabled { opacity: .35; cursor: not-allowed; }
+.fedex-label-status { font-size: 10px; letter-spacing: 0.06em; text-align: center; margin-top: 8px; padding: 8px 12px; }
+.fedex-label-status.ok { color: #d0a070; background: #3a2a14; border: 1px solid #5a3a2a; }
+.fedex-label-status.err { color: #e07070; background: #3a1414; border: 1px solid #5a2a2a; }
+
 /* SCROLLBAR */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -874,6 +882,16 @@ body {
         Issue Credit Memo Only <em style="font-style:italic">//</em> No Shopify Credit
       </button>
       <div id="finalize-status"></div>
+
+      <div id="fedex-label-section" style="display:none;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--dim);">FedEx Shipping Label</span>
+        </div>
+        <button class="btn-fedex-label" id="fedex-label-btn" onclick="generateFedExLabel()">
+          Generate FedEx Label <em style="font-style:italic">//</em> Express Saver One Rate
+        </button>
+        <div id="fedex-label-status"></div>
+      </div>
     </section>
 
   </main>
@@ -2427,6 +2445,102 @@ function applyNsResult(nsData) {
   // Update CM# field with the NS-generated tranId
   if (nsData.tranId) {
     document.getElementById('cm-num').value = nsData.tranId;
+  }
+}
+
+// ─── FEDEX LABEL GENERATION ───
+
+/** Show/hide the FedEx label section based on location */
+function updateFedExSection() {
+  const sec = document.getElementById('fedex-label-section');
+  if (sec) sec.style.display = selLoc === 'shipping' ? '' : 'none';
+}
+
+// Patch setLoc to also update FedEx section visibility
+const _origSetLoc = setLoc;
+setLoc = function(el, loc) {
+  _origSetLoc(el, loc);
+  updateFedExSection();
+};
+
+/** Generate a FedEx Express Saver One Rate shipping label */
+async function generateFedExLabel() {
+  const btn = document.getElementById('fedex-label-btn');
+  const statusEl = document.getElementById('fedex-label-status');
+
+  // Validate shipping fields
+  const shipperName = [(document.getElementById('c-first').value || '').trim(), (document.getElementById('c-last').value || '').trim()].filter(Boolean).join(' ');
+  const shipperPhone = (document.getElementById('c-phone').value || '').trim();
+  const shipperStreet = (document.getElementById('s-str').value || '').trim();
+  const shipperCity = (document.getElementById('s-city').value || '').trim();
+  const shipperState = (document.getElementById('s-st').value || '').trim();
+  const shipperZip = (document.getElementById('s-zip').value || '').trim();
+  const destStore = (document.getElementById('s-dest-store').value || '').trim();
+
+  const missing = [];
+  if (!shipperName) missing.push('Customer Name');
+  if (!shipperStreet) missing.push('Street Address');
+  if (!shipperCity) missing.push('City');
+  if (!shipperState) missing.push('State');
+  if (!shipperZip) missing.push('ZIP');
+  if (!destStore) missing.push('Destination Store');
+
+  if (missing.length) {
+    statusEl.textContent = `Missing: ${missing.join(', ')}`;
+    statusEl.className = 'fedex-label-status err';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Generating label…';
+  statusEl.className = '';
+  statusEl.textContent = '';
+
+  try {
+    const cmNum = (document.getElementById('cm-num').value || '').trim();
+
+    const res = await fetch('/api/fedex-label', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        shipperName,
+        shipperPhone,
+        shipperStreet,
+        shipperCity,
+        shipperState,
+        shipperZip,
+        destStore,
+        reference: cmNum || undefined,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+
+    // Show tracking number
+    let msg = `Tracking: ${data.trackingNumber}`;
+    if (data.totalCharge) msg += ` | Charge: $${parseFloat(data.totalCharge).toFixed(2)}`;
+    statusEl.textContent = msg;
+    statusEl.className = 'fedex-label-status ok';
+
+    // Open PDF label in new tab
+    if (data.labelPdf) {
+      const byteChars = atob(data.labelPdf);
+      const byteArr = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteArr], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    }
+
+    btn.textContent = 'Label Generated';
+  } catch (err) {
+    statusEl.textContent = `Failed: ${err.message}`;
+    statusEl.className = 'fedex-label-status err';
+    btn.disabled = false;
+    btn.innerHTML = 'Generate FedEx Label <em style="font-style:italic">//</em> Express Saver One Rate';
   }
 }
 </script>

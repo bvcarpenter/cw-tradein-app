@@ -10,6 +10,7 @@ import { onRequestPost as customerAddressPost, onRequestOptions as customerAddre
 import { onRequestGet as customersGet, onRequestPost as customersPost, onRequestOptions as customersOptions } from '../functions/api/customers.js';
 import { onRequestPost as storeCreditPost, onRequestOptions as storeCreditOptions } from '../functions/api/store-credit.js';
 import { onRequestPost as creditMemoPost, onRequestOptions as creditMemoOptions } from '../functions/api/netsuite-credit-memo.js';
+import { onRequestPost as fedexLabelPost, onRequestOptions as fedexLabelOptions } from '../functions/api/fedex-label.js';
 import { onRequestPost as approveOtpPost, onRequestOptions as approveOtpOptions } from '../functions/api/approve-otp.js';
 import { onRequestPost as authRequestPost, onRequestOptions as authRequestOptions } from '../functions/api/auth/request.js';
 import { onRequestGet as authSessionGet, onRequestPost as authSessionPost } from '../functions/api/auth/session.js';
@@ -63,6 +64,11 @@ export default {
     if (path === '/api/netsuite-credit-memo') {
       if (method === 'OPTIONS') return creditMemoOptions(c);
       if (method === 'POST')    return creditMemoPost(c);
+    }
+
+    if (path === '/api/fedex-label') {
+      if (method === 'OPTIONS') return fedexLabelOptions(c);
+      if (method === 'POST')    return fedexLabelPost(c);
     }
 
     if (path === '/api/approve-otp') {
