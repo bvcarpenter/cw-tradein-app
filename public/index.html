@@ -881,9 +881,10 @@ async function verifyOtp() {
     let d;
     try { d = JSON.parse(text); } catch { throw new Error('Server error: ' + (text.slice(0,200) || 'empty response')); }
     if (!r.ok) throw new Error(d.error || 'Verification failed (HTTP ' + r.status + ')');
+    const cb = _otpCallback;
     closeOtp();
     showToast('Manager approval verified');
-    if (_otpCallback) _otpCallback();
+    if (cb) cb();
   } catch(e) {
     showOtpMsg(e.message, true);
   } finally {
