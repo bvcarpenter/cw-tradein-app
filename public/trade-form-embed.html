@@ -29,8 +29,8 @@
   #cw-trade-in { font-family: 'Roboto Condensed', sans-serif; color: #111111; -webkit-font-smoothing: antialiased; padding-bottom: 80px; line-height: 1.5; }
   #cw-trade-in .cw-hero { padding: 72px 48px 60px; border-bottom: 1px solid #e0ddd8; max-width: 900px; margin: 0 auto; text-align: center; }
   #cw-trade-in .cw-hero-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; color: #888888; margin-bottom: 20px; }
-  #cw-trade-in .cw-hero h1 { font-family: 'Palatino Linotype', 'Palatino', 'Book Antiqua', Georgia, serif !important; font-size: clamp(1.6rem, 3vw, 2.4rem) !important; font-weight: 400 !important; line-height: 1.05 !important; color: #111111 !important; margin-bottom: 22px !important; }
-  #cw-trade-in .cw-hero-desc { font-size: 16px; color: #444444; line-height: 1.75; max-width: 520px; margin: 0 auto; }
+  #cw-trade-in .cw-hero h1 { font-family: 'Palatino Linotype', 'Palatino', 'Book Antiqua', Georgia, serif !important; font-size: clamp(1.6rem, 3vw, 2.4rem) !important; font-weight: 400 !important; line-height: 1.05 !important; color: #111111 !important; margin-bottom: 32px !important; }
+  #cw-trade-in .cw-hero-desc { font-size: 16px; color: #444444; line-height: 1.75; max-width: 520px; margin: 0 auto; text-align: center; }
   #cw-trade-in .cw-perks-bar { border-bottom: 1px solid #e0ddd8; display: flex; justify-content: center; max-width: 900px; margin: 0 auto; flex-wrap: wrap; }
   #cw-trade-in .cw-perk { display: flex; align-items: center; gap: 9px; padding: 14px 28px; border-right: 1px solid #e0ddd8; font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #444444; }
   #cw-trade-in .cw-perk:last-child { border-right: none; }
@@ -276,7 +276,11 @@
       </div>
       <div class="review-body" id="cwReviewGear"></div>
     </div>
-    <div class="review-section">
+    <button type="button" class="add-item-btn" onclick="cwAddItemFromReview()">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Another Item
+    </button>
+    <div class="review-section" style="margin-top:14px;">
       <div class="review-section-head">
         <span class="review-section-title">Contact Details</span>
         <button class="edit-btn" onclick="cwGoBack('contact')">
@@ -361,6 +365,15 @@
     } else if (scrollTo === 'items') {
       setTimeout(function() { cwScrollTo(document.getElementById('cwItemsContainer')); }, 50);
     }
+  };
+  window.cwAddItemFromReview = function() {
+    showPage('cwPagForm');
+    createItem();
+    setTimeout(function() {
+      var blocks = root.querySelectorAll('.item-block');
+      var last = blocks[blocks.length - 1];
+      if (last) cwScrollTo(last);
+    }, 50);
   };
 
   // ── Item blocks ────────────────────────────────────────────────────
