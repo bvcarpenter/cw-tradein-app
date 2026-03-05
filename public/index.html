@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Trade // Sell — Camera West</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -841,10 +842,20 @@ async function sendOtp() {
         </table>
       </div>`;
     } catch(e) { /* ignore — email will just omit the preview */ }
+    // Generate PDF attachment from session print view
+    let pdfBase64 = '';
+    try {
+      if (sessionItems.length) {
+        btn.textContent = 'Generating PDF…';
+        pdfBase64 = await generateSessionPdfBase64();
+      }
+    } catch(e) { console.warn('PDF generation failed:', e); }
     const requestedBy = _loggedInEmail || document.getElementById('assoc')?.value?.trim() || 'An associate';
+    btn.textContent = 'Sending…';
+    const custName = [document.getElementById('c-first').value.trim(), document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || 'Session';
     const r = await fetch('/api/auth/request', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ action: 'otp-send', email: mgr, requestedBy, summaryHtml })
+      body: JSON.stringify({ action: 'otp-send', email: mgr, requestedBy, summaryHtml, pdfBase64, pdfFilename: custName.replace(/[^a-zA-Z0-9 ]/g,'') + ' - Credit Memo.pdf' })
     });
     const text = await r.text();
     let d;
@@ -1715,6 +1726,29 @@ function buildPrint() {
 </div>`;
 }
 
+async function generateSessionPdfBase64() {
+  const html = buildPrint();
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  container.style.cssText = 'position:absolute;left:-9999px;top:0;background:#fff;font-family:"Jost",sans-serif;font-size:12px;color:#111;';
+  document.body.appendChild(container);
+  try {
+    const blob = await html2pdf().set({
+      margin: [10, 10, 10, 10],
+      filename: 'credit-memo.pdf',
+      image: { type: 'jpeg', quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
+    }).from(container).outputPdf('blob');
+    const buf = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  } finally {
+    document.body.removeChild(container);
+  }
+}
 
 // ════════════════════════════════════════════
 // MISC

@@ -102,6 +102,7 @@ ${previewSection}
             to: [norm],
             subject: `Approval code — ${requester} is requesting credit`,
             html: htmlBody,
+            ...(body.pdfBase64 ? { attachments: [{ filename: body.pdfFilename || 'Credit Memo.pdf', content: body.pdfBase64 }] } : {}),
           }),
         });
         if (!r.ok) {
