@@ -8,6 +8,8 @@
   "compatibility_flags": ["nodejs_compat"],
   // NetSuite TBA credentials — set as secrets in Cloudflare Pages dashboard:
   //   NS_ACCOUNT_ID, NS_CONSUMER_KEY, NS_CONSUMER_SECRET, NS_TOKEN_ID, NS_TOKEN_SECRET
+  // FedEx REST API credentials — set as secrets in Cloudflare Pages dashboard:
+  //   FEDEX_API_KEY, FEDEX_SECRET_KEY, FEDEX_ACCOUNT_NUMBER
   "vars": {
     "SHOPIFY_STORE": "camera-west.myshopify.com",
     "SHOPIFY_CLIENT_ID": "02c6bebd6c0bfd9e2203127417e17b52",
