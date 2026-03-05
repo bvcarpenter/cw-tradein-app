@@ -634,6 +634,7 @@ const SEARCH_API = '/api/search';
 // ════════════════════════════════════════════
 let selItem = null, selGrade = null, selPT = 'tradein';
 let sessionItems = [], srchT = null, selLoc = '';
+let _loadedSessionKey = null; // tracks the key of the currently loaded session
 let searchResultsCache = [];
 let _nsGrandTotal = 0;  // Stored after NetSuite CM creation (tax-inclusive total)
 
@@ -1798,7 +1799,7 @@ async function saveSession() {
   const data = getSessionData();
   const name = (data.customer.first + ' ' + data.customer.last).trim()
     || 'Session ' + new Date().toLocaleDateString();
-  const key = 'cwti_' + Date.now();
+  const key = _loadedSessionKey || ('cwti_' + Date.now());
   data.name = name;
   data.key = key;
   showToast('Saving…');
@@ -1829,6 +1830,7 @@ async function loadSession(key) {
     }
     if (!data) data = JSON.parse(localStorage.getItem(key));
     if (!data) { alert('Session not found.'); return; }
+    _loadedSessionKey = key;
     restoreSessionData(data);
     showToast('Session loaded.');
   } catch(e) { alert('Failed to load session: ' + e.message); }
@@ -2354,6 +2356,7 @@ async function updTax() {
 function resetSessionForm() {
   sessionItems = []; selItem = null; selGrade = null;
   window._shopifyCustId = '';
+  _loadedSessionKey = null;
   _nsGrandTotal = 0;
   renderCart(); clrItem();
   ['c-first','c-last','c-email','c-phone','cm-num','assoc','tracking-num','final-total','s-str','s-city','s-st','s-zip']
