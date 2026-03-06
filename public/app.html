@@ -1605,6 +1605,7 @@ function buildPrint() {
 
   <div style="border-left:2px solid #d95e00;padding:8px 13px;font-size:10px;color:#777;margin-bottom:20px;line-height:1.8;letter-spacing:0.02em;">
     By signing below, the customer confirms the items above are accurately described, that they are the rightful owner, and authorizes Camera West to process this trade-in or purchase transaction. All values are estimates pending final inspection. All sales and trade-ins are final.
+    ${!lastNsResult?.tranId ? `<br><strong style="color:#555;font-size:10px;">This estimate is valid for 5 days from the date of issue (${dt}).</strong>` : ''}
   </div>
 
   <table width="100%">
