@@ -879,7 +879,7 @@ async function sendOtp() {
     const custName = [document.getElementById('c-first').value.trim(), document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || 'Session';
     const r = await fetch('/api/auth/request', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ action: 'otp-send', email: mgr, requestedBy, summaryHtml, pdfBase64, pdfFilename: custName.replace(/[^a-zA-Z0-9 ]/g,'') + ' - Credit Memo.pdf' })
+      body: JSON.stringify({ action: 'otp-send', email: mgr, requestedBy, summaryHtml, pdfBase64, pdfFilename: custName.replace(/[^a-zA-Z0-9 ]/g,'') + ' - ' + getDocLabel() + ' - ' + new Date().toISOString().split('T')[0] + '.pdf' })
     });
     const text = await r.text();
     let d;
@@ -1779,6 +1779,7 @@ function buildPrint() {
   <div style="border-left:2px solid #d95e00;padding:8px 13px;font-size:10px;color:#777;margin-bottom:20px;line-height:1.8;letter-spacing:.02em;">
     By signing below, the customer confirms the items above are accurately described, that they are the rightful owner, and authorizes Camera West to process this trade-in or purchase transaction. All values are estimates pending final inspection. All sales and trade-ins are final.
     ${cm==='PENDING'?'<br><strong style="color:#d95e00;font-size:10px;">&#9888; Credit Memo Number pending — to be assigned upon finalization in ERP.</strong>':''}
+    ${cm==='PENDING'?`<br><strong style="color:#555;font-size:10px;">This estimate is valid for 5 days from the date of issue (${dt}).</strong>`:''}
   </div>
   <table width="100%"><tr>
     <td style="width:45%;vertical-align:bottom;padding-right:14px;">
@@ -1810,7 +1811,7 @@ async function generateSessionPdfBase64() {
   try {
     const blob = await html2pdf().set({
       margin: [10, 10, 10, 10],
-      filename: 'credit-memo.pdf',
+      filename: ([document.getElementById('c-first').value.trim(), document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || 'Session').replace(/[^a-zA-Z0-9 ]/g,'') + ' - ' + getDocLabel() + ' - ' + new Date().toISOString().split('T')[0] + '.pdf',
       image: { type: 'jpeg', quality: 0.95 },
       html2canvas: { scale: 2, useCORS: true, width: 800, scrollY: 0, windowWidth: 800 },
       jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
