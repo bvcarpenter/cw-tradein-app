@@ -29,7 +29,7 @@
   /* ── Component styles ────────────────────────────────────────────────── */
   #cw-trade-in { font-family: 'Roboto Condensed', sans-serif; color: #111111; -webkit-font-smoothing: antialiased; padding-bottom: 80px; line-height: 1.5; margin: 0 auto; max-width: 100%; }
   #cw-trade-in .cw-hero { padding: 72px 48px 60px; border-bottom: 1px solid #e0ddd8; max-width: 900px; margin: 0 auto; text-align: center; }
-  #cw-trade-in .cw-hero-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; color: #888888; margin-bottom: 20px; }
+  #cw-trade-in .cw-hero-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; color: #888888; margin-bottom: 28px; }
   #cw-trade-in .cw-hero h1 { font-family: 'Palatino Linotype', 'Palatino', 'Book Antiqua', Georgia, serif !important; font-size: clamp(1.6rem, 3vw, 2.4rem) !important; font-weight: 400 !important; line-height: 1.05 !important; color: #111111 !important; margin-bottom: 32px !important; }
   #cw-trade-in .cw-hero-desc { font-size: 16px; color: #444444; line-height: 1.75; max-width: 520px; margin: 0 auto; text-align: center; }
   #cw-trade-in .cw-perks-bar { border-bottom: 1px solid #e0ddd8; display: flex; justify-content: center; max-width: 900px; margin: 0 auto; flex-wrap: wrap; }
@@ -55,6 +55,7 @@
   #cw-trade-in .item-ri:hover { background: #f8f7f5; }
   #cw-trade-in .item-ri-n { font-size: 14px; color: #111111; }
   #cw-trade-in .item-ri-m { font-size: 10px; color: #888888; margin-top: 2px; letter-spacing: 0.04em; }
+  #cw-trade-in .item-ri-mpn { font-size: 10px; color: #666666; margin-top: 2px; letter-spacing: 0.02em; }
   #cw-trade-in .item-ri-p { font-size: 12px; color: #2a7a50; font-weight: 700; flex-shrink: 0; }
   #cw-trade-in .item-no-res { padding: 14px; font-size: 12px; color: #888888; text-align: center; }
   #cw-trade-in .item-picked { display: none; align-items: center; gap: 12px; padding: 10px 14px; background: #f8f7f5; border: 1px solid #e0ddd8; margin-bottom: 20px; }
@@ -344,6 +345,7 @@
   var itemFiles = {};
   var itemSearchTimers = {};
   var itemSearchCache  = {};
+  var itemSearchAbort  = {};
   var root = document.getElementById('cw-trade-in');
 
   function pad(n) { return String(n).padStart(2, '0'); }
@@ -474,12 +476,17 @@
     if (v.length < 2) { el.style.display = 'none'; return; }
     el.innerHTML = '<div class="item-no-res">Searching\u2026</div>';
     el.style.display = 'block';
-    itemSearchTimers[i] = setTimeout(function() { runItemSearch(i, v); }, 300);
+    itemSearchTimers[i] = setTimeout(function() { runItemSearch(i, v); }, 280);
   };
 
   function runItemSearch(i, q) {
     var el = document.getElementById('cwisres-' + i);
-    fetch(SEARCH_API_URL + '?q=' + encodeURIComponent(q) + '&limit=12')
+
+    // Cancel any previous in-flight request for this item
+    if (itemSearchAbort[i]) itemSearchAbort[i].abort();
+    itemSearchAbort[i] = new AbortController();
+
+    fetch(SEARCH_API_URL + '?q=' + encodeURIComponent(q) + '&limit=20', { signal: itemSearchAbort[i].signal })
       .then(function(res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
       .then(function(data) {
         var products = data.products || [];
@@ -488,16 +495,20 @@
           el.innerHTML = '<div class="item-no-res">No results \u2014 type in Make &amp; Model manually below</div>';
         } else {
           el.innerHTML = products.map(function(p, idx) {
-            var meta = [p.it, p.m, p.fmt].filter(Boolean).join(' \u00b7 ');
+            var pr = p.p ? '$' + p.p.toLocaleString('en-US', {minimumFractionDigits: 0}) : '';
+            var meta = [p.si, p.it, p.m].filter(Boolean).join(' \u00b7 ');
             var name = p.n.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            var mpn = (p.sku||'').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             return '<div class="item-ri" onclick="cwPickItemResult(' + i + ',' + idx + ')">'
-              + '<div><div class="item-ri-n">' + name + '</div><div class="item-ri-m">' + meta + '</div></div>'
+              + '<div><div class="item-ri-n">' + name + '</div>' + (mpn ? '<div class="item-ri-mpn">MPN: ' + mpn + '</div>' : '') + '<div class="item-ri-m">' + meta + '</div></div>'
+              + (pr ? '<div class="item-ri-p">' + pr + '</div>' : '')
               + '</div>';
           }).join('');
         }
         el.style.display = 'block';
       })
-      .catch(function() {
+      .catch(function(e) {
+        if (e.name === 'AbortError') return;
         el.innerHTML = '<div class="item-no-res">Search unavailable \u2014 enter details manually below</div>';
         el.style.display = 'block';
       });
