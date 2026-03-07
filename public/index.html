@@ -315,7 +315,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
         <span id="shopify-cust-msg" style="font-size:10px;color:var(--dim);margin-left:8px;"></span>
       </div>
       <label style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:12px;color:var(--dim);cursor:pointer;">
-        <input type="checkbox" id="c-marketing" style="accent-color:var(--accent);width:15px;height:15px;cursor:pointer;">
+        <input type="checkbox" id="c-marketing" checked style="accent-color:var(--accent);width:15px;height:15px;cursor:pointer;">
         Accepts marketing communications
       </label>
       <span class="sl">Preferred Location *</span>
@@ -2592,7 +2592,7 @@ function resetSessionForm() {
   renderCart(); clrItem();
   ['c-first','c-last','c-email','c-phone','cm-num','assoc','tracking-num','final-total','s-str','s-city','s-st','s-zip']
     .forEach(id => document.getElementById(id).value = '');
-  document.getElementById('c-marketing').checked = false;
+  document.getElementById('c-marketing').checked = true;
   document.querySelectorAll('.loc').forEach(b => b.classList.remove('on'));
   selLoc = '';
   document.getElementById('ship-box').classList.remove('vis');
