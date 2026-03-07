@@ -1827,8 +1827,9 @@ async function loadSessions() {
     const res = await fetch('/api/sessions');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     sessionsCache = await res.json();
-    // Sort newest first
-    sessionsCache.sort((a, b) => (b.data?.savedAt || '').localeCompare(a.data?.savedAt || ''));
+    // Sort newest first — use savedAt, fall back to timestamp embedded in key (cwti_<epoch>)
+    const ts = s => s.data?.savedAt || (s.key?.startsWith('cwti_') ? new Date(Number(s.key.slice(5))).toISOString() : '');
+    sessionsCache.sort((a, b) => ts(b).localeCompare(ts(a)));
     renderSessions();
   } catch (err) {
     el.innerHTML = `<div class="sess-empty" style="color:#e07070;">Failed to load: ${err.message}</div>`;
