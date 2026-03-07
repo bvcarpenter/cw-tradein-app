@@ -1941,7 +1941,7 @@ async function emailEstimateToCustomer() {
     showToast('Email sent to ' + email + ' ✓');
   } catch (err) {
     console.error('Email estimate error:', err);
-    alert('Failed to send email: ' + err.message);
+    alert('Email failed: ' + err.message);
   } finally {
     btn.disabled = false;
     btn.textContent = origText;
