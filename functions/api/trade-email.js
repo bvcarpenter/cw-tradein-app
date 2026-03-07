@@ -240,7 +240,8 @@ async function sendViaResend(env, { from, to, cc, replyTo, subject, html }) {
     const errText = await r.text().catch(() => '');
     throw new Error(`Resend API error ${r.status}: ${errText}`);
   }
-  return r.json();
+  const text = await r.text();
+  return text ? JSON.parse(text) : { ok: true };
 }
 
 /* ── Main handler ────────────────────────────────────────────── */

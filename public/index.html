@@ -1934,7 +1934,8 @@ async function emailEstimateToCustomer() {
       body: JSON.stringify(payload),
     });
 
-    const data = await res.json();
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : {};
     if (!res.ok) throw new Error(data.error || 'Failed to send email');
 
     showToast('Email sent to ' + email + ' ✓');
