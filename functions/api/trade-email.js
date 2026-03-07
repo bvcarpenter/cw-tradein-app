@@ -267,23 +267,14 @@ export async function onRequestPost({ request, env }) {
     const fromName = 'Camera West';
     const subject = `Trade-In Request — ${firstName} ${lastName} — ${location || 'No location'}`;
 
-    // 1. Send internal notification to team
-    const internalHtml = buildEmailHtml({ firstName, lastName, email, phone, intention, location, gear_summary, notes, items, isCustomerCopy: false });
+    // Send notification to both support and customer
+    const emailHtml = buildEmailHtml({ firstName, lastName, email, phone, intention, location, gear_summary, notes, items, isCustomerCopy: true });
     await sendViaResend(env, {
       from: `${fromName} <${fromEmail}>`,
-      to: TEAM_RECIPIENTS,
+      to: [...TEAM_RECIPIENTS, email],
       replyTo: email,
       subject,
-      html: internalHtml,
-    });
-
-    // 2. Send confirmation to customer
-    const customerHtml = buildEmailHtml({ firstName, lastName, email, phone, intention, location, gear_summary, notes, items, isCustomerCopy: true });
-    await sendViaResend(env, {
-      from: `${fromName} <${fromEmail}>`,
-      to: email,
-      subject: `We received your trade-in request — Camera West`,
-      html: customerHtml,
+      html: emailHtml,
     });
 
     return json({ ok: true });
