@@ -1822,26 +1822,19 @@ function buildPrint() {
 
 async function generateSessionPdfBase64() {
   const html = buildPrint();
-  const container = document.createElement('div');
-  container.innerHTML = html;
-  container.style.cssText = 'position:fixed;left:0;top:0;width:800px;background:#fff;font-family:"Jost",sans-serif;font-size:12px;color:#111;z-index:-9999;pointer-events:none;overflow:hidden;';
-  document.body.appendChild(container);
-  // Wait for fonts + layout to settle before capture
+  // Wrap in a styled container div so html2pdf renders with correct fonts/sizing
+  const wrappedHtml = `<div style="width:800px;background:#fff;font-family:'Jost',sans-serif;font-size:12px;color:#111;">${html}</div>`;
   await document.fonts.ready;
-  await new Promise(r => setTimeout(r, 300));
-  try {
-    const dataUri = await html2pdf().set({
-      margin: [10, 10, 10, 10],
-      filename: ([document.getElementById('c-first').value.trim(), document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || 'Session').replace(/[^a-zA-Z0-9 ]/g,'') + ' - ' + getDocLabel() + ' - ' + new Date().toISOString().split('T')[0] + '.pdf',
-      image: { type: 'jpeg', quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true, width: 800, scrollY: 0, windowWidth: 800 },
-      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
-    }).from(container).outputPdf('datauristring');
-    // dataUri is "data:application/pdf;filename=...;base64,<b64>"
-    return dataUri.split('base64,')[1];
-  } finally {
-    document.body.removeChild(container);
-  }
+  const custName = [document.getElementById('c-first').value.trim(), document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || 'Session';
+  const dataUri = await html2pdf().set({
+    margin: [10, 10, 10, 10],
+    filename: custName.replace(/[^a-zA-Z0-9 ]/g,'') + ' - ' + getDocLabel() + ' - ' + new Date().toISOString().split('T')[0] + '.pdf',
+    image: { type: 'jpeg', quality: 0.95 },
+    html2canvas: { scale: 2, useCORS: true, width: 800, scrollY: 0, windowWidth: 800 },
+    jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
+  }).from(wrappedHtml, 'string').outputPdf('datauristring');
+  // dataUri is "data:application/pdf;filename=...;base64,<b64>"
+  return dataUri.split('base64,')[1];
 }
 
 // ════════════════════════════════════════════
