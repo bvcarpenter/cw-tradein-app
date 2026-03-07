@@ -247,8 +247,7 @@ async function sendViaResend(env, { from, to, cc, replyTo, subject, html }) {
 
 // Team recipients for internal notification
 const TEAM_RECIPIENTS = [
-  'sean@camerawest.com',
-  'ben@camerawest.com',
+  'support@camerawest.com',
 ];
 
 export async function onRequestPost({ request, env }) {
