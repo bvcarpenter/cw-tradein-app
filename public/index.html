@@ -1691,11 +1691,11 @@ async function openPrint() {
 function closeMo() { document.getElementById('mo').classList.remove('open'); }
 function doPrint() {
   const printTitle = 'Camera West — ' + getDocLabel();
-  const w = window.open('','_blank','width=820,height=720');
+  const w = window.open('','_blank','width=720,height=720');
   w.document.write(`<!DOCTYPE html><html><head>
   <title>${printTitle}</title><meta charset="UTF-8">
   <link href="https://fonts.googleapis.com/css2?family=&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <style>body{font-family:'Jost',sans-serif;color:#111;margin:0;padding:0;font-size:12px;font-weight:300;-webkit-font-smoothing:antialiased;}@page{margin:18mm 14mm;}</style>
+  <style>body{font-family:'Jost',sans-serif;color:#111;margin:0;padding:0;font-size:12px;font-weight:300;-webkit-font-smoothing:antialiased;}@page{margin:14mm 12mm;}</style>
   </head><body>${buildPrint()}</body></html>`);
   w.document.close(); w.focus();
   setTimeout(()=>{ w.print(); w.close(); }, 750);
@@ -1736,18 +1736,18 @@ function buildPrint() {
     const nt = it.notes ? `<br><span style="color:#999;font-size:10px;font-style:italic;">${esc(it.notes)}</span>` : '';
     const sn = [it.serial?`S/N: ${it.serial}`:'', it.catalog?`Cat: ${it.catalog}`:''].filter(Boolean).join(' · ');
     return `<tr>
-      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;vertical-align:top;line-height:1.45;">
+      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;vertical-align:top;line-height:1.45;overflow:hidden;word-wrap:break-word;">
         <strong style="font-weight:500;">${esc(it.name)}${it.serial?' '+esc(it.serial):''}</strong>${ac}${nt}
         ${sn?`<br><span style="color:#aaa;font-size:10px;">${sn}</span>`:''}
       </td>
-      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:center;white-space:nowrap;vertical-align:top;">${it.systemId||'—'}</td>
+      <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:center;vertical-align:top;overflow:hidden;font-size:10px;">${it.systemId||'—'}</td>
       <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:center;font-weight:500;vertical-align:top;">${it.grade}</td>
       <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:right;color:#2a7a4a;vertical-align:top;">${ff(it.tradein)}</td>
       <td style="padding:9px 7px;border-bottom:1px solid #e8e8e8;text-align:right;font-weight:500;vertical-align:top;">${ff(it.net)}${(it.svcCharge||0)>0?`<br><span style="font-size:9px;color:#c44;font-weight:400;">&#8722;${ff(it.svcCharge)} svc${it.svcReason?' ('+it.svcReason+')':''}</span>`:''}</td>
     </tr>`;
   }).join('');
 
-  return `<div style="max-width:760px;margin:0 auto;padding:22px 18px;font-family:'Jost',sans-serif;color:#111;">
+  return `<div style="max-width:680px;margin:0 auto;padding:22px 12px;font-family:'Jost',sans-serif;color:#111;">
   <table width="100%" style="margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #111;"><tr>
     <td style="vertical-align:top;">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 75" style="height:32px;width:auto;display:block;"><g><path d="M27.4,43c-.2,3.6-1.2,6.3-3.1,8.2s-4.5,2.8-7.9,2.8-6.3-1.2-8.3-3.5c-1.9-2.4-2.9-5.7-2.9-10.1v-5.3c0-4.4,1-7.7,3-10.1,2-2.4,4.7-3.5,8.2-3.5s6.1,1,7.9,2.9,2.8,4.7,3.1,8.3h-6.4c0-2.2-.4-3.8-1-4.6-.6-.8-1.8-1.3-3.5-1.3s-2.9.6-3.6,1.8c-.7,1.2-1.1,3.2-1.1,5.9v6c0,3.2.4,5.3,1.1,6.5.7,1.2,1.9,1.8,3.6,1.8s2.8-.4,3.5-1.2c.6-.8,1-2.3,1.1-4.5h6.4-.1Z"/><path d="M49.8,47.1h-8.7l-1.7,6.5h-6.8l9.9-31.7h5.9l10,31.7h-6.8l-1.7-6.5h0ZM42.5,41.8h5.9l-3-11.3-3,11.3h0Z"/><path d="M73,21.9l6,22.9,6-22.9h8.4v31.7h-6.4v-8.6l.6-13.2-6.3,21.8h-4.4l-6.3-21.8.6,13.2v8.6h-6.4v-31.7h8.4-.2Z"/><path d="M118.2,39.9h-10v8.4h11.8v5.3h-18.2v-31.7h18.2v5.3h-11.8v7.5h10v5.2Z"/><path d="M136.6,42h-3.2v11.6h-6.4v-31.7h10.2c3.2,0,5.7.8,7.4,2.5,1.8,1.7,2.6,4,2.6,7.1s-1.5,7.2-4.6,8.9l5.5,13v.3h-6.9l-4.8-11.6h.2ZM133.4,36.7h3.6c1.3,0,2.2-.4,2.9-1.3.6-.8,1-2,1-3.4,0-3.2-1.2-4.8-3.7-4.8h-3.7v9.4h-.1Z"/><path d="M170.2,47.1h-8.7l-1.7,6.5h-6.8l9.9-31.7h5.9l10,31.7h-6.8l-1.7-6.5h0ZM162.8,41.8h5.9l-3-11.3-3,11.3h.1Z"/><path d="M205.6,41.8l3-19.9h6.3l-5.6,31.7h-6.4l-3.7-18.7-3.7,18.7h-6.4l-5.7-31.7h6.4l3,19.9,3.7-19.9h5.4s3.7,19.9,3.7,19.9Z"/><path d="M238.1,39.9h-10v8.4h11.8v5.3h-18.2v-31.7h18.2v5.3h-11.8v7.5h10v5.2Z"/><path d="M260.3,45.3c0-1.3-.3-2.3-1-2.9-.7-.7-1.9-1.4-3.6-2.1-3.2-1.2-5.5-2.6-6.9-4.2s-2.1-3.5-2.1-5.8.9-4.8,2.8-6.4c1.9-1.6,4.3-2.4,7.2-2.4s3.7.4,5.2,1.2,2.7,2,3.5,3.5,1.2,3.2,1.2,5.1h-6.4c0-1.5-.3-2.6-1-3.4-.6-.8-1.5-1.2-2.7-1.2s-2,.3-2.6,1-.9,1.5-.9,2.6.3,1.7,1,2.4c.7.7,1.9,1.4,3.7,2.2,3.1,1.1,5.3,2.5,6.7,4.1,1.4,1.6,2.1,3.7,2.1,6.2s-.9,4.9-2.6,6.5c-1.8,1.6-4.1,2.3-7.1,2.3s-3.9-.4-5.6-1.3c-1.7-.8-3-2.1-4-3.6-.9-1.6-1.4-3.4-1.4-5.6h6.4c0,1.8.4,3.2,1.1,4,.7.8,1.9,1.2,3.5,1.2s3.4-1.2,3.4-3.5h0Z"/><path d="M294.9,27.2h-7.9v26.4h-6.4v-26.4h-7.7v-5.3h22v5.3Z"/></g></svg>
@@ -1775,7 +1775,8 @@ function buildPrint() {
       <div style="font-size:10px;color:#555;line-height:1.8;">Pre-Owned Trade-In<br>${sessionItems.length} item${sessionItems.length!==1?'s':''}</div>
     </td>
   </tr></table>
-  <table width="100%" style="border-collapse:collapse;margin-bottom:12px;">
+  <table width="100%" style="border-collapse:collapse;margin-bottom:12px;table-layout:fixed;">
+    <colgroup><col style="width:40%"><col style="width:14%"><col style="width:10%"><col style="width:18%"><col style="width:18%"></colgroup>
     <thead><tr style="background:#0e0e0e;color:#f5f5f0;">
       <th style="padding:8px 7px;text-align:left;font-size:8px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;">Description</th>
       <th style="padding:8px 7px;text-align:center;font-size:8px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;">System</th>
@@ -1823,14 +1824,14 @@ function buildPrint() {
 async function generateSessionPdfBase64() {
   const html = buildPrint();
   // Wrap in a styled container div so html2pdf renders with correct fonts/sizing
-  const wrappedHtml = `<div style="width:800px;background:#fff;font-family:'Jost',sans-serif;font-size:12px;color:#111;">${html}</div>`;
+  const wrappedHtml = `<div style="width:700px;background:#fff;font-family:'Jost',sans-serif;font-size:12px;color:#111;">${html}</div>`;
   await document.fonts.ready;
   const custName = [document.getElementById('c-first').value.trim(), document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || 'Session';
   const dataUri = await html2pdf().set({
-    margin: [10, 10, 10, 10],
+    margin: [12, 12, 12, 12],
     filename: custName.replace(/[^a-zA-Z0-9 ]/g,'') + ' - ' + getDocLabel() + ' - ' + new Date().toISOString().split('T')[0] + '.pdf',
     image: { type: 'jpeg', quality: 0.95 },
-    html2canvas: { scale: 2, useCORS: true, width: 800, scrollY: 0, windowWidth: 800 },
+    html2canvas: { scale: 2, useCORS: true, width: 700, scrollY: 0, windowWidth: 700 },
     jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
   }).from(wrappedHtml, 'string').outputPdf('datauristring');
   // dataUri is "data:application/pdf;filename=...;base64,<b64>"
@@ -1857,6 +1858,25 @@ async function emailEstimateToCustomer() {
   btn.textContent = 'Generating PDF…';
 
   try {
+    // Auto-fetch FedEx label if shipping and not yet generated
+    if (selLoc === 'shipping' && !cachedFedExLabel) {
+      btn.textContent = 'Generating FedEx label…';
+      try {
+        cachedFedExLabel = await fetchFedExLabel();
+        // Update tracking field
+        const trkEl = document.getElementById('tracking-num');
+        if (trkEl && cachedFedExLabel.trackingNumber) {
+          trkEl.value = cachedFedExLabel.trackingNumber;
+          document.getElementById('tracking-num-row').style.display = '';
+        }
+        const plBtn = document.getElementById('print-label-btn');
+        if (plBtn) plBtn.style.display = '';
+      } catch (labelErr) {
+        console.warn('FedEx label generation failed (will send without):', labelErr.message);
+      }
+      btn.textContent = 'Generating PDF…';
+    }
+
     // Generate the estimate PDF
     const pdfBase64 = await generateSessionPdfBase64();
 

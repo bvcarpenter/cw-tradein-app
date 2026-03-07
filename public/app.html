@@ -1493,13 +1493,13 @@ async function openPrint() {
 function closeMo() { document.getElementById('mo').classList.remove('open'); }
 function doPrint() {
   const printTitle = 'Camera West — ' + getDocLabel();
-  const w = window.open('','_blank','width=820,height=720');
+  const w = window.open('','_blank','width=720,height=720');
   w.document.write(`<!DOCTYPE html><html><head>
   <title>${printTitle}</title><meta charset="UTF-8">
   <style>
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap');
   body{font-family:'Jost',sans-serif;color:#111;margin:0;padding:0;font-size:12px;font-weight:300;-webkit-font-smoothing:antialiased;}
-  @page{margin:18mm 14mm;}
+  @page{margin:14mm 12mm;}
   </style></head><body>${buildPrint()}</body></html>`);
   w.document.close(); w.focus();
   setTimeout(() => { w.print(); w.close(); }, 750);
@@ -1552,7 +1552,7 @@ function buildPrint() {
   const grandTotal = lastNsResult ? (parseFloat(lastNsResult.grandTotal) || totNet) : null;
   const tax = grandTotal !== null ? grandTotal - totNet : null;
 
-  return `<div style="max-width:760px;margin:0 auto;padding:22px 18px;font-family:'Jost',sans-serif;color:#111;">
+  return `<div style="max-width:680px;margin:0 auto;padding:22px 12px;font-family:'Jost',sans-serif;color:#111;">
 
   <table width="100%" style="margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #111;">
     <tr>
@@ -1590,7 +1590,8 @@ function buildPrint() {
     </tr>
   </table>
 
-  <table width="100%" style="border-collapse:collapse;margin-bottom:12px;">
+  <table width="100%" style="border-collapse:collapse;margin-bottom:12px;table-layout:fixed;">
+    <colgroup><col style="width:34%"><col style="width:12%"><col style="width:9%"><col style="width:15%"><col style="width:15%"><col style="width:15%"></colgroup>
     <thead>
       <tr style="background:#0e0e0e;color:#f5f5f0;">
         <th style="padding:8px 7px;text-align:left;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:500;">Description</th>
@@ -1659,14 +1660,14 @@ function buildPrint() {
 async function generateSessionPdfBase64() {
   const html = buildPrint();
   // Wrap in a styled container div so html2pdf renders with correct fonts/sizing
-  const wrappedHtml = `<div style="width:800px;background:#fff;font-family:'Jost',sans-serif;font-size:12px;color:#111;">${html}</div>`;
+  const wrappedHtml = `<div style="width:700px;background:#fff;font-family:'Jost',sans-serif;font-size:12px;color:#111;">${html}</div>`;
   await document.fonts.ready;
   const custName = [document.getElementById('c-first').value.trim(), document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || 'Session';
   const dataUri = await html2pdf().set({
-    margin: [10, 10, 10, 10],
+    margin: [12, 12, 12, 12],
     filename: custName.replace(/[^a-zA-Z0-9 ]/g,'') + ' - ' + getDocLabel() + ' - ' + new Date().toISOString().split('T')[0] + '.pdf',
     image: { type: 'jpeg', quality: 0.95 },
-    html2canvas: { scale: 2, useCORS: true, width: 800, scrollY: 0, windowWidth: 800 },
+    html2canvas: { scale: 2, useCORS: true, width: 700, scrollY: 0, windowWidth: 700 },
     jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
   }).from(wrappedHtml, 'string').outputPdf('datauristring');
   // dataUri is "data:application/pdf;filename=...;base64,<b64>"
