@@ -1007,7 +1007,7 @@ async function runSearch(q) {
         } else if (p.grade) {
           badge = `<div class="ri-g" style="color:${gradeColor(p.grade).c};background:${gradeColor(p.grade).bg};border-color:${gradeColor(p.grade).bd}">${esc(p.grade)}</div>`;
         }
-        const mpn = p.sku || '';
+        const mpn = p.src === 'brand' ? (p.sku || '') : '';
         return `<div class="ri" onclick="pickResult(${i})">
           <div style="flex:1;min-width:0;">
             <div class="ri-n">${esc(p.n)}</div>${mpn ? `<div class="ri-mpn">MPN: ${esc(mpn)}</div>` : ''}

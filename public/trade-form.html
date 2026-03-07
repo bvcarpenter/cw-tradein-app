@@ -516,7 +516,7 @@ async function runItemSearch(i, q) {
       el.innerHTML = products.map(function(p, idx) {
         var meta = [p.si, p.it, p.m].filter(Boolean).join(' \u00b7 ');
         var name = p.n.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        var mpn = (p.sku||'').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        var mpn = p.src === 'brand' ? (p.sku||'').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
         return '<div class="item-ri" onclick="pickItemResult(' + i + ',' + idx + ')">'
           + '<div><div class="item-ri-n">' + name + '</div>' + (mpn ? '<div class="item-ri-mpn">MPN: ' + mpn + '</div>' : '') + '<div class="item-ri-m">' + meta + '</div></div>'
           + (pr ? '<div class="item-ri-p">' + pr + '</div>' : '')

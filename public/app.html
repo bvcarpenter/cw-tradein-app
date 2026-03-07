@@ -1065,7 +1065,7 @@ async function runSearch(q) {
         const pr = p.p ? '$'+p.p.toLocaleString('en-US',{minimumFractionDigits:0}) : '';
         const meta = [p.si, p.it, p.m].filter(Boolean).join(' · ');
         const name = p.n.replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        const mpn = (p.sku||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const mpn = p.src === 'brand' ? (p.sku||'').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
         return `<div class="ri" onclick="pickResult(${i})">
           <div><div class="ri-n">${name}</div>${mpn ? `<div class="ri-mpn">MPN: ${mpn}</div>` : ''}<div class="ri-m">${meta}</div></div>
           ${pr ? `<div class="ri-p">${pr}</div>` : ''}
