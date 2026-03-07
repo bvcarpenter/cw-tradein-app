@@ -12,7 +12,9 @@ import { onRequestPost as customerMarketingPost, onRequestOptions as customerMar
 import { onRequestPost as tradeEmailPost, onRequestOptions as tradeEmailOptions } from '../functions/api/trade-email.js';
 import { onRequestPost as storeCreditPost, onRequestOptions as storeCreditOptions } from '../functions/api/store-credit.js';
 import { onRequestPost as creditMemoPost, onRequestOptions as creditMemoOptions } from '../functions/api/netsuite-credit-memo.js';
+import { onRequestPost as estimateEmailPost, onRequestOptions as estimateEmailOptions } from '../functions/api/estimate-email.js';
 import { onRequestPost as fedexLabelPost, onRequestOptions as fedexLabelOptions } from '../functions/api/fedex-label.js';
+import { onRequestPost as fedexTrackPost, onRequestOptions as fedexTrackOptions } from '../functions/api/fedex-track.js';
 import { onRequestPost as approveOtpPost, onRequestOptions as approveOtpOptions } from '../functions/api/approve-otp.js';
 import { onRequestPost as authRequestPost, onRequestOptions as authRequestOptions } from '../functions/api/auth/request.js';
 import { onRequestGet as authSessionGet, onRequestPost as authSessionPost } from '../functions/api/auth/session.js';
@@ -63,6 +65,11 @@ export default {
       if (method === 'POST')    return tradeEmailPost(c);
     }
 
+    if (path === '/api/estimate-email') {
+      if (method === 'OPTIONS') return estimateEmailOptions(c);
+      if (method === 'POST')    return estimateEmailPost(c);
+    }
+
     if (path === '/api/customer-marketing') {
       if (method === 'OPTIONS') return customerMarketingOptions(c);
       if (method === 'POST')    return customerMarketingPost(c);
@@ -81,6 +88,11 @@ export default {
     if (path === '/api/fedex-label') {
       if (method === 'OPTIONS') return fedexLabelOptions(c);
       if (method === 'POST')    return fedexLabelPost(c);
+    }
+
+    if (path === '/api/fedex-track') {
+      if (method === 'OPTIONS') return fedexTrackOptions(c);
+      if (method === 'POST')    return fedexTrackPost(c);
     }
 
     if (path === '/api/approve-otp') {
