@@ -31,7 +31,7 @@
     padding-bottom: 100px;
   }
   .hero { padding: 72px 48px 60px; border-bottom: 1px solid var(--border); max-width: 900px; margin: 0 auto; text-align: center; }
-  .hero-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 20px; }
+  .hero-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 28px; }
   .hero h1 { font-family: 'Palatino Linotype', 'Palatino', 'Book Antiqua', Georgia, serif; font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 400; line-height: 1.05; color: var(--ink); margin-bottom: 32px; }
   .hero-desc { font-size: 16px; color: var(--ink-mid); line-height: 1.75; max-width: 520px; margin: 0 auto; text-align: center; }
   .perks-bar { border-bottom: 1px solid var(--border); display: flex; justify-content: center; max-width: 900px; margin: 0 auto; flex-wrap: wrap; }
@@ -65,6 +65,7 @@
   .item-ri:hover { background: var(--bg-soft); }
   .item-ri-n { font-size: 14px; color: var(--ink); }
   .item-ri-m { font-size: 10px; color: var(--ink-muted); margin-top: 2px; letter-spacing: 0.04em; }
+  .item-ri-mpn { font-size: 10px; color: var(--ink-mid); margin-top: 2px; letter-spacing: 0.02em; }
   .item-ri-p { font-size: 12px; color: var(--green); font-weight: 700; flex-shrink: 0; }
   .item-no-res { padding: 14px; font-size: 12px; color: var(--ink-muted); text-align: center; }
   .item-picked { display: none; align-items: center; gap: 12px; padding: 10px 14px; background: var(--bg-soft); border: 1px solid var(--border); margin-bottom: 20px; }
@@ -485,6 +486,7 @@ const SEARCH_API_URL = (window.location.hostname.includes('pages.dev') || window
 
 const itemSearchTimers = {};
 const itemSearchCache  = {};
+const itemSearchAbort  = {};
 
 function itemSearch(i, v) {
   clearTimeout(itemSearchTimers[i]);
@@ -492,13 +494,18 @@ function itemSearch(i, v) {
   if (v.length < 2) { el.style.display = 'none'; return; }
   el.innerHTML = '<div class="item-no-res">Searching\u2026</div>';
   el.style.display = 'block';
-  itemSearchTimers[i] = setTimeout(() => runItemSearch(i, v), 300);
+  itemSearchTimers[i] = setTimeout(() => runItemSearch(i, v), 280);
 }
 
 async function runItemSearch(i, q) {
   const el = document.getElementById('isres-' + i);
+
+  // Cancel any previous in-flight request for this item
+  if (itemSearchAbort[i]) itemSearchAbort[i].abort();
+  itemSearchAbort[i] = new AbortController();
+
   try {
-    const res = await fetch(SEARCH_API_URL + '?q=' + encodeURIComponent(q) + '&limit=12');
+    const res = await fetch(SEARCH_API_URL + '?q=' + encodeURIComponent(q) + '&limit=20', { signal: itemSearchAbort[i].signal });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     const products = data.products || [];
@@ -507,16 +514,18 @@ async function runItemSearch(i, q) {
       el.innerHTML = '<div class="item-no-res">No results \u2014 type in Make &amp; Model manually below</div>';
     } else {
       el.innerHTML = products.map(function(p, idx) {
-        var pr = p.p ? '$' + p.p.toLocaleString('en-US', {minimumFractionDigits: 0}) : '';
-        var meta = [p.v, p.si, p.it].filter(Boolean).join(' \u00b7 ');
+        var meta = [p.si, p.it, p.m].filter(Boolean).join(' \u00b7 ');
         var name = p.n.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        var mpn = (p.sku||'').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         return '<div class="item-ri" onclick="pickItemResult(' + i + ',' + idx + ')">'
-          + '<div><div class="item-ri-n">' + name + '</div><div class="item-ri-m">' + meta + '</div></div>'
+          + '<div><div class="item-ri-n">' + name + '</div>' + (mpn ? '<div class="item-ri-mpn">MPN: ' + mpn + '</div>' : '') + '<div class="item-ri-m">' + meta + '</div></div>'
+          + (pr ? '<div class="item-ri-p">' + pr + '</div>' : '')
           + '</div>';
       }).join('');
     }
     el.style.display = 'block';
   } catch (e) {
+    if (e.name === 'AbortError') return;
     el.innerHTML = '<div class="item-no-res">Search unavailable \u2014 enter details manually below</div>';
     el.style.display = 'block';
   }
