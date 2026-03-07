@@ -1824,24 +1824,16 @@ function buildPrint() {
 async function generateSessionPdfBase64() {
   const html = buildPrint();
   await document.fonts.ready;
-  // Create a temporary off-screen element so page flex/grid layout doesn't shift it
-  const el = document.createElement('div');
-  el.style.cssText = 'position:fixed;left:0;top:0;width:700px;background:#fff;font-family:"Jost",sans-serif;font-size:12px;color:#111;z-index:-9999;';
-  el.innerHTML = html;
-  document.body.appendChild(el);
+  const wrappedHtml = `<div style="width:660px;padding:0 20px;background:#fff;font-family:'Jost',sans-serif;font-size:12px;color:#111;">${html}</div>`;
   const custName = [document.getElementById('c-first').value.trim(), document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || 'Session';
-  try {
-    const dataUri = await html2pdf().set({
-      margin: [12, 12, 12, 12],
-      filename: custName.replace(/[^a-zA-Z0-9 ]/g,'') + ' - ' + getDocLabel() + ' - ' + new Date().toISOString().split('T')[0] + '.pdf',
-      image: { type: 'jpeg', quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true, width: 700, scrollY: 0, windowWidth: 700 },
-      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
-    }).from(el).outputPdf('datauristring');
-    return dataUri.split('base64,')[1];
-  } finally {
-    document.body.removeChild(el);
-  }
+  const dataUri = await html2pdf().set({
+    margin: [12, 12, 12, 12],
+    filename: custName.replace(/[^a-zA-Z0-9 ]/g,'') + ' - ' + getDocLabel() + ' - ' + new Date().toISOString().split('T')[0] + '.pdf',
+    image: { type: 'jpeg', quality: 0.95 },
+    html2canvas: { scale: 2, useCORS: true, width: 700, scrollY: 0, windowWidth: 700 },
+    jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
+  }).from(wrappedHtml, 'string').outputPdf('datauristring');
+  return dataUri.split('base64,')[1];
 }
 
 // ════════════════════════════════════════════
