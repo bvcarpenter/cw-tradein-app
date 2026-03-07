@@ -12,6 +12,13 @@
   iframe.setAttribute('title', 'Camera West Trade-In / Sell');
   root.appendChild(iframe);
 
+  // Once iframe is ready, pass Shopify customer data if available
+  if (window.__cwCustomer) {
+    iframe.addEventListener('load', function() {
+      iframe.contentWindow.postMessage({ cwCustomer: window.__cwCustomer }, '*');
+    });
+  }
+
   // Auto-resize: the embed posts its scrollHeight via postMessage
   window.addEventListener('message', function(e) {
     if (e.data && e.data.cwTradeInHeight) {
