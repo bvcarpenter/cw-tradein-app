@@ -280,7 +280,7 @@ export async function onRequestPost({ request, env }) {
 
     return json({ ok: true });
   } catch (err) {
-    console.error('trade-email error:', err);
-    return json({ error: err.message || 'Failed to send email' }, 500);
+    console.error('trade-email error:', err, err?.stack);
+    return json({ error: `Email error: ${err.message || String(err)}` }, 500);
   }
 }

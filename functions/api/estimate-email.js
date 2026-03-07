@@ -252,21 +252,29 @@ export async function onRequestPost({ request, env }) {
     }
 
     // Send via Resend
-    const r = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: `Camera West <${fromEmail}>`,
-        to: [customer.email],
-        reply_to: 'support@camerawest.com',
-        subject,
-        html,
-        attachments,
-      }),
-    });
+    const resendPayload = {
+      from: `Camera West <${fromEmail}>`,
+      to: [customer.email],
+      reply_to: 'support@camerawest.com',
+      subject,
+      html,
+      attachments,
+    };
+
+    let r;
+    try {
+      r = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+        },
+        body: JSON.stringify(resendPayload),
+      });
+    } catch (fetchErr) {
+      console.error('Resend fetch failed:', fetchErr);
+      return json({ error: `Resend request failed: ${fetchErr.message || 'network error'}` }, 502);
+    }
 
     if (!r.ok) {
       const errText = await r.text().catch(() => '');
@@ -278,7 +286,7 @@ export async function onRequestPost({ request, env }) {
     const result = text ? JSON.parse(text) : {};
     return json({ ok: true, id: result.id });
   } catch (err) {
-    console.error('estimate-email error:', err);
-    return json({ error: err.message || 'Failed to send email' }, 500);
+    console.error('estimate-email error:', err, err?.stack);
+    return json({ error: `Email error: ${err.message || String(err)}` }, 500);
   }
 }
