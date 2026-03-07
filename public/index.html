@@ -509,6 +509,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
       <div class="exp-acts">
         <button class="btn btn-g" onclick="exportXLSX()">Export NetSuite XLSX</button>
         <button class="btn btn-a" id="print-btn" onclick="openPrint()">Print Credit Memo</button>
+        <button class="btn" id="email-cust-btn" onclick="emailEstimateToCustomer()" style="background:#1a3a5a;color:#7ab8e0;border:1px solid #2a5a8a;">Email to Customer</button>
         <button class="btn" id="sc-btn" onclick="issueStoreCredit()" style="background:#2a6e3f;color:#fff;border:1px solid #2a6e3f;">Issue Store Credit</button>
         <button class="btn" id="cm-only-btn" onclick="issueCmOnly()" style="background:#1a2a4a;color:#7090d0;border:1px solid #3a4a7a;">Issue CM Only</button>
         <button class="btn btn-r" onclick="clrSession()">Clear Session</button>
@@ -1842,6 +1843,107 @@ async function generateSessionPdfBase64() {
     return btoa(binary);
   } finally {
     document.body.removeChild(container);
+  }
+}
+
+// ════════════════════════════════════════════
+// EMAIL ESTIMATE TO CUSTOMER
+// ════════════════════════════════════════════
+async function emailEstimateToCustomer() {
+  const email = document.getElementById('c-email').value.trim();
+  if (!email) { alert('Customer email is required to send the estimate.'); return; }
+  if (!sessionItems.length) { alert('No items in the session.'); return; }
+
+  const custFirst = document.getElementById('c-first').value.trim();
+  const custLast = document.getElementById('c-last').value.trim();
+  if (!custFirst) { alert('Customer first name is required.'); return; }
+
+  if (!confirm(`Send ${getDocLabel()} to ${email}?`)) return;
+
+  const btn = document.getElementById('email-cust-btn');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Generating PDF…';
+
+  try {
+    // Generate the estimate PDF
+    const pdfBase64 = await generateSessionPdfBase64();
+
+    btn.textContent = 'Sending…';
+
+    const totNet = sessionItems.reduce((s, i) => s + i.net, 0);
+    const svcGrand = sessionItems.reduce((s, i) => s + (i.svcCharge || 0), 0);
+    const taxRate = getTaxRate();
+    const estTax = taxRate > 0 ? totNet * taxRate : 0;
+    const estGrand = totNet + estTax;
+    const finalTot = _nsGrandTotal > 0 ? _nsGrandTotal.toFixed(2) : '';
+    const tracking = cachedFedExLabel?.trackingNumber || document.getElementById('tracking-num').value.trim();
+    const destStoreLabel = (selLoc === 'shipping' && _destStore && STORE_INFO[_destStore])
+      ? _destStore + ' — ' + STORE_INFO[_destStore].address : '';
+
+    const payload = {
+      customer: {
+        first: custFirst,
+        last: custLast,
+        email: email,
+        phone: document.getElementById('c-phone').value.trim(),
+      },
+      location: selLoc,
+      destStore: destStoreLabel,
+      shippingAddress: selLoc === 'shipping' ? {
+        str: document.getElementById('s-str').value.trim(),
+        city: document.getElementById('s-city').value.trim(),
+        st: document.getElementById('s-st').value.trim(),
+        zip: document.getElementById('s-zip').value.trim(),
+      } : null,
+      tracking: tracking,
+      cmNum: document.getElementById('cm-num').value.trim(),
+      txnDate: document.getElementById('txn-date').value || new Date().toISOString().split('T')[0],
+      assoc: document.getElementById('assoc').value.trim(),
+      issuedBy: _loggedInEmail || '',
+      items: sessionItems.map(it => ({
+        name: it.name,
+        systemId: it.systemId,
+        grade: it.grade,
+        serial: it.serial,
+        catalog: it.catalog,
+        accessories: it.accessories,
+        notes: it.notes,
+        tradein: it.tradein,
+        net: it.net,
+        priceType: it.priceType,
+        svcCharge: it.svcCharge || 0,
+        svcReason: it.svcReason || '',
+      })),
+      totals: {
+        netTotal: totNet,
+        svcTotal: svcGrand,
+        taxRate: taxRate,
+        estTax: estTax,
+        estGrand: estGrand,
+        finalTotal: finalTot,
+      },
+      docLabel: getDocLabel(),
+      pdfBase64: pdfBase64,
+      labelPdfBase64: (selLoc === 'shipping' && cachedFedExLabel?.labelPdf) ? cachedFedExLabel.labelPdf : null,
+    };
+
+    const res = await fetch('/api/estimate-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to send email');
+
+    showToast('Email sent to ' + email + ' ✓');
+  } catch (err) {
+    console.error('Email estimate error:', err);
+    alert('Failed to send email: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origText;
   }
 }
 
