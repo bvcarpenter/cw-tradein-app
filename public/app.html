@@ -499,6 +499,11 @@ body {
         </label>
       </div>
 
+      <label style="display:flex;align-items:center;gap:8px;margin:14px 0 16px;font-size:12px;color:var(--dim);cursor:pointer;">
+        <input type="checkbox" id="c-marketing" style="accent-color:var(--accent);width:15px;height:15px;cursor:pointer;">
+        Accepts marketing communications
+      </label>
+
       <div class="cust-link">
         <span class="sl">Shopify Customer (for Store Credit)</span>
         <div id="cust-link-area">
@@ -1009,6 +1014,21 @@ const SERIAL_REQUIRED_TYPES = new Set(['Bodies', 'Lenses']);
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
   buildGrades();
+
+  // ── Marketing consent toggle → update Shopify ──
+  document.getElementById('c-marketing').addEventListener('change', async function() {
+    const email = (document.getElementById('c-email').value || '').trim();
+    if (!email) return;
+    try {
+      await fetch('/api/customer-marketing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, acceptsMarketing: this.checked }),
+      });
+    } catch (e) {
+      console.error('Marketing consent update failed:', e);
+    }
+  });
 });
 
 // ─── LOCATION ───
@@ -1751,6 +1771,7 @@ function resetSessionForm() {
     .forEach(id => document.getElementById(id).value = '');
   document.getElementById('s-dest-store').value = '';
   document.getElementById('s-save-addr').checked = false;
+  document.getElementById('c-marketing').checked = false;
   document.querySelectorAll('.loc').forEach(b => b.classList.remove('on'));
   selLoc = '';
   document.getElementById('ship-box').classList.remove('vis');
@@ -1872,6 +1893,7 @@ function buildSessionData() {
       st: (document.getElementById('s-st').value || '').trim(),
       zip: (document.getElementById('s-zip').value || '').trim(),
     },
+    acceptsMarketing: document.getElementById('c-marketing').checked,
     cmNum: (document.getElementById('cm-num').value || '').trim(),
     trackingNumber: (document.getElementById('tracking-num').value || '').trim() || (cachedFedExLabel?.trackingNumber || ''),
     assoc: (document.getElementById('assoc').value || '').trim(),
@@ -1909,6 +1931,7 @@ async function loadSessionFromPanel(key) {
   document.getElementById('c-last').value = d.customer?.last || '';
   document.getElementById('c-email').value = d.customer?.email || '';
   document.getElementById('c-phone').value = d.customer?.phone || '';
+  document.getElementById('c-marketing').checked = !!d.acceptsMarketing;
 
   // Location
   if (d.loc) {
