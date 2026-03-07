@@ -334,9 +334,9 @@
   /* ══════════════════════════════════════════════════════════════════════
      CONFIGURATION
      ══════════════════════════════════════════════════════════════════════ */
-  var FORMSPREE_ID    = 'mbdawegq';
   var APPS_SCRIPT_URL = 'https://script.google.com/a/macros/camerawest.com/s/AKfycbwiT05FGFmo85uYit5j2zE-Iyq0mQ_7G2rrMOm441gtsyOUYa7qnjvdCSTuY_TSdmIC/exec';
   var TRADEIN_API_URL = 'https://cw-tradein-app.ben-d91.workers.dev/api/trade-form';
+  var TRADE_EMAIL_URL = 'https://cw-tradein-app.ben-d91.workers.dev/api/trade-email';
   var MARKETING_API_URL = 'https://cw-tradein-app.ben-d91.workers.dev/api/customer-marketing';
   var SEARCH_API_URL  = 'https://cw-tradein-app.ben-d91.workers.dev/api/search';
 
@@ -782,35 +782,47 @@
         return driveLinks;
       });
     }).then(function(driveLinks) {
-      // ── Step 3: Submit to Formspree ────────────────────────────
+      // ── Step 3: Send emails via Resend ────────────────────────────
       btnText.textContent = 'Submitting\u2026';
-      Object.keys(driveLinks).forEach(function(fieldName) { fd.append(fieldName, driveLinks[fieldName]); });
 
       var summary = '';
+      var emailItems = [];
       root.querySelectorAll('.item-block').forEach(function(block, idx) {
         var model = (block.querySelector('input[name$="_model"]') || {}).value || '';
         var radio = block.querySelector('input[type="radio"]:checked');
         var cond  = radio ? radio.value : 'Not specified';
         var notes = (block.querySelector('input[name$="_notes"]') || {}).value || '';
         summary += 'Item ' + (idx + 1) + ': ' + model + ' | Condition: ' + cond + (notes ? ' | Notes: ' + notes : '') + '\n';
+        var photoLinks = [];
+        Object.keys(driveLinks).forEach(function(key) {
+          if (key.indexOf('item_' + (idx + 1) + '_photo_') === 0) photoLinks.push(driveLinks[key]);
+        });
+        emailItems.push({ model: model, condition: cond, notes: notes, photos: photoLinks });
       });
-      fd.append('_subject', 'Trade-In Request \u2014 ' + fd.get('firstName') + ' ' + fd.get('lastName') + ' \u2014 ' + fd.get('location'));
-      fd.append('gear_summary', summary.trim());
 
-      var formspreeData = {};
-      for (var pair of fd.entries()) { if (typeof pair[1] === 'string') formspreeData[pair[0]] = pair[1]; }
+      var emailPayload = {
+        firstName: fd.get('firstName'),
+        lastName: fd.get('lastName'),
+        email: fd.get('email'),
+        phone: fd.get('phone') || '',
+        intention: fd.get('intention'),
+        location: fd.get('location'),
+        gear_summary: summary.trim(),
+        notes: fd.get('notes') || '',
+        items: emailItems,
+      };
 
-      return fetch('https://formspree.io/f/' + FORMSPREE_ID, {
+      return fetch(TRADE_EMAIL_URL, {
         method: 'POST',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify(formspreeData)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(emailPayload)
       });
     }).then(function(res) {
       return res.json().then(function(data) {
         if (res.ok) {
           showPage('cwPagSuccess');
         } else {
-          throw new Error((data.errors ? data.errors.map(function(e) { return e.message; }).join(', ') : '') || 'Error ' + res.status);
+          throw new Error(data.error || 'Error ' + res.status);
         }
       });
     }).catch(function(err) {
