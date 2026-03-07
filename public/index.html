@@ -1935,8 +1935,9 @@ async function emailEstimateToCustomer() {
     });
 
     const text = await res.text();
-    const data = text ? JSON.parse(text) : {};
-    if (!res.ok) throw new Error(data.error || 'Failed to send email');
+    let data = {};
+    try { data = text ? JSON.parse(text) : {}; } catch (_) {}
+    if (!res.ok) throw new Error(data.error || `Server returned ${res.status}: ${text.slice(0, 200)}`);
 
     showToast('Email sent to ' + email + ' ✓');
   } catch (err) {

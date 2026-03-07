@@ -261,6 +261,14 @@ export async function onRequestPost({ request, env }) {
       attachments,
     };
 
+    const payloadJson = JSON.stringify(resendPayload);
+    const payloadSizeMB = (payloadJson.length / (1024 * 1024)).toFixed(2);
+    console.log(`estimate-email: sending to ${customer.email}, payload ${payloadSizeMB} MB, ${attachments.length} attachment(s)`);
+
+    if (payloadJson.length > 35 * 1024 * 1024) {
+      return json({ error: `Email payload too large (${payloadSizeMB} MB). Try reducing PDF quality.` }, 413);
+    }
+
     let r;
     try {
       r = await fetch('https://api.resend.com/emails', {
@@ -269,21 +277,20 @@ export async function onRequestPost({ request, env }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${env.RESEND_API_KEY}`,
         },
-        body: JSON.stringify(resendPayload),
+        body: payloadJson,
       });
     } catch (fetchErr) {
       console.error('Resend fetch failed:', fetchErr);
       return json({ error: `Resend request failed: ${fetchErr.message || 'network error'}` }, 502);
     }
 
+    const resBody = await r.text().catch(() => '');
     if (!r.ok) {
-      const errText = await r.text().catch(() => '');
-      console.error('Resend estimate-email error:', r.status, errText);
-      return json({ error: `Email send failed (${r.status}): ${errText}` }, 502);
+      console.error('Resend estimate-email error:', r.status, resBody);
+      return json({ error: `Resend error (${r.status}): ${resBody}` }, 502);
     }
 
-    const text = await r.text();
-    const result = text ? JSON.parse(text) : {};
+    const result = resBody ? JSON.parse(resBody) : {};
     return json({ ok: true, id: result.id });
   } catch (err) {
     console.error('estimate-email error:', err, err?.stack);
