@@ -814,6 +814,21 @@
       document.getElementById('cwCcInput').value = e.target.value;
     }
   });
+
+  // ── Prefill from Shopify customer (set window.__cwCustomer via Liquid) ─
+  var cust = window.__cwCustomer;
+  if (cust) {
+    var fields = { firstName: cust.firstName, lastName: cust.lastName, email: cust.email, phone: cust.phone };
+    Object.keys(fields).forEach(function(name) {
+      if (!fields[name]) return;
+      var input = root.querySelector('[name="' + name + '"]');
+      if (input) input.value = fields[name];
+    });
+    if (cust.email) {
+      document.getElementById('cwReplytoInput').value = cust.email;
+      document.getElementById('cwCcInput').value = cust.email;
+    }
+  }
 })();
 </script>
 
