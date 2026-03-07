@@ -274,7 +274,8 @@ export async function onRequestPost({ request, env }) {
       return json({ error: `Email send failed (${r.status}): ${errText}` }, 502);
     }
 
-    const result = await r.json();
+    const text = await r.text();
+    const result = text ? JSON.parse(text) : {};
     return json({ ok: true, id: result.id });
   } catch (err) {
     console.error('estimate-email error:', err);
