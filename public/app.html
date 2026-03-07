@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Trade // Sell — Camera West</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap');
 
@@ -877,6 +878,7 @@ body {
       <div class="exp-acts">
         <button class="btn btn-g" onclick="exportXLSX()">Export NetSuite XLSX</button>
         <button class="btn btn-a" id="print-btn" onclick="openPrint()">Print Credit Memo</button>
+        <button class="btn" id="email-cust-btn" onclick="emailEstimateToCustomer()" style="background:#1a3a5a;color:#7ab8e0;border:1px solid #2a5a8a;">Email to Customer</button>
         <button class="btn btn-r" onclick="clrSession()">Clear Session</button>
       </div>
 
@@ -1652,6 +1654,127 @@ function buildPrint() {
 </div>`;
 }
 
+
+// ─── GENERATE SESSION PDF BASE64 ───
+async function generateSessionPdfBase64() {
+  const html = buildPrint();
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  container.style.cssText = 'position:fixed;left:0;top:0;width:800px;background:#fff;font-family:"Jost",sans-serif;font-size:12px;color:#111;z-index:-1;opacity:0;pointer-events:none;';
+  document.body.appendChild(container);
+  await new Promise(r => setTimeout(r, 100));
+  try {
+    const custName = [document.getElementById('c-first').value.trim(), document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || 'Session';
+    const blob = await html2pdf().set({
+      margin: [10, 10, 10, 10],
+      filename: custName.replace(/[^a-zA-Z0-9 ]/g,'') + ' - ' + getDocLabel() + ' - ' + new Date().toISOString().split('T')[0] + '.pdf',
+      image: { type: 'jpeg', quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true, width: 800, scrollY: 0, windowWidth: 800 },
+      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
+    }).from(container).outputPdf('blob');
+    const buf = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  } finally {
+    document.body.removeChild(container);
+  }
+}
+
+// ─── EMAIL ESTIMATE TO CUSTOMER ───
+async function emailEstimateToCustomer() {
+  const email = document.getElementById('c-email').value.trim();
+  if (!email) { alert('Customer email is required to send the estimate.'); return; }
+  if (!sessionItems.length) { alert('No items in the session.'); return; }
+
+  const custFirst = document.getElementById('c-first').value.trim();
+  const custLast = document.getElementById('c-last').value.trim();
+  if (!custFirst) { alert('Customer first name is required.'); return; }
+
+  if (!confirm(`Send ${getDocLabel()} to ${email}?`)) return;
+
+  const btn = document.getElementById('email-cust-btn');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Generating PDF…';
+
+  try {
+    const pdfBase64 = await generateSessionPdfBase64();
+
+    btn.textContent = 'Sending…';
+
+    const totNet = sessionItems.reduce((s, i) => s + i.net, 0);
+    const svcGrand = sessionItems.reduce((s, i) => s + (i.svcCharge || 0), 0);
+    const tracking = cachedFedExLabel?.trackingNumber || document.getElementById('tracking-num').value.trim();
+    const destStoreVal = selLoc === 'shipping' ? (document.getElementById('s-dest-store').value || '') : '';
+    const gtVal = lastNsResult?.grandTotal ? parseFloat(lastNsResult.grandTotal) : 0;
+
+    const payload = {
+      customer: {
+        first: custFirst,
+        last: custLast,
+        email: email,
+        phone: document.getElementById('c-phone').value.trim(),
+      },
+      location: selLoc,
+      destStore: destStoreVal,
+      shippingAddress: selLoc === 'shipping' ? {
+        str: document.getElementById('s-str').value.trim(),
+        city: document.getElementById('s-city').value.trim(),
+        st: document.getElementById('s-st').value.trim(),
+        zip: document.getElementById('s-zip').value.trim(),
+      } : null,
+      tracking: tracking,
+      cmNum: document.getElementById('cm-num').value.trim(),
+      txnDate: document.getElementById('txn-date').value || new Date().toISOString().split('T')[0],
+      assoc: document.getElementById('assoc').value.trim(),
+      issuedBy: '',
+      items: sessionItems.map(it => ({
+        name: it.name,
+        systemId: it.systemId,
+        grade: it.grade,
+        serial: it.serial,
+        catalog: it.catalog,
+        accessories: it.accessories,
+        notes: it.notes,
+        tradein: it.tradein,
+        net: it.net,
+        priceType: it.priceType,
+        svcCharge: it.svcCharge || 0,
+        svcReason: it.svcReason || '',
+      })),
+      totals: {
+        netTotal: totNet,
+        svcTotal: svcGrand,
+        taxRate: 0,
+        estTax: 0,
+        estGrand: totNet,
+        finalTotal: gtVal > 0 ? gtVal.toFixed(2) : '',
+      },
+      docLabel: getDocLabel(),
+      pdfBase64: pdfBase64,
+      labelPdfBase64: (selLoc === 'shipping' && cachedFedExLabel?.labelPdf) ? cachedFedExLabel.labelPdf : null,
+    };
+
+    const res = await fetch('/api/estimate-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to send email');
+
+    alert('Email sent to ' + email + ' ✓');
+  } catch (err) {
+    console.error('Email estimate error:', err);
+    alert('Failed to send email: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
+}
 
 // ─── AUTO-BRAND ───
 const BRANDS = ['Henri Cartier-Bresson Prints', 'University Of Texas Press', 'Breakthrough Photography', 'Fred Lyon Noir Prints', 'California Sunbounce', 'Leica Store SF Books', 'Colorado Tripod Co', 'Really Right Stuff', 'Capturing Couture', 'DAPR Distributors', 'Light Impressions', 'Artisan & Artist', 'Bright Tangerine', 'Fred Lyon Prints', 'Insight Editions', 'Light and Motion', 'Custom Brackets', 'Photo Solutions', 'White Lightning', '3 Legged Thing', 'Audio Technica', 'Creative Light', 'DAVID B STRAPS', 'Gretag Macbeth', 'Patek Philippe', 'pro media gear', 'Visual Apparel', 'Bausch & Lomb', 'Burke & James', 'CRAIG SEMETKO', 'Depaolapparel', 'Lange & Sohne', 'Maggie Steber', 'Pocket Wizard', 'Sound Devices', 'Tokyo Optical', 'Andre Debrie', 'Angelo Pelle', 'Arte Di Mano', 'Canson Paper', 'Digital Foci', 'Melles Griot', 'ProMediaGear', 'Sailor Strap', 'Tether Tools', 'Venus Optics', 'Visible Dust', 'Aliens Bees', 'Atlas Packs', 'Barber Shop', 'Bell & Ross', 'Black Label', 'Black Rapid', 'Capture One', 'Cub and Co.', 'Fourtsquare', 'Gowlandflex', 'handevision', 'Kinetronics', 'Lite Panels', 'Lock Circle', 'Meyer Optik', 'Montegrappa', 'Oak & Oscar', 'Peak Design', 'Rapid Omega', 'Rock & Roll', 'Stroboframe', 'Studio Ball', 'Voigtlander', 'Abrahamson', 'Arca Swiss', 'Billingham', 'Blackmagic', 'Blue Crane', 'Clik Elite', 'Flashpoint', 'Foursquare', 'Hahnemuhle', 'Harry Benz', 'Hasselblad', 'Impossible', 'Litepanels', 'Lomography', 'Ming Thien', 'MS Optical', 'Multiblitz', 'Nightforce', 'Parmigiani', 'Photogenic', 'Print File', 'Rodenstock', 'Sennheiser', 'Speedotron', 'Sun Sniper', 'Think Tank', 'Viewmaster', 'Wotancraft', '7Artisans', 'Angenieux', 'Berlebach', 'Breitling', 'Broncolor', 'CamRanger', 'Ciro-Flex', 'Dallmeyer', 'Datacolor', 'Deardorff', 'Edelkrone', 'Ekelkrone', 'Elinchrom', 'Energizer', 'Gary Fong', 'Gura Gear', 'Hatchette', 'Lastolite', 'Lumiquest', 'Manfrotto', 'Metabones', 'Micromega', 'Microsync', 'Mindshift', 'Misc View', 'Montblanc', 'Oberwerth', 'Panasonic', 'Paramount', 'Pentaflex', 'Phase One', 'Photoflex', 'Pictorico', 'Power2000', 'Pro Photo', 'Promaster', 'Rectaflex', 'Roadwired', 'Rotolight', 'Schneider', 'Silvestri', 'Singh-Ray', 'SmartDisk', 'Steadicam', 'Steinhart', 'Steinheil', 'Swarovski', 'Tachihara', 'Tag Heuer', 'Thumbs Up', 'Transcend', 'Watameter', 'Wimberley', 'Wollensak', 'Workshops', 'Acratech', 'agiflite', 'Arriflex', 'Beaulieu', 'BosStrap', 'Brandess', 'Chamonix', 'Cognisys', 'Computar', 'Crumpler', 'Dynalite', 'Expodisc', 'Fidelity', 'Flexaret', 'Fotodiox', 'Fujifilm', 'Gary Soo', 'Glidecam', 'Gundlach', 'Hamilton', 'Hartblei', 'Heliopan', 'Horizont', 'Horseman', 'Industar', 'Inkpress', 'Inovativ', 'Interfit', 'Kinoflow', 'Kinoptik', 'Lensbaby', 'Leonardo', 'Lordomat', 'Majestic', 'Matthews', 'Mitchell', 'Nitecore', 'Novoflex', 'Pana-Vue', 'Pentacon', 'Pictools', 'Polaroid', 'Pro Tech', 'Rotatrim', 'Sachtler', 'Saunders', 'Shanghai', 'Shen Hao', 'Smallrig', 'Strobies', 'TrekTech', 'Vacheron', 'Vanguard', 'Visconti', 'Westcott', 'woodblak', 'Ansmann', 'Aputure', 'arsenal', 'Bronica', 'Calumet', 'Cecilia', 'Chimera', 'Chiyoko', 'Citizen', 'Clayton', 'Contour', 'Cullman', 'Dunhill', 'Formatt', 'fotoman', 'Fotopro', 'GigaPan', 'Gigapan', 'Giottos', 'Graflex', 'Graphic', 'Graslon', 'Hoffman', 'Hoodman', 'Horizon', 'Jupiter', 'Kamerar', 'Kapture', 'Kilfitt', 'Liliput', 'Littman', 'Lowepro', 'Minolta', 'Mitakon', 'Netopil', 'Olympus', 'Op Tech', 'Panerai', 'Paxette', 'Pelican', 'Petzval', 'Phottix', 'Piesker', 'Plaubel', 'Polaris', 'Profoto', 'Prontor', 'Quantum', 'Questar', 'RedRock', 'Riteway', 'Rokform', 'Rokinon', 'Sachler', 'Samsung', 'Samyang', 'SanDisk', 'Schoeps', 'Sekonic', 'Shimoda', 'Soligor', 'Spectra', 'Stipula', 'Sto-Fen', 'Techart', 'Tessina', 'Viltrox', 'Vivitar', 'Vue All', 'Widelux', 'Yashica', 'Yongnuo', 'zenmuse', 'Arches', 'Artpan', 'Atomos', 'Aurora', 'Beauty', 'Belkin', 'Bowens', 'brooks', 'Canham', 'Clarus', 'Contax', 'Dayled', 'Debrie', 'Delkin', 'Delsey', 'DSPTCH', 'Elgeet', 'Ensign', 'Exakta', 'Eye-Fi', 'EZ PnP', 'Feisol', 'Filson', 'Fortis', 'Gossen', 'Hahnel', 'Hakuba', 'Harman', 'Helios', 'Helson', 'Hensel', 'Hitech', 'Ilford', 'Imacon', 'Impact', 'Induro', 'Ingram', 'Innova', 'IoSafe', 'Jill-E', 'Jos-PE', 'Kaiser', 'Komaru', 'Konica', 'Legion', 'leitax', 'leotax', 'Linhof', 'Lowell', 'Magmod', 'Mamiya', 'Mefoto', 'Meopta', 'Mikamo', 'Monaco', 'Nissin', 'Noblex', 'Norman', 'Opteka', 'Pentax', 'Pierce', 'Ridata', 'Rimowa', 'Rollei', 'Savage', 'Shanny', 'Shoten', 'stereo', 'Tamrac', 'Tamron', 'Tanack', 'Tiffen', 'Tokina', 'Topcon', 'Turner', 'Twaipo', 'Vidpro', 'Walker', 'Wisner', 'Wooden', 'X-Rite', 'Zacuto', 'Zenith', 'Zoomar', 'Aries', 'Benro', 'Boker', 'Bolex', 'Bower', 'Busch', 'Cambo', 'Canon', 'Casio', 'Cooke', 'Delta', 'Domke', 'Drobo', 'Ebony', 'Edwal', 'Epson', 'Faber', 'Gitzo', 'Godox', 'Goerz', 'GoPro', 'Haoge', 'Heuer', 'Hugen', 'Itoya', 'Kenko', 'Kipon', 'Kiron', 'Kodak', 'Kopil', 'LaCie', 'Laowa', 'Leica', 'Lexar', 'Light', 'Lisco', 'Luigi', 'Minox', 'Naneu', 'Nanuk', 'Nicca', 'Nikon', 'Nodal', 'omega', 'Orion', 'Petri', 'Pratt', 'Print', 'Rhino', 'Ricoh', 'Robot', 'Rogue', 'Rolex', 'Rosco', 'Ruige', 'Sanho', 'Seiko', 'Seitz', 'Sigma', 'Sinar', 'Sirui', 'Tenba', 'Tilta', 'Tudor', 'Varta', 'Wacom', 'Werra', 'Wista', 'Zeiss', 'Zenit', 'Zorki', '3pod', 'Agfa', 'Alpa', 'Asus', 'BRNO', 'Core', 'Eizo', 'Foba', 'Fogg', 'Gepe', 'Hoya', 'HPRC', 'Ilex', 'iPro', 'Isco', 'Jobo', 'Joby', 'Kalt', 'Kata', 'Kiev', 'Kirk', 'Kowa', 'Kupo', 'Leaf', 'Lupo', 'Mack', 'Metz', 'Misc', 'Moab', 'Mola', 'Nisi', 'Omas', 'Osco', 'Pixo', 'Ries', 'Rode', 'Seal', 'Slik', 'Sony', 'Toyo', 'U.N.', 'Used', 'Wein', 'Yard', 'Zoom', 'AKG', 'B+W', 'CTA', 'DJI', 'DLC', 'DXO', 'Fed', 'IDC', 'IWC', 'Jag', 'Lee', 'LFI', 'MOD', 'MPP', 'New', 'NKI', 'Ona', 'Red', 'STX', '4V', 'XP'];
