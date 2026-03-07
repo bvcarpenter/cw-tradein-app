@@ -514,7 +514,6 @@ async function runItemSearch(i, q) {
       el.innerHTML = '<div class="item-no-res">No results \u2014 type in Make &amp; Model manually below</div>';
     } else {
       el.innerHTML = products.map(function(p, idx) {
-        var pr = p.p ? '$' + p.p.toLocaleString('en-US', {minimumFractionDigits: 0}) : '';
         var meta = [p.si, p.it, p.m].filter(Boolean).join(' \u00b7 ');
         var name = p.n.replace(/</g, '&lt;').replace(/>/g, '&gt;');
         var mpn = (p.sku||'').replace(/</g, '&lt;').replace(/>/g, '&gt;');
