@@ -500,7 +500,7 @@ body {
       </div>
 
       <label style="display:flex;align-items:center;gap:8px;margin:14px 0 16px;font-size:12px;color:var(--dim);cursor:pointer;">
-        <input type="checkbox" id="c-marketing" style="accent-color:var(--accent);width:15px;height:15px;cursor:pointer;">
+        <input type="checkbox" id="c-marketing" checked style="accent-color:var(--accent);width:15px;height:15px;cursor:pointer;">
         Accepts marketing communications
       </label>
 
@@ -1771,7 +1771,7 @@ function resetSessionForm() {
     .forEach(id => document.getElementById(id).value = '');
   document.getElementById('s-dest-store').value = '';
   document.getElementById('s-save-addr').checked = false;
-  document.getElementById('c-marketing').checked = false;
+  document.getElementById('c-marketing').checked = true;
   document.querySelectorAll('.loc').forEach(b => b.classList.remove('on'));
   selLoc = '';
   document.getElementById('ship-box').classList.remove('vis');

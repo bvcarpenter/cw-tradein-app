@@ -242,7 +242,7 @@
         </div>
         <div class="field" style="margin-bottom:24px;">
           <label style="display:flex !important;align-items:center !important;gap:10px !important;cursor:pointer;font-size:13px !important;letter-spacing:0.02em !important;text-transform:none !important;font-weight:400 !important;color:#444 !important;">
-            <input type="checkbox" name="acceptsMarketing" id="cwMarketingCheckbox" style="width:16px !important;height:16px !important;margin:0 !important;cursor:pointer;accent-color:#111;" />
+            <input type="checkbox" name="acceptsMarketing" id="cwMarketingCheckbox" checked style="width:16px !important;height:16px !important;margin:0 !important;cursor:pointer;accent-color:#111;" />
             Keep me updated on new arrivals, promotions &amp; trade-in offers
           </label>
         </div>
@@ -767,13 +767,13 @@
       }).catch(function(e) {
         console.error('Draft session creation failed:', e);
       }).then(function() {
-        // ── Step 2b: Update marketing consent if opted in ──────
+        // ── Step 2b: Update marketing consent ──────
         var marketingBox = document.getElementById('cwMarketingCheckbox');
-        if (marketingBox && marketingBox.checked && customerEmail) {
+        if (marketingBox && customerEmail) {
           return fetch(MARKETING_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: customerEmail, acceptsMarketing: true }),
+            body: JSON.stringify({ email: customerEmail, acceptsMarketing: marketingBox.checked }),
           }).catch(function(e) {
             console.error('Marketing consent update failed:', e);
           });
