@@ -241,13 +241,14 @@ export async function onRequestPost({ request, env }) {
     // Build attachments
     const pdfFilename = custName.replace(/[^a-zA-Z0-9 ]/g, '') + ' - ' + docLabel + ' - ' + (body.txnDate || new Date().toISOString().split('T')[0]) + '.pdf';
     const attachments = [
-      { filename: pdfFilename, content: pdfBase64 },
+      { filename: pdfFilename, content: pdfBase64, content_type: 'application/pdf' },
     ];
 
     if (labelPdfBase64) {
       attachments.push({
         filename: custName.replace(/[^a-zA-Z0-9 ]/g, '') + ' - FedEx Shipping Label.pdf',
         content: labelPdfBase64,
+        content_type: 'application/pdf',
       });
     }
 
