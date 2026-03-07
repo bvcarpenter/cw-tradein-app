@@ -1,19 +1,31 @@
 (function() {
-  var base = document.currentScript.src.replace(/trade-form-modal\.js.*$/, '');
+  /* Capture base URL synchronously (document.currentScript is only
+     available during the initial synchronous execution of the script) */
+  var scriptEl = document.currentScript;
+  var base = scriptEl ? scriptEl.src.replace(/trade-form-modal\.js.*$/, '')
+                      : 'https://cw-tradein-app.ben-d91.workers.dev/';
   var tradePageUrl = '/pages/trade-in'; // fallback link for mobile
 
-  /* ── Trigger button (inserted by Custom Liquid) ── */
-  var btn = document.getElementById('cw-trade-trigger');
-  if (!btn) return;
-
-  /* ── Mobile: just navigate ── */
   function isMobile() { return window.innerWidth < 768; }
 
-  btn.addEventListener('click', function(e) {
-    e.preventDefault();
-    if (isMobile()) { window.location.href = tradePageUrl; return; }
-    openModal();
-  });
+  /* ── Bind trigger button ── */
+  function init() {
+    var btn = document.getElementById('cw-trade-trigger');
+    if (!btn) return;
+
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (isMobile()) { window.location.href = tradePageUrl; return; }
+      openModal();
+    });
+  }
+
+  /* Run init now if DOM is ready, otherwise wait */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 
   /* ── Modal overlay ── */
   var overlay, modal, iframe;
@@ -53,13 +65,6 @@
         iframe.contentWindow.postMessage({ cwCustomer: window.__cwCustomer }, '*');
       });
     }
-
-    /* auto-resize isn't needed in modal (fixed height), but listen anyway */
-    window.addEventListener('message', function(e) {
-      if (e.data && e.data.cwTradeInHeight) {
-        /* no-op inside modal */
-      }
-    });
   }
 
   function openModal() {
