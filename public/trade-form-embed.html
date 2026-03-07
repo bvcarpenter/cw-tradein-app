@@ -240,6 +240,12 @@
           <label>Phone Number</label>
           <input type="tel" name="phone" placeholder="+1 (555) 000-0000" autocomplete="tel" />
         </div>
+        <div class="field" style="margin-bottom:24px;">
+          <label style="display:flex !important;align-items:center !important;gap:10px !important;cursor:pointer;font-size:13px !important;letter-spacing:0.02em !important;text-transform:none !important;font-weight:400 !important;color:#444 !important;">
+            <input type="checkbox" name="acceptsMarketing" id="cwMarketingCheckbox" style="width:16px !important;height:16px !important;margin:0 !important;cursor:pointer;accent-color:#111;" />
+            Keep me updated on new arrivals, promotions &amp; trade-in offers
+          </label>
+        </div>
         <div class="field">
           <label>Additional Notes</label>
           <textarea name="notes" placeholder="Accessories included, original packaging, serial number, anything else we should know..."></textarea>
@@ -331,6 +337,7 @@
   var FORMSPREE_ID    = 'mbdawegq';
   var APPS_SCRIPT_URL = 'https://script.google.com/a/macros/camerawest.com/s/AKfycbwiT05FGFmo85uYit5j2zE-Iyq0mQ_7G2rrMOm441gtsyOUYa7qnjvdCSTuY_TSdmIC/exec';
   var TRADEIN_API_URL = 'https://cw-tradein-app.ben-d91.workers.dev/api/trade-form';
+  var MARKETING_API_URL = 'https://cw-tradein-app.ben-d91.workers.dev/api/customer-marketing';
   var SEARCH_API_URL  = 'https://cw-tradein-app.ben-d91.workers.dev/api/search';
 
   var CONDITIONS = [
@@ -634,7 +641,8 @@
       + '<div class="review-row" style="margin-top:14px;"><div class="review-field"><div class="review-field-label">Name</div><div class="review-field-value">' + v('firstName') + ' ' + v('lastName') + '</div></div>'
       + '<div class="review-field"><div class="review-field-label">Email</div><div class="review-field-value">' + v('email') + '</div></div>'
       + '<div class="review-field"><div class="review-field-label">Phone</div><div class="review-field-value">' + (v('phone') || 'Not provided') + '</div></div></div>'
-      + (v('notes') ? '<div class="review-row" style="margin-top:14px;"><div class="review-field"><div class="review-field-label">Additional Notes</div><div class="review-field-value">' + v('notes') + '</div></div></div>' : '');
+      + (v('notes') ? '<div class="review-row" style="margin-top:14px;"><div class="review-field"><div class="review-field-label">Additional Notes</div><div class="review-field-value">' + v('notes') + '</div></div></div>' : '')
+      + '<div class="review-row" style="margin-top:14px;"><div class="review-field"><div class="review-field-label">Marketing</div><div class="review-field-value">' + (document.getElementById('cwMarketingCheckbox').checked ? 'Opted in to updates' : 'No marketing') + '</div></div></div>';
   }
 
   // ── Review button ──────────────────────────────────────────────────
@@ -758,6 +766,18 @@
         body: JSON.stringify(buildDraftPayload(driveLinks)),
       }).catch(function(e) {
         console.error('Draft session creation failed:', e);
+      }).then(function() {
+        // ── Step 2b: Update marketing consent if opted in ──────
+        var marketingBox = document.getElementById('cwMarketingCheckbox');
+        if (marketingBox && marketingBox.checked && customerEmail) {
+          return fetch(MARKETING_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: customerEmail, acceptsMarketing: true }),
+          }).catch(function(e) {
+            console.error('Marketing consent update failed:', e);
+          });
+        }
       }).then(function() {
         return driveLinks;
       });

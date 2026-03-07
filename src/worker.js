@@ -8,6 +8,7 @@ import { onRequestGet as searchGet, onRequestOptions as searchOptions } from '..
 import { onRequestPost as tradeFormPost, onRequestOptions as tradeFormOptions } from '../functions/api/trade-form.js';
 import { onRequestPost as customerAddressPost, onRequestOptions as customerAddressOptions } from '../functions/api/customer-address.js';
 import { onRequestGet as customersGet, onRequestPost as customersPost, onRequestOptions as customersOptions } from '../functions/api/customers.js';
+import { onRequestPost as customerMarketingPost, onRequestOptions as customerMarketingOptions } from '../functions/api/customer-marketing.js';
 import { onRequestPost as storeCreditPost, onRequestOptions as storeCreditOptions } from '../functions/api/store-credit.js';
 import { onRequestPost as creditMemoPost, onRequestOptions as creditMemoOptions } from '../functions/api/netsuite-credit-memo.js';
 import { onRequestPost as fedexLabelPost, onRequestOptions as fedexLabelOptions } from '../functions/api/fedex-label.js';
@@ -54,6 +55,11 @@ export default {
       if (method === 'OPTIONS') return customersOptions(c);
       if (method === 'GET')     return customersGet(c);
       if (method === 'POST')    return customersPost(c);
+    }
+
+    if (path === '/api/customer-marketing') {
+      if (method === 'OPTIONS') return customerMarketingOptions(c);
+      if (method === 'POST')    return customerMarketingPost(c);
     }
 
     if (path === '/api/store-credit') {
