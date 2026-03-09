@@ -1639,6 +1639,34 @@ function buildPrint() {
 }
 
 
+// ─── LOAD LOGO FOR PDF ───
+let _cachedLogoPng = undefined;
+async function loadLogoPng() {
+  if (_cachedLogoPng !== undefined) return _cachedLogoPng;
+  try {
+    const resp = await fetch('https://camerawest.com/cdn/shop/files/CW_Logo_2026_Whate.svg?v=1772114375');
+    let svg = await resp.text();
+    svg = svg.replace(/fill:\s*#fff/gi, 'fill: #111111');
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const dataUrl = await new Promise((res) => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth * 2; c.height = img.naturalHeight * 2;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        res(c.toDataURL('image/png'));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); res(null); };
+      img.src = url;
+    });
+    _cachedLogoPng = dataUrl;
+    return dataUrl;
+  } catch(e) { _cachedLogoPng = null; return null; }
+}
+
 // ─── GENERATE SESSION PDF BASE64 ───
 async function generateSessionPdfBase64() {
   const { jsPDF } = window.jspdf;
@@ -1663,37 +1691,42 @@ async function generateSessionPdfBase64() {
   const grandTotal = lastNsResult ? (parseFloat(lastNsResult.grandTotal) || totNet) : null;
   const tax = grandTotal !== null ? grandTotal - totNet : null;
 
-  // Header
-  doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.setTextColor(17,17,17);
-  doc.text('CAMERA WEST', ml, y);
+  // Header — logo
+  const logoPng = await loadLogoPng();
+  if (logoPng) {
+    doc.addImage(logoPng, 'PNG', ml, y - 6, 55, 11);
+  } else {
+    doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.setTextColor(17,17,17);
+    doc.text('CAMERA WEST', ml, y);
+  }
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(120,120,120);
-  y += 5; doc.text('70-177 Hwy 111 Ste 100, Rancho Mirage, CA 92270  ·  support@camerawest.com', ml, y);
+  y += 7; doc.text('camerawest.com  ·  support@camerawest.com', ml, y);
 
   // Doc label + CM# on the right
   doc.setFontSize(8); doc.setTextColor(150,150,150);
-  doc.text((lastNsResult?.tranId ? 'CREDIT MEMO' : 'ESTIMATE'), pw - mr, y - 10, { align: 'right' });
+  doc.text((lastNsResult?.tranId ? 'CREDIT MEMO' : 'ESTIMATE'), pw - mr, y - 12, { align: 'right' });
   doc.setFontSize(16); doc.setTextColor(217,94,0); doc.setFont('helvetica','bold');
-  doc.text(cm, pw - mr, y - 3, { align: 'right' });
+  doc.text(cm, pw - mr, y - 5, { align: 'right' });
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(100,100,100);
   doc.text(dt + '   Associate: ' + asc, pw - mr, y, { align: 'right' });
 
-  y += 3; doc.setDrawColor(17,17,17); doc.setLineWidth(0.5); doc.line(ml, y, pw - mr, y);
+  y += 5; doc.setDrawColor(17,17,17); doc.setLineWidth(0.5); doc.line(ml, y, pw - mr, y);
 
   // Customer info
-  y += 7; doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text('CUSTOMER', ml, y);
-  y += 5; doc.setFontSize(12); doc.setTextColor(17,17,17); doc.setFont('helvetica','bold'); doc.text(cust, ml, y);
+  y += 8; doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text('CUSTOMER', ml, y);
+  y += 6; doc.setFontSize(12); doc.setTextColor(17,17,17); doc.setFont('helvetica','bold'); doc.text(cust, ml, y);
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(80,80,80);
-  if (email) { y += 4.5; doc.text(email, ml, y); }
-  if (phone) { y += 4.5; doc.text(phone, ml, y); }
-  if (loc !== '—') { y += 4.5; doc.setTextColor(120,120,120); doc.text('Location: ' + loc, ml, y); }
-  if (shipTo) { y += 4.5; doc.text('Ship From: ' + shipTo, ml, y); }
-  if (destStoreLabel) { y += 4.5; doc.text('Ship To: ' + destStoreLabel, ml, y); }
-  if (tracking) { y += 4.5; doc.setTextColor(217,94,0); doc.setFont('helvetica','bold'); doc.text('FedEx Tracking: ' + tracking, ml, y); doc.setFont('helvetica','normal'); }
+  if (email) { y += 6; doc.text(email, ml, y); }
+  if (phone) { y += 6; doc.text(phone, ml, y); }
+  if (loc !== '—') { y += 6; doc.setTextColor(120,120,120); doc.text('Location: ' + loc, ml, y); }
+  if (shipTo) { y += 6; doc.text('Ship From: ' + shipTo, ml, y); }
+  if (destStoreLabel) { y += 6; doc.text('Ship To: ' + destStoreLabel, ml, y); }
+  if (tracking) { y += 6; doc.setTextColor(217,94,0); doc.setFont('helvetica','bold'); doc.text('FedEx Tracking: ' + tracking, ml, y); doc.setFont('helvetica','normal'); }
 
-  y += 5; doc.setDrawColor(200,200,200); doc.setLineWidth(0.2); doc.line(ml, y, pw - mr, y);
+  y += 7; doc.setDrawColor(200,200,200); doc.setLineWidth(0.2); doc.line(ml, y, pw - mr, y);
 
   // Items table header
-  y += 6;
+  y += 7;
   const cols = [ml, ml + cw * 0.45, ml + cw * 0.55, ml + cw * 0.70, ml + cw * 0.85, pw - mr];
   doc.setFillColor(20,20,20); doc.rect(ml, y - 4, cw, 7, 'F');
   doc.setFontSize(7); doc.setTextColor(230,230,230); doc.setFont('helvetica','bold');
@@ -1719,28 +1752,28 @@ async function generateSessionPdfBase64() {
     doc.setTextColor(17,17,17); doc.setFont('helvetica','bold'); doc.text(f(it.net), cols[5], y, { align: 'right' });
     doc.setFont('helvetica','normal');
     let rowH = Math.max(nameLines.length * 4, 5);
-    if (it.accessories.length) { doc.setFontSize(7); doc.setTextColor(120,120,120); doc.text('Includes: ' + it.accessories.join(', '), cols[0] + 2, y + rowH); rowH += 3.5; }
-    if (it.notes) { doc.setFontSize(7); doc.setTextColor(150,150,150); doc.text(it.notes, cols[0] + 2, y + rowH); rowH += 3.5; }
-    y += rowH + 2;
+    if (it.accessories.length) { doc.setFontSize(7); doc.setTextColor(120,120,120); doc.text('Includes: ' + it.accessories.join(', '), cols[0] + 2, y + rowH); rowH += 4; }
+    if (it.notes) { doc.setFontSize(7); doc.setTextColor(150,150,150); doc.text(it.notes, cols[0] + 2, y + rowH); rowH += 4; }
+    y += rowH + 3;
     doc.setDrawColor(230,230,230); doc.setLineWidth(0.1); doc.line(ml, y, pw - mr, y);
-    y += 3;
+    y += 4;
   });
 
   // Totals
-  y += 2; doc.setDrawColor(200,200,200); doc.setLineWidth(0.2); doc.line(ml + cw * 0.5, y, pw - mr, y);
-  y += 5; doc.setFontSize(9); doc.setTextColor(100,100,100); doc.text('Net Total:', cols[4], y, { align: 'right' });
+  y += 4; doc.setDrawColor(200,200,200); doc.setLineWidth(0.2); doc.line(ml + cw * 0.5, y, pw - mr, y);
+  y += 7; doc.setFontSize(9); doc.setTextColor(100,100,100); doc.text('Net Total:', cols[4], y, { align: 'right' });
   doc.setFontSize(12); doc.setTextColor(217,94,0); doc.setFont('helvetica','bold');
   doc.text(f(totNet), cols[5], y, { align: 'right' });
   doc.setFont('helvetica','normal');
   if (grandTotal !== null && tax !== null) {
-    y += 5; doc.setFontSize(8); doc.setTextColor(100,100,100); doc.text('Est. Tax: ' + f(tax), cols[5], y, { align: 'right' });
-    y += 5; doc.setFontSize(11); doc.setTextColor(217,94,0); doc.setFont('helvetica','bold');
+    y += 6; doc.setFontSize(8); doc.setTextColor(100,100,100); doc.text('Est. Tax: ' + f(tax), cols[5], y, { align: 'right' });
+    y += 6; doc.setFontSize(11); doc.setTextColor(217,94,0); doc.setFont('helvetica','bold');
     doc.text('Grand Total: ' + f(grandTotal), cols[5], y, { align: 'right' });
     doc.setFont('helvetica','normal');
   }
 
   // Terms
-  y += 10; doc.setFontSize(7.5); doc.setTextColor(120,120,120);
+  y += 12; doc.setFontSize(7.5); doc.setTextColor(120,120,120);
   const terms = 'The customer confirms the items above are accurately described, that they are the rightful owner, and authorizes Camera West to process this trade-in or purchase transaction. All values are estimates pending final inspection. All sales and trade-ins are final.';
   const termsLines = doc.splitTextToSize(terms, cw);
   doc.text(termsLines, ml, y); y += termsLines.length * 3.2;
