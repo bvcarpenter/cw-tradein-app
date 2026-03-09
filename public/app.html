@@ -1553,9 +1553,9 @@ function buildPrint() {
   const grandTotal = lastNsResult ? (parseFloat(lastNsResult.grandTotal) || totNet) : null;
   const tax = grandTotal !== null ? grandTotal - totNet : null;
 
-  return `<div style="max-width:680px;margin:0 auto;padding:22px 12px;font-family:'Jost',sans-serif;color:#111;">
+  return `<div style="max-width:680px;margin:0 auto;padding:28px 18px;font-family:'Jost',sans-serif;color:#111;">
 
-  <table width="100%" style="margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #111;">
+  <table width="100%" style="margin-bottom:22px;padding-bottom:16px;border-bottom:2px solid #111;">
     <tr>
       <td style="vertical-align:top;">
         <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;letter-spacing:0.1em;text-transform:uppercase;">Camera West</div>
@@ -1572,10 +1572,10 @@ function buildPrint() {
     </tr>
   </table>
 
-  <table width="100%" style="margin-bottom:16px;">
+  <table width="100%" style="margin-bottom:22px;">
     <tr>
       <td style="width:55%;vertical-align:top;">
-        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:#aaa;margin-bottom:4px;">Customer</div>
+        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:#aaa;margin-bottom:6px;">Customer</div>
         <div style="font-size:14px;font-weight:500;">${cust}</div>
         ${email ? `<div style="font-size:10px;color:#555;margin-top:2px;">${email}</div>` : ''}
         ${phone ? `<div style="font-size:10px;color:#555;">${phone}</div>` : ''}
@@ -1591,7 +1591,7 @@ function buildPrint() {
     </tr>
   </table>
 
-  <table width="100%" style="border-collapse:collapse;margin-bottom:12px;table-layout:fixed;">
+  <table width="100%" style="border-collapse:collapse;margin-bottom:18px;table-layout:fixed;">
     <colgroup><col style="width:34%"><col style="width:12%"><col style="width:9%"><col style="width:15%"><col style="width:15%"><col style="width:15%"></colgroup>
     <thead>
       <tr style="background:#0e0e0e;color:#f5f5f0;">
@@ -1627,30 +1627,12 @@ function buildPrint() {
     </tfoot>
   </table>
 
-  <div style="border-left:2px solid #d95e00;padding:8px 13px;font-size:10px;color:#777;margin-bottom:20px;line-height:1.8;letter-spacing:0.02em;">
-    By signing below, the customer confirms the items above are accurately described, that they are the rightful owner, and authorizes Camera West to process this trade-in or purchase transaction. All values are estimates pending final inspection. All sales and trade-ins are final.
+  <div style="border-left:2px solid #d95e00;padding:10px 16px;font-size:10px;color:#777;margin-bottom:24px;line-height:1.8;letter-spacing:0.02em;">
+    The customer confirms the items above are accurately described, that they are the rightful owner, and authorizes Camera West to process this trade-in or purchase transaction. All values are estimates pending final inspection. All sales and trade-ins are final.
     ${!lastNsResult?.tranId ? `<br><strong style="color:#555;font-size:10px;">This estimate is valid for 5 days from the date of issue (${dt}).</strong>` : ''}
   </div>
 
-  <table width="100%">
-    <tr>
-      <td style="width:45%;vertical-align:bottom;padding-right:14px;">
-        <div style="height:32px;"></div>
-        <div style="border-top:1px solid #111;padding-top:5px;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#999;">Customer Signature</div>
-        <div style="height:20px;"></div>
-        <div style="border-top:1px solid #ddd;padding-top:5px;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#ccc;">Print Name</div>
-      </td>
-      <td style="width:10%;"></td>
-      <td style="width:45%;vertical-align:bottom;">
-        <div style="height:32px;"></div>
-        <div style="border-top:1px solid #111;padding-top:5px;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#999;">Camera West Associate</div>
-        <div style="height:20px;"></div>
-        <div style="border-top:1px solid #ddd;padding-top:5px;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#ccc;">Date</div>
-      </td>
-    </tr>
-  </table>
-
-  <div style="text-align:center;font-size:8px;color:#ccc;margin-top:18px;padding-top:10px;border-top:1px solid #eee;letter-spacing:0.14em;text-transform:uppercase;">
+  <div style="text-align:center;font-size:8px;color:#ccc;margin-top:24px;padding-top:12px;border-top:1px solid #eee;letter-spacing:0.14em;text-transform:uppercase;">
     Camera West &nbsp;·&nbsp; camerawest.com
   </div>
 </div>`;
@@ -1759,25 +1741,10 @@ async function generateSessionPdfBase64() {
 
   // Terms
   y += 10; doc.setFontSize(7.5); doc.setTextColor(120,120,120);
-  const terms = 'By signing below, the customer confirms the items above are accurately described, that they are the rightful owner, and authorizes Camera West to process this trade-in or purchase transaction. All values are estimates pending final inspection. All sales and trade-ins are final.';
+  const terms = 'The customer confirms the items above are accurately described, that they are the rightful owner, and authorizes Camera West to process this trade-in or purchase transaction. All values are estimates pending final inspection. All sales and trade-ins are final.';
   const termsLines = doc.splitTextToSize(terms, cw);
   doc.text(termsLines, ml, y); y += termsLines.length * 3.2;
   if (!lastNsResult?.tranId) { y += 2; doc.setTextColor(100,100,100); doc.text('This estimate is valid for 5 days from the date of issue (' + dt + ').', ml, y); }
-
-  // Signature lines
-  y += 12;
-  const sigW = cw * 0.4;
-  doc.setDrawColor(17,17,17); doc.setLineWidth(0.3);
-  doc.line(ml, y, ml + sigW, y);
-  doc.line(pw - mr - sigW, y, pw - mr, y);
-  y += 4; doc.setFontSize(7); doc.setTextColor(150,150,150);
-  doc.text('Customer Signature', ml, y);
-  doc.text('Camera West Associate', pw - mr - sigW, y);
-  y += 8; doc.setDrawColor(200,200,200); doc.setLineWidth(0.15);
-  doc.line(ml, y, ml + sigW, y);
-  doc.line(pw - mr - sigW, y, pw - mr, y);
-  y += 4; doc.text('Print Name', ml, y);
-  doc.text('Date', pw - mr - sigW, y);
 
   // Footer
   doc.setFontSize(7); doc.setTextColor(190,190,190);
