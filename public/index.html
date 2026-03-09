@@ -1748,8 +1748,8 @@ function buildPrint() {
     </tr>`;
   }).join('');
 
-  return `<div style="max-width:680px;margin:0 auto;padding:22px 12px;font-family:'Jost',sans-serif;color:#111;">
-  <table width="100%" style="margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #111;"><tr>
+  return `<div style="max-width:680px;margin:0 auto;padding:28px 18px;font-family:'Jost',sans-serif;color:#111;">
+  <table width="100%" style="margin-bottom:22px;padding-bottom:16px;border-bottom:2px solid #111;"><tr>
     <td style="vertical-align:top;">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 75" style="height:32px;width:auto;display:block;"><g><path d="M27.4,43c-.2,3.6-1.2,6.3-3.1,8.2s-4.5,2.8-7.9,2.8-6.3-1.2-8.3-3.5c-1.9-2.4-2.9-5.7-2.9-10.1v-5.3c0-4.4,1-7.7,3-10.1,2-2.4,4.7-3.5,8.2-3.5s6.1,1,7.9,2.9,2.8,4.7,3.1,8.3h-6.4c0-2.2-.4-3.8-1-4.6-.6-.8-1.8-1.3-3.5-1.3s-2.9.6-3.6,1.8c-.7,1.2-1.1,3.2-1.1,5.9v6c0,3.2.4,5.3,1.1,6.5.7,1.2,1.9,1.8,3.6,1.8s2.8-.4,3.5-1.2c.6-.8,1-2.3,1.1-4.5h6.4-.1Z"/><path d="M49.8,47.1h-8.7l-1.7,6.5h-6.8l9.9-31.7h5.9l10,31.7h-6.8l-1.7-6.5h0ZM42.5,41.8h5.9l-3-11.3-3,11.3h0Z"/><path d="M73,21.9l6,22.9,6-22.9h8.4v31.7h-6.4v-8.6l.6-13.2-6.3,21.8h-4.4l-6.3-21.8.6,13.2v8.6h-6.4v-31.7h8.4-.2Z"/><path d="M118.2,39.9h-10v8.4h11.8v5.3h-18.2v-31.7h18.2v5.3h-11.8v7.5h10v5.2Z"/><path d="M136.6,42h-3.2v11.6h-6.4v-31.7h10.2c3.2,0,5.7.8,7.4,2.5,1.8,1.7,2.6,4,2.6,7.1s-1.5,7.2-4.6,8.9l5.5,13v.3h-6.9l-4.8-11.6h.2ZM133.4,36.7h3.6c1.3,0,2.2-.4,2.9-1.3.6-.8,1-2,1-3.4,0-3.2-1.2-4.8-3.7-4.8h-3.7v9.4h-.1Z"/><path d="M170.2,47.1h-8.7l-1.7,6.5h-6.8l9.9-31.7h5.9l10,31.7h-6.8l-1.7-6.5h0ZM162.8,41.8h5.9l-3-11.3-3,11.3h.1Z"/><path d="M205.6,41.8l3-19.9h6.3l-5.6,31.7h-6.4l-3.7-18.7-3.7,18.7h-6.4l-5.7-31.7h6.4l3,19.9,3.7-19.9h5.4s3.7,19.9,3.7,19.9Z"/><path d="M238.1,39.9h-10v8.4h11.8v5.3h-18.2v-31.7h18.2v5.3h-11.8v7.5h10v5.2Z"/><path d="M260.3,45.3c0-1.3-.3-2.3-1-2.9-.7-.7-1.9-1.4-3.6-2.1-3.2-1.2-5.5-2.6-6.9-4.2s-2.1-3.5-2.1-5.8.9-4.8,2.8-6.4c1.9-1.6,4.3-2.4,7.2-2.4s3.7.4,5.2,1.2,2.7,2,3.5,3.5,1.2,3.2,1.2,5.1h-6.4c0-1.5-.3-2.6-1-3.4-.6-.8-1.5-1.2-2.7-1.2s-2,.3-2.6,1-.9,1.5-.9,2.6.3,1.7,1,2.4c.7.7,1.9,1.4,3.7,2.2,3.1,1.1,5.3,2.5,6.7,4.1,1.4,1.6,2.1,3.7,2.1,6.2s-.9,4.9-2.6,6.5c-1.8,1.6-4.1,2.3-7.1,2.3s-3.9-.4-5.6-1.3c-1.7-.8-3-2.1-4-3.6-.9-1.6-1.4-3.4-1.4-5.6h6.4c0,1.8.4,3.2,1.1,4,.7.8,1.9,1.2,3.5,1.2s3.4-1.2,3.4-3.5h0Z"/><path d="M294.9,27.2h-7.9v26.4h-6.4v-26.4h-7.7v-5.3h22v5.3Z"/></g></svg>
       <div style="font-size:10px;color:#666;margin-top:6px;letter-spacing:.04em;line-height:1.8;">${(STORE_INFO[selLoc]?.address)||'camerawest.com'}<br>${(STORE_INFO[selLoc]?.phone)||''} &nbsp;·&nbsp; support@camerawest.com</div>
@@ -1760,9 +1760,9 @@ function buildPrint() {
       <div style="font-size:10px;color:#666;margin-top:3px;line-height:1.8;">${dt}<br>Associate: ${esc(asc)}${_loggedInEmail ? '<br>Issued by: ' + esc(_loggedInEmail) : ''}</div>
     </td>
   </tr></table>
-  <table width="100%" style="margin-bottom:16px;"><tr>
+  <table width="100%" style="margin-bottom:22px;"><tr>
     <td style="width:55%;vertical-align:top;">
-      <div style="font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#aaa;margin-bottom:4px;">Customer</div>
+      <div style="font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#aaa;margin-bottom:6px;">Customer</div>
       <div style="font-size:14px;font-weight:500;">${esc(cust)}</div>
       ${email?`<div style="font-size:10px;color:#555;margin-top:2px;">${esc(email)}</div>`:''}
       ${phone?`<div style="font-size:10px;color:#555;">${esc(phone)}</div>`:''}
@@ -1776,7 +1776,7 @@ function buildPrint() {
       <div style="font-size:10px;color:#555;line-height:1.8;">Pre-Owned Trade-In<br>${sessionItems.length} item${sessionItems.length!==1?'s':''}</div>
     </td>
   </tr></table>
-  <table width="100%" style="border-collapse:collapse;margin-bottom:12px;table-layout:fixed;">
+  <table width="100%" style="border-collapse:collapse;margin-bottom:18px;table-layout:fixed;">
     <colgroup><col style="width:40%"><col style="width:14%"><col style="width:10%"><col style="width:18%"><col style="width:18%"></colgroup>
     <thead><tr style="background:#0e0e0e;color:#f5f5f0;">
       <th style="padding:8px 7px;text-align:left;font-size:8px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;">Description</th>
@@ -1798,27 +1798,12 @@ function buildPrint() {
       ${finalTot?`<tr style="background:#0e0e0e;"><td colspan="4" style="padding:9px 7px;text-align:right;font-size:10px;color:#aaa;letter-spacing:.1em;text-transform:uppercase;">Final Total After Tax</td><td style="padding:9px 7px;text-align:right;font-family:'Palatino Linotype',serif;font-size:18px;font-weight:300;color:#fff;">$${esc(finalTot)}</td></tr>`:''}
     </tfoot>
   </table>
-  <div style="border-left:2px solid #d95e00;padding:8px 13px;font-size:10px;color:#777;margin-bottom:20px;line-height:1.8;letter-spacing:.02em;">
-    By signing below, the customer confirms the items above are accurately described, that they are the rightful owner, and authorizes Camera West to process this trade-in or purchase transaction. All values are estimates pending final inspection. All sales and trade-ins are final.
+  <div style="border-left:2px solid #d95e00;padding:10px 16px;font-size:10px;color:#777;margin-bottom:24px;line-height:1.8;letter-spacing:.02em;">
+    The customer confirms the items above are accurately described, that they are the rightful owner, and authorizes Camera West to process this trade-in or purchase transaction. All values are estimates pending final inspection. All sales and trade-ins are final.
     ${cm==='PENDING'?'<br><strong style="color:#d95e00;font-size:10px;">&#9888; Credit Memo Number pending — to be assigned upon finalization in ERP.</strong>':''}
     ${cm==='PENDING'?`<br><strong style="color:#555;font-size:10px;">This estimate is valid for 5 days from the date of issue (${dt}).</strong>`:''}
   </div>
-  <table width="100%"><tr>
-    <td style="width:45%;vertical-align:bottom;padding-right:14px;">
-      <div style="height:32px;"></div>
-      <div style="border-top:1px solid #111;padding-top:5px;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#999;">Customer Signature</div>
-      <div style="height:20px;"></div>
-      <div style="border-top:1px solid #ddd;padding-top:5px;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#ccc;">Print Name</div>
-    </td>
-    <td style="width:10%;"></td>
-    <td style="width:45%;vertical-align:bottom;">
-      <div style="height:32px;"></div>
-      <div style="border-top:1px solid #111;padding-top:5px;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#999;">Camera West Associate</div>
-      <div style="height:20px;"></div>
-      <div style="border-top:1px solid #ddd;padding-top:5px;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#ccc;">Date</div>
-    </td>
-  </tr></table>
-  <div style="text-align:center;font-size:8px;color:#ccc;margin-top:18px;padding-top:10px;border-top:1px solid #eee;letter-spacing:.14em;text-transform:uppercase;">Camera West &nbsp;·&nbsp; camerawest.com</div>
+  <div style="text-align:center;font-size:8px;color:#ccc;margin-top:24px;padding-top:12px;border-top:1px solid #eee;letter-spacing:.14em;text-transform:uppercase;">Camera West &nbsp;·&nbsp; camerawest.com</div>
 </div>`;
 }
 
@@ -1924,25 +1909,10 @@ async function generateSessionPdfBase64() {
 
   // Terms
   y += 10; doc.setFontSize(7.5); doc.setTextColor(120,120,120);
-  const terms = 'By signing below, the customer confirms the items above are accurately described, that they are the rightful owner, and authorizes Camera West to process this trade-in or purchase transaction. All values are estimates pending final inspection. All sales and trade-ins are final.';
+  const terms = 'The customer confirms the items above are accurately described, that they are the rightful owner, and authorizes Camera West to process this trade-in or purchase transaction. All values are estimates pending final inspection. All sales and trade-ins are final.';
   const termsLines = doc.splitTextToSize(terms, cw);
   doc.text(termsLines, ml, y); y += termsLines.length * 3.2;
   if (cm === 'PENDING') { y += 2; doc.setTextColor(100,100,100); doc.text('This estimate is valid for 5 days from the date of issue (' + dt + ').', ml, y); }
-
-  // Signature lines
-  y += 12;
-  const sigW = cw * 0.4;
-  doc.setDrawColor(17,17,17); doc.setLineWidth(0.3);
-  doc.line(ml, y, ml + sigW, y);
-  doc.line(pw - mr - sigW, y, pw - mr, y);
-  y += 4; doc.setFontSize(7); doc.setTextColor(150,150,150);
-  doc.text('Customer Signature', ml, y);
-  doc.text('Camera West Associate', pw - mr - sigW, y);
-  y += 8; doc.setDrawColor(200,200,200); doc.setLineWidth(0.15);
-  doc.line(ml, y, ml + sigW, y);
-  doc.line(pw - mr - sigW, y, pw - mr, y);
-  y += 4; doc.text('Print Name', ml, y);
-  doc.text('Date', pw - mr - sigW, y);
 
   // Footer
   doc.setFontSize(7); doc.setTextColor(190,190,190);
