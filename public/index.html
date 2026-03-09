@@ -1878,25 +1878,25 @@ async function generateSessionPdfBase64() {
   doc.text(cm, pw - mr, y - 5, { align: 'right' });
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(100,100,100);
   doc.text(dt + '   Associate: ' + asc, pw - mr, y, { align: 'right' });
-  if (_loggedInEmail) { y += 4; doc.text('Issued by: ' + _loggedInEmail, pw - mr, y, { align: 'right' }); }
+  if (_loggedInEmail) { y += 4; doc.setFontSize(8); doc.text('Issued by: ' + _loggedInEmail, pw - mr, y, { align: 'right' }); }
 
-  y += 5; doc.setDrawColor(17,17,17); doc.setLineWidth(0.5); doc.line(ml, y, pw - mr, y);
+  y += 6; doc.setDrawColor(17,17,17); doc.setLineWidth(0.5); doc.line(ml, y, pw - mr, y);
 
   // Customer info
-  y += 8; doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text('CUSTOMER', ml, y);
-  y += 6; doc.setFontSize(12); doc.setTextColor(17,17,17); doc.setFont('helvetica','bold'); doc.text(cust, ml, y);
+  y += 10; doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text('CUSTOMER', ml, y);
+  y += 7; doc.setFontSize(13); doc.setTextColor(17,17,17); doc.setFont('helvetica','bold'); doc.text(cust, ml, y);
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(80,80,80);
-  if (email) { y += 6; doc.text(email, ml, y); }
-  if (phone) { y += 6; doc.text(phone, ml, y); }
-  if (loc !== '—') { y += 6; doc.setTextColor(120,120,120); doc.text('Location: ' + loc, ml, y); }
+  if (email) { y += 7; doc.text(email, ml, y); }
+  if (phone) { y += 7; doc.text(phone, ml, y); }
+  if (loc !== '—') { y += 7; doc.setTextColor(120,120,120); doc.text('Location: ' + loc, ml, y); }
   if (shipTo) { y += 6; doc.text('Ship From: ' + shipTo, ml, y); }
   if (destStore) { y += 6; doc.text('Ship To: ' + destStore, ml, y); }
-  if (tracking) { y += 6; doc.setTextColor(217,94,0); doc.setFont('helvetica','bold'); doc.text('FedEx Tracking: ' + tracking, ml, y); doc.setFont('helvetica','normal'); }
+  if (tracking) { y += 7; doc.setTextColor(217,94,0); doc.setFont('helvetica','bold'); doc.text('FedEx Tracking: ' + tracking, ml, y); doc.setFont('helvetica','normal'); }
 
-  y += 7; doc.setDrawColor(200,200,200); doc.setLineWidth(0.2); doc.line(ml, y, pw - mr, y);
+  y += 10; doc.setDrawColor(200,200,200); doc.setLineWidth(0.2); doc.line(ml, y, pw - mr, y);
 
   // Items table header
-  y += 7;
+  y += 8;
   const cols = [ml, ml + cw * 0.52, ml + cw * 0.64, ml + cw * 0.82, pw - mr];
   doc.setFillColor(20,20,20); doc.rect(ml, y - 4, cw, 7, 'F');
   doc.setFontSize(7); doc.setTextColor(230,230,230); doc.setFont('helvetica','bold');
@@ -1913,38 +1913,38 @@ async function generateSessionPdfBase64() {
     doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
     const nameStr = it.name + (it.serial ? '  S/N: ' + it.serial : '');
     const nameLines = doc.splitTextToSize(nameStr, cw * 0.50);
-    nameLines.forEach((ln, i) => { doc.text(ln, cols[0] + 2, y + i * 4); });
+    nameLines.forEach((ln, i) => { doc.text(ln, cols[0] + 2, y + i * 5); });
     doc.setFont('helvetica','normal');
     doc.setFontSize(9); doc.text(it.grade, cols[1] + 2, y);
     doc.setTextColor(42,122,74); doc.text(ff(it.tradein), cols[3], y, { align: 'right' });
     doc.setTextColor(17,17,17); doc.setFont('helvetica','bold'); doc.text(ff(it.net), cols[4], y, { align: 'right' });
     doc.setFont('helvetica','normal');
-    let rowH = Math.max(nameLines.length * 4, 5);
-    if (it.accessories.length) { doc.setFontSize(7); doc.setTextColor(120,120,120); doc.text('Includes: ' + it.accessories.join(', '), cols[0] + 2, y + rowH); rowH += 4; }
-    if (it.notes) { doc.setFontSize(7); doc.setTextColor(150,150,150); doc.text(it.notes, cols[0] + 2, y + rowH); rowH += 4; }
-    if ((it.svcCharge||0) > 0) { doc.setFontSize(7); doc.setTextColor(200,60,60); doc.text('-' + ff(it.svcCharge) + ' svc' + (it.svcReason ? ' (' + it.svcReason + ')' : ''), cols[4], y + rowH - 4, { align: 'right' }); }
-    y += rowH + 3;
+    let rowH = Math.max(nameLines.length * 5, 6);
+    if (it.accessories.length) { doc.setFontSize(7); doc.setTextColor(120,120,120); doc.text('Includes: ' + it.accessories.join(', '), cols[0] + 2, y + rowH); rowH += 5; }
+    if (it.notes) { doc.setFontSize(7); doc.setTextColor(150,150,150); doc.text(it.notes, cols[0] + 2, y + rowH); rowH += 5; }
+    if ((it.svcCharge||0) > 0) { doc.setFontSize(7); doc.setTextColor(200,60,60); doc.text('-' + ff(it.svcCharge) + ' svc' + (it.svcReason ? ' (' + it.svcReason + ')' : ''), cols[4], y + rowH - 5, { align: 'right' }); }
+    y += rowH + 4;
     doc.setDrawColor(230,230,230); doc.setLineWidth(0.1); doc.line(ml, y, pw - mr, y);
-    y += 4;
+    y += 5;
   });
 
   // Totals
-  y += 4; doc.setDrawColor(200,200,200); doc.setLineWidth(0.2); doc.line(ml + cw * 0.5, y, pw - mr, y);
-  y += 7; doc.setFontSize(9); doc.setTextColor(100,100,100); doc.text('Net Total:', cols[3], y, { align: 'right' });
-  doc.setFontSize(12); doc.setTextColor(217,94,0); doc.setFont('helvetica','bold');
+  y += 6; doc.setDrawColor(200,200,200); doc.setLineWidth(0.2); doc.line(ml + cw * 0.5, y, pw - mr, y);
+  y += 9; doc.setFontSize(9); doc.setTextColor(100,100,100); doc.text('Net Total:', cols[3], y, { align: 'right' });
+  doc.setFontSize(14); doc.setTextColor(217,94,0); doc.setFont('helvetica','bold');
   doc.text(ff(totNet), cols[4], y, { align: 'right' });
   doc.setFont('helvetica','normal');
-  if (svcGrand > 0) { y += 6; doc.setFontSize(8); doc.setTextColor(200,60,60); doc.text('Service Charges: -' + ff(svcGrand), cols[4], y, { align: 'right' }); }
-  if (taxRate > 0) { y += 6; doc.setFontSize(8); doc.setTextColor(100,100,100); doc.text('Est. Tax (' + (taxRate*100).toFixed(3).replace(/\.?0+$/,'') + '%): ' + ff(estTax), cols[4], y, { align: 'right' }); }
-  if (taxRate > 0) { y += 6; doc.setFontSize(10); doc.setTextColor(217,94,0); doc.setFont('helvetica','bold'); doc.text('Est. Grand Total: ' + ff(estGrand), cols[4], y, { align: 'right' }); doc.setFont('helvetica','normal'); }
-  if (finalTot > 0) { y += 6; doc.setFontSize(11); doc.setTextColor(17,17,17); doc.setFont('helvetica','bold'); doc.text('Final Total: $' + finalTot.toFixed(2), cols[4], y, { align: 'right' }); doc.setFont('helvetica','normal'); }
+  if (svcGrand > 0) { y += 7; doc.setFontSize(8); doc.setTextColor(200,60,60); doc.text('Service Charges: -' + ff(svcGrand), cols[4], y, { align: 'right' }); }
+  if (taxRate > 0) { y += 7; doc.setFontSize(8); doc.setTextColor(100,100,100); doc.text('Est. Tax (' + (taxRate*100).toFixed(3).replace(/\.?0+$/,'') + '%): ' + ff(estTax), cols[4], y, { align: 'right' }); }
+  if (taxRate > 0) { y += 7; doc.setFontSize(10); doc.setTextColor(217,94,0); doc.setFont('helvetica','bold'); doc.text('Est. Grand Total: ' + ff(estGrand), cols[4], y, { align: 'right' }); doc.setFont('helvetica','normal'); }
+  if (finalTot > 0) { y += 7; doc.setFontSize(11); doc.setTextColor(17,17,17); doc.setFont('helvetica','bold'); doc.text('Final Total: $' + finalTot.toFixed(2), cols[4], y, { align: 'right' }); doc.setFont('helvetica','normal'); }
 
   // Terms
-  y += 12; doc.setFontSize(7.5); doc.setTextColor(120,120,120);
+  y += 14; doc.setFontSize(7.5); doc.setTextColor(120,120,120);
   const terms = 'The customer confirms the items above are accurately described, that they are the rightful owner, and authorizes Camera West to process this trade-in or purchase transaction. All values are estimates pending final inspection. All sales and trade-ins are final.';
   const termsLines = doc.splitTextToSize(terms, cw);
-  doc.text(termsLines, ml, y); y += termsLines.length * 3.2;
-  if (cm === 'PENDING') { y += 2; doc.setTextColor(100,100,100); doc.text('This estimate is valid for 5 days from the date of issue (' + dt + ').', ml, y); }
+  doc.text(termsLines, ml, y); y += termsLines.length * 3.5;
+  if (cm === 'PENDING') { y += 3; doc.setTextColor(100,100,100); doc.text('This estimate is valid for 5 days from the date of issue (' + dt + ').', ml, y); }
 
   // Footer
   doc.setFontSize(7); doc.setTextColor(190,190,190);
