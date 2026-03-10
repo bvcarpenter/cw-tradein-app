@@ -1391,10 +1391,10 @@ function exportXLSX() {
   const H1 = ['Item Name/Number','Vendor Name/Code','MPN','System Identifier','Brand',
     'Cosmetic Condition','Main Department','Sub Department','Sublet Department',
     'Purchase Price','Item Pricing 1 : Price (Req)','Item Vendors 1 : Vendor (Req)',
-    'Buy It Now','Auto Accept',null,'Item Name/Number',
+    'Buy It Now','Auto Accept','Item Name/Number',
     'Amazon Shipping','Amazon Condition','Best offer','Best offer Minimum','Type'];
   const H2 = ['Description','Serial Number','Catalog Number','System ID','Brand','Grade',
-    'Main','Sub','Sublet','Net','Retail','Origin Store','BIN','AA','margin',
+    'Main','Sub','Sublet','Net','Retail','Origin Store','BIN','AA',
     'Do Not Modify','Do Not Modify','Do Not Modify','Do Not Modify','Do Not Modify',null];
 
   const rows = [H1, H2];
@@ -1407,16 +1407,16 @@ function exportXLSX() {
       it.name + acStr, it.serial||null, it.catalog||null, it.systemId||null, it.vendor||null,
       it.grade, mainD, subD, it.itemType||null,
       it.net, it.retail, 'Camera West RM',
-      {f:`K${r}*1.1`}, {f:`K${r}*1.05`}, 0.6,
+      {f:`K${r}*1.1`}, {f:`K${r}*0.05`},
       {f:`IF(B${r}="",A${r}&" ("&F${r}&")",A${r}&" "&B${r})`},
-      {f:`IF(M${r}>500,"Prime Nationwide","Purely Free Shipping")`},
+      {f:`IF(M${r}>500,"Prim Nation","Purely Free Shipping")`},
       {f:`IF(F${r}="10-","Used - Like New",IF(F${r}="9+","Used - Very Good",IF(F${r}="8+","Used - Good",IF(F${r}=9,"Used - Very Good","Used - Acceptable"))))`},
-      {f:`IF(N${r}<>"","Yes","No")`}, {f:`N${r}-0.01`}, {f:`G${r}&" "&H${r}`}
+      "Yes", {f:`N${r}-0.01`}, {f:`G${r}&" "&H${r}`}
     ]);
   });
   const ws1 = XLSX.utils.aoa_to_sheet(rows);
   ws1['!cols'] = [{wch:50},{wch:15},{wch:15},{wch:20},{wch:15},{wch:8},{wch:10},{wch:14},{wch:16},
-    {wch:12},{wch:12},{wch:18},{wch:12},{wch:12},{wch:8},{wch:50},{wch:20},{wch:20},{wch:10},{wch:12},{wch:20}];
+    {wch:12},{wch:12},{wch:18},{wch:12},{wch:12},{wch:50},{wch:20},{wch:20},{wch:10},{wch:12},{wch:20}];
   XLSX.utils.book_append_sheet(wb, ws1, 'Main Sheet');
 
   const outRows = [['Item','Grade','Credit']];
@@ -1669,122 +1669,33 @@ async function loadLogoPng() {
 
 // ─── GENERATE SESSION PDF BASE64 ───
 async function generateSessionPdfBase64() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait' });
-  const pw = 215.9, ml = 15, mr = 15, cw = pw - ml - mr;
-  let y = 18;
+  // Use the same HTML from the print preview (buildPrint) rendered to PDF via html2pdf.js
+  const printHtml = buildPrint();
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `<div style="font-family:'Jost',sans-serif;color:#111;font-size:12px;font-weight:300;-webkit-font-smoothing:antialiased;">${printHtml}</div>`;
+  wrapper.style.position = 'fixed';
+  wrapper.style.left = '-9999px';
+  wrapper.style.top = '0';
+  wrapper.style.width = '720px';
+  document.body.appendChild(wrapper);
 
-  const cm   = document.getElementById('cm-num').value.trim() || 'PENDING';
-  const asc  = document.getElementById('assoc').value.trim() || '—';
-  const dt   = document.getElementById('txn-date').value || new Date().toISOString().split('T')[0];
-  const cust = [document.getElementById('c-first').value.trim(), document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || '—';
-  const email = document.getElementById('c-email').value.trim();
-  const phone = document.getElementById('c-phone').value.trim();
-  const loc   = selLoc === 'shipping' ? 'Shipping' : (selLoc||'—');
-  const shipTo = selLoc === 'shipping'
-    ? [document.getElementById('s-str').value, document.getElementById('s-city').value,
-       document.getElementById('s-st').value, document.getElementById('s-zip').value].filter(Boolean).join(', ') : '';
-  const destStoreLabel = (selLoc === 'shipping' && typeof _destStore !== 'undefined' && _destStore && STORE_INFO[_destStore])
-    ? _destStore + ' — ' + STORE_INFO[_destStore].address : '';
-  const tracking = cachedFedExLabel?.trackingNumber || document.getElementById('tracking-num').value.trim();
-  const totNet = sessionItems.reduce((s,i) => s+i.net, 0);
-  const grandTotal = lastNsResult ? (parseFloat(lastNsResult.grandTotal) || totNet) : null;
-  const tax = grandTotal !== null ? grandTotal - totNet : null;
-
-  // Header — logo
-  const logoPng = await loadLogoPng();
-  if (logoPng) {
-    doc.addImage(logoPng, 'PNG', ml, y - 6, 55, 11);
-  } else {
-    doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.setTextColor(17,17,17);
-    doc.text('CAMERA WEST', ml, y);
+  try {
+    const opt = {
+      margin: [10, 10, 10, 10],
+      filename: 'estimate.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
+    };
+    const pdfBlob = await html2pdf().set(opt).from(wrapper).outputPdf('blob');
+    const arrayBuf = await pdfBlob.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuf);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  } finally {
+    document.body.removeChild(wrapper);
   }
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(120,120,120);
-  y += 7; doc.text('camerawest.com  ·  support@camerawest.com', ml, y);
-
-  // Doc label + CM# on the right
-  doc.setFontSize(8); doc.setTextColor(150,150,150);
-  doc.text((lastNsResult?.tranId ? 'CREDIT MEMO' : 'ESTIMATE'), pw - mr, y - 12, { align: 'right' });
-  doc.setFontSize(16); doc.setTextColor(217,94,0); doc.setFont('helvetica','bold');
-  doc.text(cm, pw - mr, y - 5, { align: 'right' });
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(100,100,100);
-  doc.text(dt + '   Associate: ' + asc, pw - mr, y, { align: 'right' });
-  const issuedBy = approvedManager || '';
-  if (issuedBy) { y += 4; doc.setFontSize(8); doc.text('Issued by: ' + issuedBy, pw - mr, y, { align: 'right' }); }
-
-  y += 6; doc.setDrawColor(17,17,17); doc.setLineWidth(0.5); doc.line(ml, y, pw - mr, y);
-
-  // Customer info
-  y += 10; doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text('CUSTOMER', ml, y);
-  y += 7; doc.setFontSize(13); doc.setTextColor(17,17,17); doc.setFont('helvetica','bold'); doc.text(cust, ml, y);
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(80,80,80);
-  if (email) { y += 7; doc.text(email, ml, y); }
-  if (phone) { y += 7; doc.text(phone, ml, y); }
-  if (loc !== '—') { y += 7; doc.setTextColor(120,120,120); doc.text('Location: ' + loc, ml, y); }
-  if (shipTo) { y += 6; doc.text('Ship From: ' + shipTo, ml, y); }
-  if (destStoreLabel) { y += 6; doc.text('Ship To: ' + destStoreLabel, ml, y); }
-  if (tracking) { y += 7; doc.setTextColor(217,94,0); doc.setFont('helvetica','bold'); doc.text('FedEx Tracking: ' + tracking, ml, y); doc.setFont('helvetica','normal'); }
-
-  y += 10; doc.setDrawColor(200,200,200); doc.setLineWidth(0.2); doc.line(ml, y, pw - mr, y);
-
-  // Items table header
-  y += 8;
-  const cols = [ml, ml + cw * 0.52, ml + cw * 0.64, ml + cw * 0.82, pw - mr];
-  doc.setFillColor(20,20,20); doc.rect(ml, y - 4, cw, 7, 'F');
-  doc.setFontSize(7); doc.setTextColor(230,230,230); doc.setFont('helvetica','bold');
-  doc.text('DESCRIPTION', cols[0] + 2, y);
-  doc.text('GRADE', cols[1] + 2, y);
-  doc.text('TRADE-IN', cols[3], y, { align: 'right' });
-  doc.text('NET PRICE', cols[4], y, { align: 'right' });
-  y += 5;
-
-  // Item rows
-  doc.setFont('helvetica','normal'); doc.setTextColor(17,17,17);
-  sessionItems.forEach(it => {
-    if (y > 245) { doc.addPage(); y = 18; }
-    doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(17,17,17);
-    const nameStr = it.name + (it.serial ? '  S/N: ' + it.serial : '');
-    const nameLines = doc.splitTextToSize(nameStr, cw * 0.50);
-    nameLines.forEach((ln, i) => { doc.text(ln, cols[0] + 2, y + i * 5); });
-    doc.setFont('helvetica','normal');
-    doc.setFontSize(9); doc.text(it.grade, cols[1] + 2, y);
-    doc.setTextColor(42,122,74); doc.text(f(it.tradein), cols[3], y, { align: 'right' });
-    doc.setTextColor(17,17,17); doc.setFont('helvetica','bold'); doc.text(f(it.net), cols[4], y, { align: 'right' });
-    doc.setFont('helvetica','normal');
-    let rowH = Math.max(nameLines.length * 5, 6);
-    if (it.accessories.length) { doc.setFontSize(7); doc.setTextColor(120,120,120); doc.text('Includes: ' + it.accessories.join(', '), cols[0] + 2, y + rowH); rowH += 5; }
-    if (it.notes) { doc.setFontSize(7); doc.setTextColor(150,150,150); doc.text(it.notes, cols[0] + 2, y + rowH); rowH += 5; }
-    y += rowH + 4;
-    doc.setDrawColor(230,230,230); doc.setLineWidth(0.1); doc.line(ml, y, pw - mr, y);
-    y += 5;
-  });
-
-  // Totals
-  y += 6; doc.setDrawColor(200,200,200); doc.setLineWidth(0.2); doc.line(ml + cw * 0.5, y, pw - mr, y);
-  y += 9; doc.setFontSize(9); doc.setTextColor(100,100,100); doc.text('Net Total:', cols[3], y, { align: 'right' });
-  doc.setFontSize(14); doc.setTextColor(217,94,0); doc.setFont('helvetica','bold');
-  doc.text(f(totNet), cols[4], y, { align: 'right' });
-  doc.setFont('helvetica','normal');
-  if (grandTotal !== null && tax !== null) {
-    y += 7; doc.setFontSize(8); doc.setTextColor(100,100,100); doc.text('Est. Tax: ' + f(tax), cols[4], y, { align: 'right' });
-    y += 7; doc.setFontSize(12); doc.setTextColor(217,94,0); doc.setFont('helvetica','bold');
-    doc.text('Grand Total: ' + f(grandTotal), cols[4], y, { align: 'right' });
-    doc.setFont('helvetica','normal');
-  }
-
-  // Terms
-  y += 14; doc.setFontSize(7.5); doc.setTextColor(120,120,120);
-  const terms = 'The customer confirms the items above are accurately described, that they are the rightful owner, and authorizes Camera West to process this trade-in or purchase transaction. All values are estimates pending final inspection. All sales and trade-ins are final.';
-  const termsLines = doc.splitTextToSize(terms, cw);
-  doc.text(termsLines, ml, y); y += termsLines.length * 3.5;
-  if (!lastNsResult?.tranId) { y += 3; doc.setTextColor(100,100,100); doc.text('This estimate is valid for 5 days from the date of issue (' + dt + ').', ml, y); }
-
-  // Footer
-  doc.setFontSize(7); doc.setTextColor(190,190,190);
-  doc.text('CAMERA WEST  ·  camerawest.com', pw / 2, 270, { align: 'center' });
-
-  const dataUri = doc.output('datauristring');
-  return dataUri.split('base64,')[1];
 }
 
 // ─── EMAIL ESTIMATE TO CUSTOMER ───
