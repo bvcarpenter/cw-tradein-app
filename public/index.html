@@ -1596,7 +1596,7 @@ function exportXLSX() {
       itemNum, it.name + acStr, it.serial||null, it.catalog||null, it.systemId||null, it.vendor||null,
       it.grade, mainD, subD, it.itemType||null,
       it.net, it.retail, 'Camera West RM',
-      {f:`L${r}*1.1`}, {f:`L${r}*0.05`}, it.name + acStr,
+      {f:`L${r}*1.1`}, {f:`L${r}*1.05`}, it.name + acStr,
       {f:`IF(B${r}="",A${r}&" ("&F${r}&")",A${r}&" "&B${r})`},
       {f:`IF(N${r}>500,"Prim Nation","Purely Free Shipping")`},
       {f:`IF(G${r}="10-","Used - Like New",IF(G${r}="9+","Used - Very Good",IF(G${r}="8+","Used - Good",IF(G${r}=9,"Used - Very Good","Used - Acceptable"))))`},
