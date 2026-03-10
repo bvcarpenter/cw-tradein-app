@@ -1391,10 +1391,10 @@ function exportXLSX() {
   const H1 = ['Item Name/Number','Vendor Name/Code','MPN','System Identifier','Brand',
     'Cosmetic Condition','Main Department','Sub Department','Sublet Department',
     'Purchase Price','Item Pricing 1 : Price (Req)','Item Vendors 1 : Vendor (Req)',
-    'Buy It Now','Auto Accept',null,'Item Name/Number',
+    'Buy It Now','Auto Accept','Item Name/Number',
     'Amazon Shipping','Amazon Condition','Best offer','Best offer Minimum','Type'];
   const H2 = ['Description','Serial Number','Catalog Number','System ID','Brand','Grade',
-    'Main','Sub','Sublet','Net','Retail','Origin Store','BIN','AA','margin',
+    'Main','Sub','Sublet','Net','Retail','Origin Store','BIN','AA',
     'Do Not Modify','Do Not Modify','Do Not Modify','Do Not Modify','Do Not Modify',null];
 
   const rows = [H1, H2];
@@ -1407,16 +1407,16 @@ function exportXLSX() {
       it.name + acStr, it.serial||null, it.catalog||null, it.systemId||null, it.vendor||null,
       it.grade, mainD, subD, it.itemType||null,
       it.net, it.retail, 'Camera West RM',
-      {f:`K${r}*1.1`}, {f:`K${r}*1.05`}, 0.6,
+      {f:`K${r}*1.1`}, {f:`K${r}*0.05`},
       {f:`IF(B${r}="",A${r}&" ("&F${r}&")",A${r}&" "&B${r})`},
-      {f:`IF(M${r}>500,"Prime Nationwide","Purely Free Shipping")`},
+      {f:`IF(M${r}>500,"Prim Nation","Purely Free Shipping")`},
       {f:`IF(F${r}="10-","Used - Like New",IF(F${r}="9+","Used - Very Good",IF(F${r}="8+","Used - Good",IF(F${r}=9,"Used - Very Good","Used - Acceptable"))))`},
-      {f:`IF(N${r}<>"","Yes","No")`}, {f:`N${r}-0.01`}, {f:`G${r}&" "&H${r}`}
+      "Yes", {f:`N${r}-0.01`}, {f:`G${r}&" "&H${r}`}
     ]);
   });
   const ws1 = XLSX.utils.aoa_to_sheet(rows);
   ws1['!cols'] = [{wch:50},{wch:15},{wch:15},{wch:20},{wch:15},{wch:8},{wch:10},{wch:14},{wch:16},
-    {wch:12},{wch:12},{wch:18},{wch:12},{wch:12},{wch:8},{wch:50},{wch:20},{wch:20},{wch:10},{wch:12},{wch:20}];
+    {wch:12},{wch:12},{wch:18},{wch:12},{wch:12},{wch:50},{wch:20},{wch:20},{wch:10},{wch:12},{wch:20}];
   XLSX.utils.book_append_sheet(wb, ws1, 'Main Sheet');
 
   const outRows = [['Item','Grade','Credit']];
