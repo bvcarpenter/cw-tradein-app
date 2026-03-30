@@ -71,7 +71,7 @@ function buildItemRow(item) {
 
 /* ── build email HTML ────────────────────────────────────────── */
 
-function buildEstimateEmailHtml({ customer, location, destStore, shippingAddress, tracking, cmNum, txnDate, assoc, issuedBy, items, totals, docLabel }) {
+function buildEstimateEmailHtml({ customer, location, destStore, shippingAddress, tracking, tradeInId, cmNum, txnDate, assoc, issuedBy, items, totals, docLabel }) {
   const custName = [customer.first, customer.last].filter(Boolean).join(' ') || '—';
   const loc = location === 'shipping' ? 'Requires Shipping' : (location || '—');
   const shipTo = location === 'shipping' && shippingAddress
@@ -135,6 +135,7 @@ ${tracking ? `<p style="margin:4px 0 0;font-size:11px;color:#d95e00;font-weight:
 ${esc(docLabel || 'Estimate')}
 </p>
 <p style="margin:0 0 4px;font-size:20px;font-weight:300;color:#d95e00;font-family:Georgia,'Times New Roman',serif;">${esc(cm)}</p>
+${tradeInId ? `<p style="margin:0 0 4px;font-size:11px;color:#d95e00;font-weight:500;letter-spacing:0.5px;">${esc(tradeInId)}</p>` : ''}
 <p style="margin:0;font-size:11px;color:#666666;line-height:1.8;">${esc(dt)}<br/>Associate: ${esc(assoc || '—')}${issuedBy ? '<br/>Issued by: ' + esc(issuedBy) : ''}</p>
 </td>
 </tr>
