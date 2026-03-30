@@ -9,6 +9,7 @@
  *   customer: { first, last, email, phone },
  *   location, destStore, shippingAddress: { str, city, st, zip },
  *   tracking, cmNum, txnDate, assoc, issuedBy,
+ *   tradeInId,       — trade-in session ID (e.g. "CWTI-260330-A7K2")
  *   items: [{ name, systemId, grade, serial, catalog, accessories, notes,
  *             tradein, net, priceType, svcCharge, svcReason }],
  *   totals: { netTotal, svcTotal, taxRate, estTax, estGrand, finalTotal },
@@ -17,6 +18,8 @@
  *   labelPdfBase64   — base64-encoded FedEx label PDF (optional)
  * }
  */
+
+import { logTradeInEvent } from './_commslayer.js';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -293,6 +296,37 @@ export async function onRequestPost({ request, env }) {
     }
 
     const result = resBody ? JSON.parse(resBody) : {};
+
+    // Log to CommsLayer conversation thread (non-blocking)
+    const docLabel = body.docLabel || 'Estimate';
+    const itemCount = (body.items || []).length;
+    const cmDisplay = body.cmNum || 'PENDING';
+    const trackingInfo = body.tracking ? `\nFedEx Tracking: ${body.tracking}` : '';
+    const labelNote = labelPdfBase64 ? '\n📦 FedEx shipping label PDF attached to email.' : '';
+
+    const csContent = [
+      `📧 ${docLabel} emailed to ${customer.email}`,
+      `Trade-In: ${body.tradeInId || 'N/A'}`,
+      `Credit Memo: ${cmDisplay}`,
+      `Items: ${itemCount}`,
+      `Net Total: $${Number(body.totals?.netTotal || 0).toFixed(2)}`,
+      trackingInfo,
+      labelNote,
+      `\nDate: ${body.txnDate || new Date().toISOString().split('T')[0]}`,
+      body.assoc ? `Associate: ${body.assoc}` : '',
+    ].filter(Boolean).join('\n');
+
+    logTradeInEvent(env, {
+      customer,
+      tradeInId: body.tradeInId,
+      content: csContent,
+      customAttributes: {
+        cm_number: cmDisplay,
+        doc_type: docLabel,
+        ...(body.tracking ? { tracking_number: body.tracking } : {}),
+      },
+    }).catch(err => console.error('CommsLayer estimate log error:', err));
+
     return json({ ok: true, id: result.id });
   } catch (err) {
     console.error('estimate-email error:', err, err?.stack);

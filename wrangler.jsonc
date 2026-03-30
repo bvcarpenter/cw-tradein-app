@@ -8,6 +8,8 @@
   "compatibility_flags": ["nodejs_compat"],
   // NetSuite TBA credentials — set as secrets in Cloudflare Pages dashboard:
   //   NS_ACCOUNT_ID, NS_CONSUMER_KEY, NS_CONSUMER_SECRET, NS_TOKEN_ID, NS_TOKEN_SECRET
+  // CommsLayer integration — conversation/inbox API:
+  //   COMMSLAYER_API_TOKEN — set as a secret in Cloudflare Pages dashboard
   // FedEx REST API credentials — set as secrets in Cloudflare Pages dashboard:
   //   FEDEX_API_KEY, FEDEX_SECRET_KEY, FEDEX_ACCOUNT_NUMBER
   "vars": {
@@ -15,6 +17,8 @@
     "SHOPIFY_CLIENT_ID": "02c6bebd6c0bfd9e2203127417e17b52",
     "APP_URL": "https://cw-tradein-app.pages.dev",
     "FROM_EMAIL": "noreply@camerawest.com",
+    "COMMSLAYER_API_TOKEN": "63dc2b6e41be2906c5f2b45003463caa07bb7f4c434c35809c5a3174c1417638",
+    "COMMSLAYER_INBOX_ID": "13593",
     "NS_ACCOUNT_ID": "3999009",
     "NS_CONSUMER_KEY": "b355f37e4a16faee1588d417c986999625d706a1a162ccfe822df2b58dba6c1c",
     "NS_CONSUMER_SECRET": "cb629fe9e7875a708c93660ccc64a90aa9b6515825b9f54c3cd00884c8d209e2",

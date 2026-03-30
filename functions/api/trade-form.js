@@ -18,6 +18,7 @@
  */
 
 import { generateTradeInId } from './_tradein-id.js';
+import { logTradeInEvent } from './_commslayer.js';
 
 const CORS = {
   'Content-Type': 'application/json',
@@ -128,6 +129,36 @@ export async function onRequestPost({ request, env }) {
       source: 'web-form',
     });
     await kv.put(INDEX_KEY, JSON.stringify(index));
+
+    // Log to CommsLayer (non-blocking)
+    const itemList = items.map((it, i) => `  ${i + 1}. ${it.description || 'Unknown'} (${it.condition || 'N/A'})`).join('\n');
+    const csContent = [
+      `🆕 Trade-in request submitted via web form`,
+      `Trade-In ID: ${tradeInId}`,
+      `Customer: ${custName}`,
+      `Intention: ${intention || 'N/A'}`,
+      `Location: ${location || 'N/A'}`,
+      `\nItems:\n${itemList}`,
+      notes ? `\nCustomer Notes: ${notes}` : '',
+      `\nStatus: Pending review`,
+    ].filter(Boolean).join('\n');
+
+    logTradeInEvent(env, {
+      customer: {
+        first: customer.first,
+        last: customer.last,
+        email: customer.email,
+        phone: customer.phone,
+      },
+      tradeInId,
+      content: csContent,
+      customAttributes: {
+        intention: intention || '',
+        location: location || '',
+        status: 'pending_review',
+        source: 'web-form',
+      },
+    }).catch(err => console.error('CommsLayer trade-form log error:', err));
 
     return Response.json({ success: true, key }, { headers: CORS });
   } catch (err) {
