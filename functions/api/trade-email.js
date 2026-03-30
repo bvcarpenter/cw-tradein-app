@@ -5,8 +5,11 @@
  *   2. Confirmation email to the customer
  *
  * Body: { firstName, lastName, email, phone, intention, location,
- *         gear_summary, notes, items: [{ model, condition, notes, photos[] }] }
+ *         gear_summary, notes, tradeInId,
+ *         items: [{ model, condition, notes, photos[] }] }
  */
+
+import { logTradeInEvent } from './_commslayer.js';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -277,6 +280,29 @@ export async function onRequestPost({ request, env }) {
       subject,
       html: emailHtml,
     });
+
+    // Log to CommsLayer conversation thread (non-blocking)
+    const itemList = (items || []).map((it, i) => `  ${i + 1}. ${it.model || 'Unknown'} (${it.condition || 'N/A'})`).join('\n');
+    const csContent = [
+      `📋 New trade-in submission received`,
+      `Customer: ${firstName} ${lastName}`,
+      `Email: ${email}`,
+      `Intention: ${intention || 'N/A'}`,
+      `Location: ${location || 'N/A'}`,
+      items?.length ? `\nItems:\n${itemList}` : '',
+      notes ? `\nNotes: ${notes}` : '',
+    ].filter(Boolean).join('\n');
+
+    logTradeInEvent(env, {
+      customer: { first: firstName, last: lastName, email, phone },
+      tradeInId: body.tradeInId,
+      content: csContent,
+      customAttributes: {
+        intention: intention || '',
+        location: location || '',
+        status: 'new_submission',
+      },
+    }).catch(err => console.error('CommsLayer trade-email log error:', err));
 
     return json({ ok: true });
   } catch (err) {
