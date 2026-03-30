@@ -95,6 +95,7 @@ define(['N/record', 'N/search', 'N/log'], (record, search, log) => {
 
       const memoLines = [
         'Trade-In Credit -- Camera West',
+        body.tradeInId ? 'TI: ' + body.tradeInId : '',
         body.associate ? 'Associate: ' + body.associate : '',
         body.issuedBy  ? 'Issued by: '  + body.issuedBy  : '',
       ].filter(Boolean).join(' | ');

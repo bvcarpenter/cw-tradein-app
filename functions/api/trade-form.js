@@ -17,6 +17,8 @@
  * so the internal app can identify web submissions.
  */
 
+import { generateTradeInId } from './_tradein-id.js';
+
 const CORS = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
@@ -60,11 +62,13 @@ export async function onRequestPost({ request, env }) {
 
   const now = Date.now();
   const key = 'cwti_' + now;
+  const tradeInId = generateTradeInId();
   const custName = [customer.first, customer.last].filter(Boolean).join(' ');
 
   const sessionData = {
     savedAt: new Date(now).toISOString(),
     key,
+    tradeInId,
     name: custName,
     source: 'web-form',
     status: 'pending',
