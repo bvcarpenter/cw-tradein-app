@@ -131,6 +131,8 @@ export async function onRequestPost({ request, env }) {
     await kv.put(INDEX_KEY, JSON.stringify(index));
 
     // Log to CommsLayer (non-blocking)
+    const appUrl = env.APP_URL || 'https://cw-tradein-app.pages.dev';
+    const sessionLink = `${appUrl}/app?session=${encodeURIComponent(key)}`;
     const itemList = items.map((it, i) => `  ${i + 1}. ${it.description || 'Unknown'} (${it.condition || 'N/A'})`).join('\n');
     const csContent = [
       `🆕 Trade-in request submitted via web form`,
@@ -140,6 +142,7 @@ export async function onRequestPost({ request, env }) {
       `Location: ${location || 'N/A'}`,
       `\nItems:\n${itemList}`,
       notes ? `\nCustomer Notes: ${notes}` : '',
+      `\nOpen in Trade-In App: ${sessionLink}`,
       `\nStatus: Pending review`,
     ].filter(Boolean).join('\n');
 
