@@ -18,7 +18,7 @@
  */
 
 import { generateTradeInId } from './_tradein-id.js';
-import { logTradeInEvent } from './_commslayer.js';
+import { logTradeInEvent, addMessage } from './_commslayer.js';
 
 const CORS = {
   'Content-Type': 'application/json',
@@ -142,7 +142,6 @@ export async function onRequestPost({ request, env }) {
       `Location: ${location || 'N/A'}`,
       `\nItems:\n${itemList}`,
       notes ? `\nCustomer Notes: ${notes}` : '',
-      `\nOpen in Trade-In App: ${sessionLink}`,
       `\nStatus: Pending review`,
     ].filter(Boolean).join('\n');
 
@@ -161,6 +160,13 @@ export async function onRequestPost({ request, env }) {
         status: 'pending_review',
         source: 'web-form',
       },
+    }).then(result => {
+      if (result?.conversation) {
+        return addMessage(env, result.conversation.id, {
+          content: `🔗 Open in Trade-In App: ${sessionLink}`,
+          isPrivate: true,
+        });
+      }
     }).catch(err => console.error('CommsLayer trade-form log error:', err));
 
     return Response.json({ success: true, key }, { headers: CORS });
