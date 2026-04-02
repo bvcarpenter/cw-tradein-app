@@ -297,6 +297,12 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
 .proc-acc-list{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
 .proc-acc-chip{display:flex;align-items:center;gap:5px;padding:6px 10px;border:1px solid var(--border-l);font-size:11px;color:var(--dim);background:transparent;cursor:pointer;transition:all .15s}
 .proc-acc-chip.confirmed{border-color:rgba(112,208,144,.4);color:#70d090;background:rgba(20,58,36,.3)}
+.proc-acc-chip.added{border-style:dashed}
+.proc-acc-rm{background:none;border:none;color:var(--dim);cursor:pointer;font-size:13px;padding:0 0 0 4px;line-height:1;opacity:.6;transition:opacity .15s}
+.proc-acc-rm:hover{opacity:1;color:#e07070}
+.proc-acc-input{flex:1;padding:6px 10px;border:1px solid var(--border-l);background:var(--bg);color:var(--fg);font-size:11px;font-family:inherit;outline:none;transition:border-color .15s}
+.proc-acc-input:focus{border-color:var(--acc-mid)}
+.proc-acc-input::placeholder{color:var(--dim);opacity:.6}
 .proc-img-zone{border:2px dashed var(--border-l);padding:20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:12px}
 .proc-img-zone:hover{border-color:var(--acc-mid);background:var(--acc-dim)}
 .proc-img-zone-text{font-size:11px;color:var(--dim);letter-spacing:.06em}
@@ -3282,6 +3288,9 @@ function renderProcessingItems() {
     const sku = item.sku || item.catalog || '—';
     const accs = item.accessories || [];
 
+    // Auto-load grade from the trade-in item if not yet confirmed
+    const effectiveGrade = pd.confirmedGrade || item.grade || '';
+
     return `<div class="proc-item${isCert ? ' certified' : ''}${idx === 0 ? ' open' : ''}" id="proc-item-${idx}">
       <div class="proc-item-hd" onclick="toggleProcItem(${idx})">
         <div>
@@ -3298,12 +3307,13 @@ function renderProcessingItems() {
 
         <!-- Condition Confirmation -->
         <span class="sl">Condition Confirmation</span>
+        ${item.grade ? `<div style="font-size:11px;color:var(--dim);margin-bottom:8px;">Customer submitted: <strong style="color:var(--fg);">${esc(item.grade)}</strong>${item.condition ? ` (${esc(item.condition)})` : ''}</div>` : ''}
         <div class="proc-row">
           <div class="proc-field">
             <label>Confirmed Condition / Grade</label>
             <select id="proc-cond-${idx}" onchange="procFieldChange(${idx})">
               <option value="">— Confirm grade —</option>
-              ${PROC_GRADES.map(g => `<option value="${g}"${pd.confirmedGrade === g ? ' selected' : ''}>${g}</option>`).join('')}
+              ${PROC_GRADES.map(g => `<option value="${g}"${effectiveGrade === g ? ' selected' : ''}>${g}</option>`).join('')}
             </select>
           </div>
           <div class="proc-field">
@@ -3353,11 +3363,14 @@ function renderProcessingItems() {
 
         <!-- Included Items / Accessories -->
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <span class="sl" style="margin-bottom:0;">Confirm Included Items</span>
-          <button class="btn btn-ol" style="font-size:8px;padding:5px 10px;letter-spacing:.1em;" onclick="addProcAccessory(${idx})">+ Add Item</button>
+          <span class="sl" style="margin-bottom:0;">Comes With</span>
         </div>
         <div class="proc-acc-list" id="proc-acc-${idx}">
           ${buildProcAccessories(accs, pd.confirmedAccessories || [], pd.addedAccessories || [], idx)}
+        </div>
+        <div class="proc-acc-add-row" style="display:flex;gap:6px;margin-top:8px;">
+          <input type="text" id="proc-acc-input-${idx}" class="proc-acc-input" placeholder="Add item…" onkeydown="if(event.key==='Enter'){addProcAccessory(${idx});event.preventDefault();}">
+          <button class="btn btn-ol" style="font-size:8px;padding:5px 12px;letter-spacing:.1em;white-space:nowrap;" onclick="addProcAccessory(${idx})">+ Add</button>
         </div>
 
         <div class="proc-divider"></div>
@@ -3389,18 +3402,31 @@ function renderProcessingItems() {
     </div>`;
   }).join('');
 
+  // Auto-initialize confirmedGrade from item grade where not yet set
+  items.forEach((item, idx) => {
+    if (!procData[idx]) procData[idx] = {};
+    if (!procData[idx].confirmedGrade && item.grade) {
+      procData[idx].confirmedGrade = item.grade;
+    }
+  });
+
   updateProcProgress();
 }
 
 function buildProcAccessories(originalAccs, confirmedAccs, addedAccs, idx) {
   const all = [...originalAccs];
+  const addedSet = new Set(addedAccs || []);
   if (addedAccs) addedAccs.forEach(a => { if (!all.includes(a)) all.push(a); });
+
+  if (!all.length) return '<div style="font-size:11px;color:var(--dim);padding:6px 0;">No included items listed — add items below.</div>';
 
   return all.map(acc => {
     const isConfirmed = confirmedAccs.includes(acc);
-    return `<div class="proc-acc-chip${isConfirmed ? ' confirmed' : ''}" onclick="toggleProcAcc(${idx}, this, '${acc.replace(/'/g, "\\'")}')">
+    const isAdded = addedSet.has(acc);
+    return `<div class="proc-acc-chip${isConfirmed ? ' confirmed' : ''}${isAdded ? ' added' : ''}" onclick="toggleProcAcc(${idx}, this, '${acc.replace(/'/g, "\\'")}')">
       <span style="font-size:10px;">${isConfirmed ? '✓' : '○'}</span>
       <span>${esc(acc)}</span>
+      ${isAdded ? '<button class="proc-acc-rm" onclick="event.stopPropagation();removeProcAccessory(' + idx + ',\'' + acc.replace(/'/g, "\\'") + '\')" title="Remove">&times;</button>' : ''}
     </div>`;
   }).join('');
 }
@@ -3423,14 +3449,36 @@ function toggleProcAcc(idx, chip, accName) {
 }
 
 function addProcAccessory(idx) {
-  const name = prompt('Enter the accessory or included item name:');
-  if (!name || !name.trim()) return;
-  const trimmed = name.trim();
+  const input = document.getElementById('proc-acc-input-' + idx);
+  const name = input.value.trim();
+  if (!name) { input.focus(); return; }
   if (!procData[idx]) procData[idx] = {};
   if (!procData[idx].addedAccessories) procData[idx].addedAccessories = [];
-  procData[idx].addedAccessories.push(trimmed);
   if (!procData[idx].confirmedAccessories) procData[idx].confirmedAccessories = [];
-  procData[idx].confirmedAccessories.push(trimmed);
+  // Prevent duplicates
+  const item = procSession.data.items[idx];
+  const allExisting = [...(item.accessories || []), ...procData[idx].addedAccessories];
+  if (allExisting.some(a => a.toLowerCase() === name.toLowerCase())) {
+    input.value = '';
+    input.focus();
+    return;
+  }
+  procData[idx].addedAccessories.push(name);
+  procData[idx].confirmedAccessories.push(name);
+  document.getElementById('proc-acc-' + idx).innerHTML = buildProcAccessories(
+    item.accessories || [],
+    procData[idx].confirmedAccessories,
+    procData[idx].addedAccessories,
+    idx
+  );
+  input.value = '';
+  input.focus();
+}
+
+function removeProcAccessory(idx, accName) {
+  if (!procData[idx]) return;
+  procData[idx].addedAccessories = (procData[idx].addedAccessories || []).filter(a => a !== accName);
+  procData[idx].confirmedAccessories = (procData[idx].confirmedAccessories || []).filter(a => a !== accName);
   const item = procSession.data.items[idx];
   document.getElementById('proc-acc-' + idx).innerHTML = buildProcAccessories(
     item.accessories || [],
