@@ -9,6 +9,16 @@
 
 import { shopifyGQL } from './_shopify.js';
 
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+export function onRequestOptions() {
+  return new Response(null, { headers: CORS });
+}
+
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   const sku = (url.searchParams.get('sku') || '').trim();
