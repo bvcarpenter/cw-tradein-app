@@ -44,12 +44,12 @@
 
     var title = document.createElement('span');
     title.textContent = 'Trade-In / Sell Your Gear';
-    title.style.cssText = "font-family:'Roboto Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#333;";
+    title.style.cssText = "font-family:'Roboto Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#222;";
 
     var closeBtn = document.createElement('button');
     closeBtn.setAttribute('aria-label', 'Close');
     closeBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-    closeBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:#888;padding:4px;display:flex;align-items:center;justify-content:center;transition:color .15s;';
+    closeBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:#666;padding:4px;display:flex;align-items:center;justify-content:center;transition:color .15s;';
     closeBtn.onmouseover = function() { this.style.color = '#111'; };
     closeBtn.onmouseout = function() { this.style.color = '#888'; };
     closeBtn.addEventListener('click', closeModal);
