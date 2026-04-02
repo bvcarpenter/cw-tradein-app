@@ -298,7 +298,6 @@ export async function onRequestPost({ request, env }) {
     const result = resBody ? JSON.parse(resBody) : {};
 
     // Log to CommsLayer conversation thread (non-blocking)
-    const docLabel = body.docLabel || 'Estimate';
     const itemCount = (body.items || []).length;
     const cmDisplay = body.cmNum || 'PENDING';
     const trackingInfo = body.tracking ? `\nFedEx Tracking: ${body.tracking}` : '';
