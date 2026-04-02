@@ -16,6 +16,7 @@ import { onRequestPost as estimateEmailPost, onRequestOptions as estimateEmailOp
 import { onRequestPost as fedexLabelPost, onRequestOptions as fedexLabelOptions } from '../functions/api/fedex-label.js';
 import { onRequestPost as fedexTrackPost, onRequestOptions as fedexTrackOptions } from '../functions/api/fedex-track.js';
 import { onRequestPost as approveOtpPost, onRequestOptions as approveOtpOptions } from '../functions/api/approve-otp.js';
+import { onRequestGet as productLookupGet, onRequestOptions as productLookupOptions } from '../functions/api/product-lookup.js';
 import { onRequestPost as authRequestPost, onRequestOptions as authRequestOptions } from '../functions/api/auth/request.js';
 import { onRequestGet as authSessionGet, onRequestPost as authSessionPost } from '../functions/api/auth/session.js';
 import { onRequestGet as authVerifyGet } from '../functions/api/auth/verify.js';
@@ -93,6 +94,11 @@ export default {
     if (path === '/api/fedex-track') {
       if (method === 'OPTIONS') return fedexTrackOptions(c);
       if (method === 'POST')    return fedexTrackPost(c);
+    }
+
+    if (path === '/api/product-lookup') {
+      if (method === 'OPTIONS') return productLookupOptions(c);
+      if (method === 'GET')     return productLookupGet(c);
     }
 
     if (path === '/api/approve-otp') {

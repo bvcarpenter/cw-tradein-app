@@ -241,6 +241,74 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
 .fedex-label-status { font-size: 10px; letter-spacing: 0.06em; text-align: center; margin-top: 8px; padding: 8px 12px; }
 .fedex-label-status.ok { color: #d0a070; background: #3a2a14; border: 1px solid #5a3a2a; }
 .fedex-label-status.err { color: #e07070; background: #3a1414; border: 1px solid #5a2a2a; }
+
+/* PROCESSING MODULE */
+.proc-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:600;display:none;backdrop-filter:blur(4px)}
+.proc-overlay.vis{display:block}
+.proc-panel{position:fixed;top:0;right:0;width:100%;max-width:900px;height:100vh;background:var(--bg);z-index:601;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s ease;overflow:hidden}
+.proc-panel.vis{transform:translateX(0)}
+.proc-hd{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.proc-hd h2{font-family:'Palatino Linotype',serif;font-size:22px;font-weight:300}
+.proc-hd-meta{font-size:10px;color:var(--dim);letter-spacing:.06em}
+.proc-hd-meta strong{color:var(--accent)}
+.proc-close{background:none;border:none;color:var(--dim);font-size:24px;cursor:pointer}
+.proc-close:hover{color:var(--white)}
+.proc-toolbar{padding:12px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;background:var(--bg2)}
+.proc-progress{font-size:10px;color:var(--dim);letter-spacing:.06em}
+.proc-progress strong{color:var(--accent)}
+.proc-shopify-status{font-size:10px;padding:4px 10px;border-radius:2px;letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+.proc-shopify-status.active{color:#70d090;background:rgba(112,208,144,.1);border:1px solid rgba(112,208,144,.3)}
+.proc-shopify-status.draft{color:#7090d0;background:rgba(112,144,208,.1);border:1px solid rgba(112,144,208,.3)}
+.proc-shopify-status.not-found{color:var(--dim);background:var(--bg3);border:1px solid var(--border)}
+.proc-shopify-status.loading{color:var(--dim);background:var(--bg3);border:1px solid var(--border)}
+.proc-body{flex:1;overflow-y:auto;padding:20px 24px}
+.proc-item{border:1px solid var(--border);margin-bottom:16px;background:var(--bg2)}
+.proc-item.certified{border-color:rgba(112,208,144,.4)}
+.proc-item-hd{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer}
+.proc-item-hd:hover{background:var(--bg3)}
+.proc-item-name{font-size:13px;font-weight:400}
+.proc-item-badges{display:flex;align-items:center;gap:8px}
+.proc-item-sku{font-size:9px;color:var(--accent);letter-spacing:.06em}
+.proc-item-shopify{font-size:8px;padding:3px 7px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;border-radius:2px}
+.proc-item-shopify.active{color:#70d090;border:1px solid rgba(112,208,144,.3)}
+.proc-item-shopify.draft{color:#7090d0;border:1px solid rgba(112,144,208,.3)}
+.proc-item-shopify.not-found{color:var(--dim);border:1px solid var(--border)}
+.proc-item-shopify.loading{color:var(--dim);border:1px solid var(--border)}
+.proc-item-cert-badge{font-size:8px;padding:3px 7px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;color:#70d090;background:rgba(112,208,144,.12);border:1px solid rgba(112,208,144,.3);border-radius:2px}
+.proc-item-body{display:none;padding:18px}
+.proc-item.open .proc-item-body{display:block}
+.proc-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.proc-row.t1{grid-template-columns:1fr}
+.proc-row.t3{grid-template-columns:1fr 1fr 1fr}
+.proc-field{display:flex;flex-direction:column;gap:5px}
+.proc-field label{font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
+.proc-field input,.proc-field select,.proc-field textarea{background:var(--bg3);border:1px solid var(--border-l);color:var(--white);font-family:'Jost',sans-serif;font-size:13px;font-weight:300;letter-spacing:.03em;padding:9px 12px;outline:none;width:100%;border-radius:0;transition:border-color .15s;appearance:none;-webkit-appearance:none}
+.proc-field input:focus,.proc-field select:focus,.proc-field textarea:focus{border-color:var(--acc-mid)}
+.proc-field textarea{resize:vertical;min-height:60px}
+.proc-field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(245,245,240,0.35)'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;cursor:pointer}
+.proc-check-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border);margin-bottom:12px;cursor:pointer;transition:all .15s}
+.proc-check-row:hover{border-color:var(--border-l)}
+.proc-check-row.checked{border-color:rgba(112,208,144,.4);background:rgba(20,58,36,.5)}
+.proc-check-box{width:18px;height:18px;border:2px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;color:#70d090;transition:all .15s}
+.proc-check-row.checked .proc-check-box{border-color:#70d090;background:rgba(112,208,144,.15)}
+.proc-check-label{font-size:12px;color:var(--dim)}
+.proc-check-row.checked .proc-check-label{color:#70d090}
+.proc-divider{height:1px;background:var(--border);margin:16px 0}
+.proc-acc-list{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.proc-acc-chip{display:flex;align-items:center;gap:5px;padding:6px 10px;border:1px solid var(--border-l);font-size:11px;color:var(--dim);background:transparent;cursor:pointer;transition:all .15s}
+.proc-acc-chip.confirmed{border-color:rgba(112,208,144,.4);color:#70d090;background:rgba(20,58,36,.3)}
+.proc-img-zone{border:2px dashed var(--border-l);padding:20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:12px}
+.proc-img-zone:hover{border-color:var(--acc-mid);background:var(--acc-dim)}
+.proc-img-zone-text{font-size:11px;color:var(--dim);letter-spacing:.06em}
+.proc-img-zone input[type="file"]{display:none}
+.proc-img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-top:10px}
+.proc-img-thumb{position:relative;aspect-ratio:1;overflow:hidden;border:1px solid var(--border)}
+.proc-img-thumb img{width:100%;height:100%;object-fit:cover}
+.proc-img-rm{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.7);border:none;color:#e07070;font-size:14px;width:20px;height:20px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.proc-footer{padding:14px 24px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;background:var(--bg2)}
+.proc-save-btn{font-family:'Jost',sans-serif;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;padding:13px 24px;border:none;cursor:pointer;transition:all .2s;background:linear-gradient(135deg,#2a5a3a,#1a4a2a);border:1px solid #3a7a4a;color:#70d090}
+.proc-save-btn:hover{background:linear-gradient(135deg,#3a7a4a,#2a5a3a)}
+.proc-save-btn:disabled{opacity:.35;cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -531,6 +599,12 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
         </div>
         <div id="fedex-label-status"></div>
       </div>
+
+      <div id="process-tradein-section" style="display:none;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">
+        <button class="btn btn-a btn-full" id="process-tradein-btn" onclick="openProcessingCurrent()" style="background:linear-gradient(135deg,#3a2a5a,#2a1a4a);border:1px solid #5a3a7a;color:#b090d0;">
+          Process Trade-In <em style="font-style:italic">//</em> Inspect &amp; Certify Items
+        </button>
+      </div>
     </section>
   </main>
 </div>
@@ -619,6 +693,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
         <button class="tnav" id="sm-tab-transit" onclick="smTab('transit',this)">In Transit</button>
         <button class="tnav" id="sm-tab-landed" onclick="smTab('landed',this)">Landed</button>
         <button class="tnav" id="sm-tab-final" onclick="smTab('final',this)">Finalized</button>
+        <button class="tnav" id="sm-tab-processing" onclick="smTab('processing',this)">Processing</button>
       </div>
       <div style="padding:12px 20px 0;">
         <input id="sm-search" type="text" placeholder="Search by name, email, item, serial…" oninput="renderSessionsMgr()" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--white);font-family:'Jost',sans-serif;font-size:12px;padding:9px 12px;outline:none;box-sizing:border-box;margin-bottom:8px;">
@@ -641,6 +716,32 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--white);font-
     <div class="mod-f"><button class="btn btn-ol" onclick="closeSessionsMgr()">Close</button></div>
   </div>
 </div>
+<!-- PROCESSING MODULE -->
+<div class="proc-overlay" id="proc-overlay" onclick="closeProcessing()"></div>
+<div class="proc-panel" id="proc-panel">
+  <div class="proc-hd">
+    <div>
+      <h2>Process Trade-In</h2>
+      <div class="proc-hd-meta">Trade-In ID: <strong id="proc-ti-id">—</strong> &nbsp;·&nbsp; <span id="proc-cust-name">—</span></div>
+    </div>
+    <button class="proc-close" onclick="closeProcessing()">&times;</button>
+  </div>
+  <div class="proc-toolbar">
+    <div class="proc-progress">Items certified: <strong id="proc-cert-count">0</strong> / <strong id="proc-total-count">0</strong></div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:9px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;">Shopify:</span>
+      <span class="proc-shopify-status loading" id="proc-shopify-overall">Checking…</span>
+    </div>
+  </div>
+  <div class="proc-body" id="proc-body">
+    <!-- Item cards rendered by JS -->
+  </div>
+  <div class="proc-footer">
+    <div style="font-size:10px;color:var(--dim);" id="proc-footer-msg">Complete all items to save processing data.</div>
+    <button class="proc-save-btn" id="proc-save-btn" onclick="saveProcessing()" disabled>Save Processing Data</button>
+  </div>
+</div>
+
 <!-- PRINT MODAL -->
 <div class="mo" id="mo">
   <div class="mod">
@@ -2142,6 +2243,9 @@ function restoreSessionData(d) {
   renderCart();
   // If CM# was already assigned, lock the credit buttons
   if (d.cmNum) lockCreditButtons(d.cmNum);
+  // Show process button if session is finalized
+  const procSec = document.getElementById('process-tradein-section');
+  if (procSec) procSec.style.display = d.finalized ? '' : 'none';
 }
 
 
@@ -2360,6 +2464,8 @@ async function renderSessionsMgr() {
       if (!hasTracking || !delivered || d.finalized) return false;
     } else if (_smTab === 'final') {
       if (!d.finalized) return false;
+    } else if (_smTab === 'processing') {
+      if (!d.finalized || !d.items?.length) return false;
     } else {
       // draft: not finalized and no tracking
       if (d.finalized) return false;
@@ -2380,7 +2486,7 @@ async function renderSessionsMgr() {
   });
 
   if (!rows.length) {
-    const tabLabel = _smTab === 'final' ? 'finalized' : _smTab === 'transit' ? 'in-transit' : _smTab === 'landed' ? 'landed' : 'draft';
+    const tabLabel = _smTab === 'final' ? 'finalized' : _smTab === 'transit' ? 'in-transit' : _smTab === 'landed' ? 'landed' : _smTab === 'processing' ? 'processing' : 'draft';
     el.innerHTML = `<div style="font-size:12px;color:var(--dim);padding:28px;text-align:center;">No ${tabLabel} sessions${q ? ' matching "' + q + '"' : ''}.</div>`;
     return;
   }
@@ -2399,9 +2505,23 @@ async function renderSessionsMgr() {
     const chips = items.slice(0, 4).map(i =>
       `<span style="background:var(--bg3);padding:1px 7px;border:1px solid var(--border);font-size:9px;border-radius:2px;">${esc(i.name)}</span>`
     ).join('') + (items.length > 4 ? `<span style="font-size:9px;color:var(--dim);"> +${items.length - 4} more</span>` : '');
+    // Processing status badge
+    const procStatus = d.processing ? (() => {
+      const total = items.length || 0;
+      const certified = Object.values(d.processing).filter(p => p.certified).length;
+      return certified === total ? 'complete' : 'partial';
+    })() : 'none';
+    const procBadge = procStatus === 'complete'
+      ? '<span style="font-size:7px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;padding:3px 7px;color:#70d090;border:1px solid rgba(112,208,144,.4);border-radius:2px;white-space:nowrap;">Processed</span>'
+      : procStatus === 'partial'
+      ? '<span style="font-size:7px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;padding:3px 7px;color:#d0a070;border:1px solid rgba(208,160,112,.4);border-radius:2px;white-space:nowrap;">Processing…</span>'
+      : '';
+    const procBtn = d.finalized
+      ? `<button class="btn-sm" onclick="event.stopPropagation();openProcessingFromSession('${s.key}')" style="color:#b090d0;border-color:#5a3a7a;text-align:center;">Process Trade-In</button>`
+      : '';
     return `<div style="padding:14px 0;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr auto;gap:14px;align-items:start;">
       <div>
-        <div style="font-size:13px;font-weight:500;margin-bottom:3px;">${esc(cust)}${email ? ` <span style="font-size:10px;color:var(--dim);font-weight:300;">&lt;${esc(email)}&gt;</span>` : ''}</div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:3px;">${esc(cust)}${email ? ` <span style="font-size:10px;color:var(--dim);font-weight:300;">&lt;${esc(email)}&gt;</span>` : ''}${procBadge ? ' ' + procBadge : ''}</div>
         <div style="font-size:10px;color:var(--dim);margin-bottom:7px;line-height:1.9;">
           ${esc(loc)}${assoc ? ` &nbsp;&middot;&nbsp; ${esc(assoc)}` : ''} &nbsp;&middot;&nbsp; ${items.length} item${items.length !== 1 ? 's' : ''}
           &nbsp;&middot;&nbsp; Net: <strong style="color:var(--accent);">${ff(net)}</strong>
@@ -2414,7 +2534,8 @@ async function renderSessionsMgr() {
       </div>
       <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;min-width:88px;">
         <button class="btn-sm" onclick="loadSession('${s.key}');closeSessionsMgr();" style="text-align:center;">&#8629; Load</button>
-        ${_smTab !== 'final' ? `<button class="btn-sm" onclick="finalizeSession('${s.key}')" style="color:#70d090;border-color:#2a5a3a;text-align:center;">&#10003; Finalize</button>` : ''}
+        ${procBtn}
+        ${_smTab !== 'final' && _smTab !== 'processing' ? `<button class="btn-sm" onclick="finalizeSession('${s.key}')" style="color:#70d090;border-color:#2a5a3a;text-align:center;">&#10003; Finalize</button>` : ''}
         <button class="btn-sm" onclick="deleteSession('${s.key}')" style="color:#e07070;border-color:#5a2a2a;text-align:center;">&#215; Delete</button>
       </div>
     </div>`;
@@ -2688,6 +2809,10 @@ async function execStoreCredit() {
     scMsg.style.display = 'block';
     scBtn.textContent = 'Issued ✓';
 
+    // Show "Process Trade-In" button
+    const procSec = document.getElementById('process-tradein-section');
+    if (procSec) procSec.style.display = '';
+
   } catch (err) {
     scMsg.style.color = '#e07070';
     scMsg.textContent = 'Failed: ' + err.message;
@@ -2767,6 +2892,10 @@ function issueCmOnly() {
       + `<br>Subtotal: ${ff(net)}` + (nsData.taxtotal ? ` | Tax: ${ff(nsData.taxtotal)}` : '')
       + ` | <strong>Total: ${ff(gt)}</strong>`;
     scMsg.style.display = 'block';
+
+    // Show "Process Trade-In" button
+    const procSec = document.getElementById('process-tradein-section');
+    if (procSec) procSec.style.display = '';
   }).catch(err => {
     scMsg.style.color = '#e07070';
     scMsg.textContent = 'Failed: ' + err.message;
@@ -2835,6 +2964,9 @@ function resetSessionForm() {
   const cmBtn = document.getElementById('cm-only-btn');
   scBtn.disabled = false; scBtn.textContent = 'Issue Store Credit'; scBtn.style.opacity = ''; scBtn.style.cursor = '';
   cmBtn.disabled = false; cmBtn.textContent = 'Issue CM Only'; cmBtn.style.opacity = ''; cmBtn.style.cursor = '';
+  // Hide process trade-in button
+  const procSec = document.getElementById('process-tradein-section');
+  if (procSec) procSec.style.display = 'none';
 }
 function clrSession() {
   if (!confirm('Clear all items and start a new session?')) return;
@@ -3077,6 +3209,442 @@ function printLabelOnly() {
   const blob = new Blob([byteArr], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
   window.open(url, '_blank');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ─── PROCESSING MODULE ────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+
+const PROC_GRADES = ['10-','9+','9','8+','8','7+','7','6+','6','AS-IS'];
+let procSession = null; // the session being processed
+let procData = {};      // processing data keyed by item index
+
+function openProcessingCurrent() {
+  // Build a temporary session object from current form state
+  const data = getSessionData();
+  data.finalized = true;
+  const key = _loadedSessionKey || data.key || 'cwti_' + Date.now();
+  data.key = key;
+  procSession = { key, data };
+  procData = data.processing || {};
+  launchProcessingPanel();
+}
+
+async function openProcessingFromSession(sessionKey) {
+  // Close session manager first
+  closeSessionsMgr();
+  // Load session data from KV
+  try {
+    const r = await fetch('/api/sessions?key=' + encodeURIComponent(sessionKey));
+    let data = null;
+    if (r.ok) { data = (await r.json()).data; }
+    if (!data) data = JSON.parse(localStorage.getItem(sessionKey));
+    if (!data) { alert('Session not found.'); return; }
+    if (!data.items || !data.items.length) { alert('No items in session.'); return; }
+    procSession = { key: sessionKey, data };
+    procData = data.processing || {};
+    launchProcessingPanel();
+  } catch (e) { alert('Failed to load session: ' + e.message); }
+}
+
+function launchProcessingPanel() {
+  const sess = procSession;
+  // Populate header
+  document.getElementById('proc-ti-id').textContent = sess.data.tradeInId || sess.data.cmNum || sess.key;
+  const custName = sess.data.name || [sess.data.customer?.first, sess.data.customer?.last].filter(Boolean).join(' ') || '—';
+  document.getElementById('proc-cust-name').textContent = custName;
+  document.getElementById('proc-total-count').textContent = (sess.data.items || []).length;
+
+  // Render item cards
+  renderProcessingItems();
+
+  // Show panel
+  document.getElementById('proc-overlay').classList.add('vis');
+  document.getElementById('proc-panel').classList.add('vis');
+
+  // Lookup Shopify status for each item's SKU
+  lookupShopifyStatuses();
+}
+
+function closeProcessing() {
+  document.getElementById('proc-overlay').classList.remove('vis');
+  document.getElementById('proc-panel').classList.remove('vis');
+  procSession = null;
+}
+
+function renderProcessingItems() {
+  const items = procSession.data.items;
+  const body = document.getElementById('proc-body');
+
+  body.innerHTML = items.map((item, idx) => {
+    const pd = procData[idx] || {};
+    const isCert = pd.certified || false;
+    const sku = item.sku || item.catalog || '—';
+    const accs = item.accessories || [];
+
+    return `<div class="proc-item${isCert ? ' certified' : ''}${idx === 0 ? ' open' : ''}" id="proc-item-${idx}">
+      <div class="proc-item-hd" onclick="toggleProcItem(${idx})">
+        <div>
+          <div class="proc-item-name">${esc(item.name)}</div>
+          <div style="font-size:10px;color:var(--dim);margin-top:2px;">${[item.systemId, item.itemType, item.grade].filter(Boolean).join(' · ')}${item.serial ? ' · S/N: ' + item.serial : ''}</div>
+        </div>
+        <div class="proc-item-badges">
+          <span class="proc-item-sku">${esc(sku)}</span>
+          <span class="proc-item-shopify loading" id="proc-shopify-${idx}" data-sku="${esc(sku)}">…</span>
+          ${isCert ? '<span class="proc-item-cert-badge">Certified</span>' : ''}
+        </div>
+      </div>
+      <div class="proc-item-body">
+
+        <!-- Condition Confirmation -->
+        <span class="sl">Condition Confirmation</span>
+        <div class="proc-row">
+          <div class="proc-field">
+            <label>Confirmed Condition / Grade</label>
+            <select id="proc-cond-${idx}" onchange="procFieldChange(${idx})">
+              <option value="">— Confirm grade —</option>
+              ${PROC_GRADES.map(g => `<option value="${g}"${pd.confirmedGrade === g ? ' selected' : ''}>${g}</option>`).join('')}
+            </select>
+          </div>
+          <div class="proc-field">
+            <label>Needs Additional Service?</label>
+            <select id="proc-svc-${idx}" onchange="procFieldChange(${idx})">
+              <option value="no"${pd.needsService === 'no' ? ' selected' : ''}>No — Ready for Sale</option>
+              <option value="cla"${pd.needsService === 'cla' ? ' selected' : ''}>Yes — CLA Required</option>
+              <option value="repair"${pd.needsService === 'repair' ? ' selected' : ''}>Yes — Repair Needed</option>
+              <option value="sensor-clean"${pd.needsService === 'sensor-clean' ? ' selected' : ''}>Yes — Sensor Cleaning</option>
+              <option value="calibration"${pd.needsService === 'calibration' ? ' selected' : ''}>Yes — Calibration</option>
+              <option value="other"${pd.needsService === 'other' ? ' selected' : ''}>Yes — Other (see notes)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Condition Notes -->
+        <div class="proc-row">
+          <div class="proc-field">
+            <label>Cosmetic Condition Notes</label>
+            <textarea id="proc-cosm-${idx}" placeholder="Surface wear, scratches, brassing, paint wear, dents…" onchange="procFieldChange(${idx})">${esc(pd.cosmeticNotes || '')}</textarea>
+          </div>
+          <div class="proc-field">
+            <label>Mechanical / Optical Notes</label>
+            <textarea id="proc-mech-${idx}" placeholder="Shutter accuracy, focus smoothness, haze, fungus, separation…" onchange="procFieldChange(${idx})">${esc(pd.mechOpticalNotes || '')}</textarea>
+          </div>
+        </div>
+
+        <div class="proc-row t1">
+          <div class="proc-field">
+            <label>General Notes</label>
+            <textarea id="proc-notes-${idx}" placeholder="Any additional notes about this item…" onchange="procFieldChange(${idx})">${esc(pd.generalNotes || '')}</textarea>
+          </div>
+        </div>
+
+        <div class="proc-divider"></div>
+
+        <!-- Description for Listing -->
+        <span class="sl">Listing Description</span>
+        <div class="proc-row t1">
+          <div class="proc-field">
+            <label>Item Description (for Shopify listing — will connect to LLM later)</label>
+            <textarea id="proc-desc-${idx}" placeholder="Write a description or leave blank to auto-generate later from notes, condition, and included items…" style="min-height:80px;" onchange="procFieldChange(${idx})">${esc(pd.description || '')}</textarea>
+          </div>
+        </div>
+
+        <div class="proc-divider"></div>
+
+        <!-- Included Items / Accessories -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <span class="sl" style="margin-bottom:0;">Confirm Included Items</span>
+          <button class="btn btn-ol" style="font-size:8px;padding:5px 10px;letter-spacing:.1em;" onclick="addProcAccessory(${idx})">+ Add Item</button>
+        </div>
+        <div class="proc-acc-list" id="proc-acc-${idx}">
+          ${buildProcAccessories(accs, pd.confirmedAccessories || [], pd.addedAccessories || [], idx)}
+        </div>
+
+        <div class="proc-divider"></div>
+
+        <!-- Image Upload -->
+        <span class="sl">Product Images</span>
+        <div class="proc-img-zone" onclick="document.getElementById('proc-file-${idx}').click()">
+          <input type="file" id="proc-file-${idx}" accept="image/*" multiple onchange="handleProcImages(${idx}, this.files)">
+          <div class="proc-img-zone-text">Click to upload images &nbsp;·&nbsp; or drag and drop</div>
+        </div>
+        <div class="proc-img-grid" id="proc-imgs-${idx}">
+          ${(pd.images || []).map((img, imgIdx) =>
+            `<div class="proc-img-thumb">
+              <img src="${img.dataUrl}" alt="Image ${imgIdx + 1}">
+              <button class="proc-img-rm" onclick="removeProcImage(${idx}, ${imgIdx})">&times;</button>
+            </div>`
+          ).join('')}
+        </div>
+
+        <div class="proc-divider"></div>
+
+        <!-- Certification Checkbox -->
+        <div class="proc-check-row${isCert ? ' checked' : ''}" onclick="toggleCertify(${idx})" id="proc-cert-${idx}">
+          <div class="proc-check-box">${isCert ? '✓' : ''}</div>
+          <div class="proc-check-label">I certify this item has been fully tested, inspected, and is ready for sale</div>
+        </div>
+
+      </div>
+    </div>`;
+  }).join('');
+
+  updateProcProgress();
+}
+
+function buildProcAccessories(originalAccs, confirmedAccs, addedAccs, idx) {
+  const all = [...originalAccs];
+  if (addedAccs) addedAccs.forEach(a => { if (!all.includes(a)) all.push(a); });
+
+  return all.map(acc => {
+    const isConfirmed = confirmedAccs.includes(acc);
+    return `<div class="proc-acc-chip${isConfirmed ? ' confirmed' : ''}" onclick="toggleProcAcc(${idx}, this, '${acc.replace(/'/g, "\\'")}')">
+      <span style="font-size:10px;">${isConfirmed ? '✓' : '○'}</span>
+      <span>${esc(acc)}</span>
+    </div>`;
+  }).join('');
+}
+
+function toggleProcItem(idx) {
+  document.getElementById('proc-item-' + idx).classList.toggle('open');
+}
+
+function toggleProcAcc(idx, chip, accName) {
+  chip.classList.toggle('confirmed');
+  const isConfirmed = chip.classList.contains('confirmed');
+  chip.querySelector('span').textContent = isConfirmed ? '✓' : '○';
+  if (!procData[idx]) procData[idx] = {};
+  if (!procData[idx].confirmedAccessories) procData[idx].confirmedAccessories = [];
+  if (isConfirmed && !procData[idx].confirmedAccessories.includes(accName)) {
+    procData[idx].confirmedAccessories.push(accName);
+  } else if (!isConfirmed) {
+    procData[idx].confirmedAccessories = procData[idx].confirmedAccessories.filter(a => a !== accName);
+  }
+}
+
+function addProcAccessory(idx) {
+  const name = prompt('Enter the accessory or included item name:');
+  if (!name || !name.trim()) return;
+  const trimmed = name.trim();
+  if (!procData[idx]) procData[idx] = {};
+  if (!procData[idx].addedAccessories) procData[idx].addedAccessories = [];
+  procData[idx].addedAccessories.push(trimmed);
+  if (!procData[idx].confirmedAccessories) procData[idx].confirmedAccessories = [];
+  procData[idx].confirmedAccessories.push(trimmed);
+  const item = procSession.data.items[idx];
+  document.getElementById('proc-acc-' + idx).innerHTML = buildProcAccessories(
+    item.accessories || [],
+    procData[idx].confirmedAccessories,
+    procData[idx].addedAccessories,
+    idx
+  );
+}
+
+function procFieldChange(idx) {
+  if (!procData[idx]) procData[idx] = {};
+  procData[idx].confirmedGrade = document.getElementById('proc-cond-' + idx).value;
+  procData[idx].needsService = document.getElementById('proc-svc-' + idx).value;
+  procData[idx].cosmeticNotes = document.getElementById('proc-cosm-' + idx).value;
+  procData[idx].mechOpticalNotes = document.getElementById('proc-mech-' + idx).value;
+  procData[idx].generalNotes = document.getElementById('proc-notes-' + idx).value;
+  procData[idx].description = document.getElementById('proc-desc-' + idx).value;
+}
+
+function toggleCertify(idx) {
+  if (!procData[idx]) procData[idx] = {};
+  procFieldChange(idx);
+  procData[idx].certified = !procData[idx].certified;
+  const row = document.getElementById('proc-cert-' + idx);
+  const box = row.querySelector('.proc-check-box');
+  const card = document.getElementById('proc-item-' + idx);
+  if (procData[idx].certified) {
+    if (!procData[idx].confirmedGrade) {
+      alert('Please confirm the condition grade before certifying.');
+      procData[idx].certified = false;
+      return;
+    }
+    row.classList.add('checked');
+    box.textContent = '✓';
+    card.classList.add('certified');
+    const badges = card.querySelector('.proc-item-badges');
+    if (!badges.querySelector('.proc-item-cert-badge')) {
+      badges.insertAdjacentHTML('beforeend', '<span class="proc-item-cert-badge">Certified</span>');
+    }
+  } else {
+    row.classList.remove('checked');
+    box.textContent = '';
+    card.classList.remove('certified');
+    const certBadge = card.querySelector('.proc-item-cert-badge');
+    if (certBadge) certBadge.remove();
+  }
+  updateProcProgress();
+}
+
+function updateProcProgress() {
+  const items = procSession.data.items;
+  let certCount = 0;
+  items.forEach((_, idx) => { if (procData[idx]?.certified) certCount++; });
+  document.getElementById('proc-cert-count').textContent = certCount;
+  document.getElementById('proc-save-btn').disabled = false; // allow partial saves
+  if (certCount === items.length) {
+    document.getElementById('proc-footer-msg').textContent = 'All items certified — ready to save.';
+    document.getElementById('proc-footer-msg').style.color = '#70d090';
+  } else {
+    document.getElementById('proc-footer-msg').textContent = `${items.length - certCount} item${items.length - certCount !== 1 ? 's' : ''} still need certification.`;
+    document.getElementById('proc-footer-msg').style.color = '';
+  }
+}
+
+// ─── IMAGE HANDLING ───
+function handleProcImages(idx, files) {
+  if (!procData[idx]) procData[idx] = {};
+  if (!procData[idx].images) procData[idx].images = [];
+
+  Array.from(files).forEach(file => {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      procData[idx].images.push({
+        name: file.name,
+        dataUrl: e.target.result,
+        size: file.size,
+      });
+      renderProcImages(idx);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderProcImages(idx) {
+  const container = document.getElementById('proc-imgs-' + idx);
+  const images = procData[idx]?.images || [];
+  container.innerHTML = images.map((img, imgIdx) =>
+    `<div class="proc-img-thumb">
+      <img src="${img.dataUrl}" alt="${esc(img.name)}">
+      <button class="proc-img-rm" onclick="removeProcImage(${idx}, ${imgIdx})">&times;</button>
+    </div>`
+  ).join('');
+}
+
+function removeProcImage(idx, imgIdx) {
+  if (procData[idx]?.images) {
+    procData[idx].images.splice(imgIdx, 1);
+    renderProcImages(idx);
+  }
+}
+
+// ─── DRAG AND DROP IMAGES ───
+document.addEventListener('dragover', (e) => {
+  if (!document.getElementById('proc-panel').classList.contains('vis')) return;
+  e.preventDefault();
+});
+document.addEventListener('drop', (e) => {
+  if (!document.getElementById('proc-panel').classList.contains('vis')) return;
+  e.preventDefault();
+  const zone = e.target.closest('.proc-img-zone');
+  if (!zone) return;
+  const fileInput = zone.querySelector('input[type="file"]');
+  if (!fileInput) return;
+  const idx = parseInt(fileInput.id.replace('proc-file-', ''));
+  if (!isNaN(idx) && e.dataTransfer.files.length) {
+    handleProcImages(idx, e.dataTransfer.files);
+  }
+});
+
+// ─── SHOPIFY STATUS LOOKUP ───
+async function lookupShopifyStatuses() {
+  const items = procSession.data.items;
+  const overall = document.getElementById('proc-shopify-overall');
+  overall.textContent = 'Checking…';
+  overall.className = 'proc-shopify-status loading';
+
+  let foundCount = 0, activeCount = 0;
+
+  for (let idx = 0; idx < items.length; idx++) {
+    const item = items[idx];
+    const sku = item.sku || item.catalog || '';
+    const badge = document.getElementById('proc-shopify-' + idx);
+
+    if (!sku || sku === '—') {
+      badge.textContent = 'No SKU';
+      badge.className = 'proc-item-shopify not-found';
+      continue;
+    }
+
+    badge.textContent = '…';
+    badge.className = 'proc-item-shopify loading';
+
+    try {
+      const res = await fetch(`/api/product-lookup?sku=${encodeURIComponent(sku)}`);
+      const data = await res.json();
+
+      if (data.found) {
+        foundCount++;
+        const status = data.status || 'UNKNOWN';
+        if (status === 'ACTIVE') {
+          activeCount++;
+          badge.textContent = 'Active';
+          badge.className = 'proc-item-shopify active';
+        } else if (status === 'DRAFT') {
+          badge.textContent = 'Draft';
+          badge.className = 'proc-item-shopify draft';
+        } else {
+          badge.textContent = status.toLowerCase();
+          badge.className = 'proc-item-shopify draft';
+        }
+      } else {
+        badge.textContent = 'Not in Shopify';
+        badge.className = 'proc-item-shopify not-found';
+      }
+    } catch (err) {
+      badge.textContent = 'Error';
+      badge.className = 'proc-item-shopify not-found';
+    }
+  }
+
+  if (activeCount === items.length) {
+    overall.textContent = `All ${activeCount} Active`;
+    overall.className = 'proc-shopify-status active';
+  } else if (foundCount > 0) {
+    overall.textContent = `${activeCount} Active / ${items.length} Total`;
+    overall.className = 'proc-shopify-status draft';
+  } else {
+    overall.textContent = 'None Found';
+    overall.className = 'proc-shopify-status not-found';
+  }
+}
+
+// ─── SAVE PROCESSING DATA ───
+async function saveProcessing() {
+  if (!procSession) return;
+
+  const btn = document.getElementById('proc-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  // Gather final field data for each item
+  procSession.data.items.forEach((_, idx) => procFieldChange(idx));
+
+  // Attach processing data to session
+  procSession.data.processing = procData;
+
+  try {
+    await fetch('/api/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: procSession.key, data: procSession.data }),
+    });
+    btn.textContent = 'Saved ✓';
+    showToast('Processing data saved ✓');
+    setTimeout(() => {
+      btn.textContent = 'Save Processing Data';
+      btn.disabled = false;
+    }, 2000);
+  } catch (err) {
+    alert('Save failed: ' + err.message);
+    btn.textContent = 'Save Processing Data';
+    btn.disabled = false;
+  }
 }
 </script>
 </body>
