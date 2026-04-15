@@ -139,6 +139,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 .ri-r{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
 .ri-p{font-size:12px;color:var(--accent)}
 .ri-g{font-size:10px;font-weight:500;letter-spacing:.06em;padding:3px 7px;background:var(--acc-dim);border:1px solid var(--acc-mid);color:var(--accent)}
+.ri-stock{font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:2px 6px;background:rgba(52,168,83,.12);border:1px solid rgba(52,168,83,.45);color:#57b46a;border-radius:2px}
 .no-res{padding:18px;font-size:12px;color:var(--dim);text-align:center;letter-spacing:.05em}
 
 /* TABS */
@@ -1250,6 +1251,8 @@ async function runSearch(q) {
         const mpn = p.src === 'brand' ? (p.sku || '') : '';
         // For Shopify-sourced items (not matrix), show when the item entered the system
         const dateTag = (p.src !== 'brand' && p.created) ? fmtCreatedDate(p.created) : '';
+        const stockTag = p.inStock === true
+          ? `<div class="ri-stock" title="Currently in stock in Shopify">In Stock</div>` : '';
         return `<div class="ri" onclick="pickResult(${i})">
           <div style="flex:1;min-width:0;">
             <div class="ri-n">${esc(p.n)}${dateTag ? ` <span class="ri-date" title="Date added to inventory">${esc(dateTag)}</span>` : ''}</div>${mpn ? `<div class="ri-mpn">MPN: ${esc(mpn)}</div>` : ''}
@@ -1257,6 +1260,7 @@ async function runSearch(q) {
           </div>
           <div class="ri-r">
             ${pr ? `<div class="ri-p">${pr}</div>` : ''}
+            ${stockTag}
             ${badge}
           </div>
         </div>`;

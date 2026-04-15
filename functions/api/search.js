@@ -2,9 +2,13 @@
  * GET /api/search?q=leica&limit=25
  *
  * Searches products from the Google Sheets trade-in catalog.
- * Brand (matrix) price-list rows appear first. Remaining slots are
- * filled from the "Shopify Product Catalog" sheet, sorted within each
- * source by match score and then newest-to-oldest by Date Created.
+ * Result ordering:
+ *   1. Brand (matrix) price-list rows — canonical pricing always first
+ *   2. In-stock "Shopify Product Catalog" rows (live inventory from
+ *      Shopify Admin API)
+ *   3. Remaining Shopify rows (out of stock / unknown)
+ * Within each bucket, rows are sorted by match score, then newest-to-oldest
+ * by Date Created.
  *
  * Data is cached in Cloudflare KV (AUTH_KV) for 1 hour so searches
  * are fast even on cold worker starts.
@@ -12,6 +16,8 @@
  * Google Sheet:
  *   https://docs.google.com/spreadsheets/d/1hy4RzljHDASz_K4XO__w9rztCaW7rnCg_z5wa2uBTH4
  */
+
+import { shopifyGQL } from './_shopify.js';
 
 const SHEET_ID = '1hy4RzljHDASz_K4XO__w9rztCaW7rnCg_z5wa2uBTH4';
 const GVIZ_BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
@@ -26,7 +32,9 @@ const BRAND_SHEETS = [
 // "Shopify Product Catalog" is the 120-day pre-owned inventory (lower priority).
 const SHOPIFY_SHEET = 'Shopify Product Catalog';
 
-const KV_KEY = 'catalog:v4';
+// Bumped to v5: Shopify rows now carry a live `inStock` flag from the Shopify
+// Admin API so the search endpoint can surface in-stock pre-owned items first.
+const KV_KEY = 'catalog:v5';
 const KV_TTL = 3600; // 1 hour
 
 // ── Category helpers ────────────────────────────────────────────────
@@ -130,11 +138,51 @@ function fetchSheet(sheetName) {
     .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); });
 }
 
+/**
+ * Paginate through all Shopify product variants and build a SKU → inventory
+ * quantity map. Used to enrich the Google Sheet's Shopify Product Catalog
+ * rows with live stock status so the search dropdown can surface in-stock
+ * pre-owned items first.
+ *
+ * Returns null if Shopify isn't configured; the caller should degrade
+ * gracefully (items simply render without stock tags).
+ */
+async function fetchShopifyInventoryMap(env) {
+  if (!env?.SHOPIFY_STORE) return null;
+
+  const map = new Map();
+  const MAX_PAGES = 20; // 20 × 250 = up to 5 000 variants — ample for the pre-owned catalog
+  const query = `
+    query VariantInventory($cursor: String) {
+      productVariants(first: 250, after: $cursor) {
+        pageInfo { hasNextPage endCursor }
+        edges { node { sku inventoryQuantity } }
+      }
+    }
+  `;
+
+  let cursor = null;
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const data = await shopifyGQL(env, query, { cursor });
+    const pv = data?.productVariants;
+    if (!pv) break;
+    for (const e of pv.edges || []) {
+      const s = e.node?.sku;
+      if (s) map.set(s, Number(e.node.inventoryQuantity) || 0);
+    }
+    if (!pv.pageInfo?.hasNextPage) break;
+    cursor = pv.pageInfo.endCursor;
+  }
+  return map;
+}
+
 // ── In-memory cache (survives within a single worker isolate) ───────
 let _brand = null, _shopify = null, _ts = 0;
 const MEM_TTL = 5 * 60 * 1000; // 5 min
 
-async function loadAll(kv) {
+async function loadAll(env) {
+  const kv = env?.AUTH_KV;
+
   // 1. In-memory cache (fastest)
   if (_brand && _shopify && Date.now() - _ts < MEM_TTL) {
     return { brand: _brand, shopify: _shopify };
@@ -154,26 +202,48 @@ async function loadAll(kv) {
     } catch (e) { /* KV miss or parse error — continue to fetch */ }
   }
 
-  // 3. Fetch from Google Sheets (14 requests: 13 brand + 1 Shopify)
-  const results = await Promise.all([
-    ...BRAND_SHEETS.map(name =>
-      fetchSheet(name)
-        .then(csv => parseCSV(csv).map(parseBrandRow).filter(Boolean))
-        .catch(() => [])
-    ),
-    fetchSheet(SHOPIFY_SHEET)
-      .then(csv => parseCSV(csv).map(parseShopifyRow).filter(Boolean))
-      .catch(() => []),
+  // 3. Fetch from Google Sheets (14 requests: 13 brand + 1 Shopify) in
+  //    parallel with Shopify inventory so cold starts stay quick.
+  const [sheetResults, invMap] = await Promise.all([
+    Promise.all([
+      ...BRAND_SHEETS.map(name =>
+        fetchSheet(name)
+          .then(csv => parseCSV(csv).map(parseBrandRow).filter(Boolean))
+          .catch(() => [])
+      ),
+      fetchSheet(SHOPIFY_SHEET)
+        .then(csv => parseCSV(csv).map(parseShopifyRow).filter(Boolean))
+        .catch(() => []),
+    ]),
+    fetchShopifyInventoryMap(env).catch(err => {
+      console.error('Shopify inventory fetch failed:', err.message);
+      return null;
+    }),
   ]);
 
   const brand = [];
-  for (let i = 0; i < BRAND_SHEETS.length; i++) brand.push(...results[i]);
-  const shopify = results[BRAND_SHEETS.length];
+  for (let i = 0; i < BRAND_SHEETS.length; i++) brand.push(...sheetResults[i]);
+  const shopify = sheetResults[BRAND_SHEETS.length];
+
+  // Merge live stock status into the sheet rows. If the inventory map is
+  // unavailable, rows simply stay unannotated.
+  let inStockCount = 0;
+  if (invMap) {
+    for (const p of shopify) {
+      if (p.sku && invMap.has(p.sku)) {
+        p.inStock = invMap.get(p.sku) > 0;
+        if (p.inStock) inStockCount++;
+      }
+    }
+  }
 
   _brand = brand;
   _shopify = shopify;
   _ts = Date.now();
-  console.log(`Catalog fetched: ${brand.length} brand, ${shopify.length} shopify products`);
+  console.log(
+    `Catalog fetched: ${brand.length} brand, ${shopify.length} shopify ` +
+    `(${invMap ? `${inStockCount} in stock` : 'inventory unavailable'})`
+  );
 
   // Write to KV in the background (non-blocking)
   if (kv) {
@@ -229,13 +299,13 @@ export async function onRequestGet({ request, env }) {
   }
 
   try {
-    const { brand, shopify } = await loadAll(env?.AUTH_KV);
+    const { brand, shopify } = await loadAll(env);
     const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
 
     // Matrix (brand) rows come first so the canonical price-list is
-    // always surfaced. Within each source we sort by match score, then
-    // newest-to-oldest so recent pre-owned inventory floats up among
-    // equally-matching Shopify rows.
+    // always surfaced. Then in-stock Shopify items, then everything else.
+    // Within each bucket we sort by match score, then newest-to-oldest so
+    // recent pre-owned inventory floats up among equally-matching rows.
     const bySort = (a, b) => {
       if (b.sc !== a.sc) return b.sc - a.sc;
       return createdMs(b.p) - createdMs(a.p);
@@ -243,10 +313,15 @@ export async function onRequestGet({ request, env }) {
 
     const brandResults = score(brand, terms).sort(bySort);
 
-    // Fill remaining slots with Shopify Product Catalog rows
+    // Split Shopify matches into in-stock / out-of-stock buckets so live
+    // inventory surfaces immediately after the matrix.
+    const scoredShopify = score(shopify, terms);
+    const shopifyInStock = scoredShopify.filter(r => r.p.inStock === true).sort(bySort);
+    const shopifyOther   = scoredShopify.filter(r => r.p.inStock !== true).sort(bySort);
+
     const remaining = Math.max(0, limit - brandResults.length);
     const shopifyResults = remaining > 0
-      ? score(shopify, terms).sort(bySort).slice(0, remaining)
+      ? [...shopifyInStock, ...shopifyOther].slice(0, remaining)
       : [];
 
     const products = [
