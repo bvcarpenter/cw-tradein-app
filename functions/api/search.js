@@ -2,9 +2,9 @@
  * GET /api/search?q=leica&limit=25
  *
  * Searches products from the Google Sheets trade-in catalog.
- * Brand (matrix) price-list rows and the "Shopify Product Catalog"
- * (pre-owned inventory) rows are scored together; results are sorted
- * by match quality, then newest-to-oldest by Date Created.
+ * Brand (matrix) price-list rows appear first. Remaining slots are
+ * filled from the "Shopify Product Catalog" sheet, sorted within each
+ * source by match score and then newest-to-oldest by Date Created.
  *
  * Data is cached in Cloudflare KV (AUTH_KV) for 1 hour so searches
  * are fast even on cold worker starts.
@@ -232,17 +232,27 @@ export async function onRequestGet({ request, env }) {
     const { brand, shopify } = await loadAll(env?.AUTH_KV);
     const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
 
-    // Score matrix and Shopify rows in a single pool — no source-based
-    // priority. Sort by best match first, then newest-to-oldest. Matrix
-    // rows have no `created` date so they naturally fall after Shopify
-    // rows of equal score.
-    const scored = [...score(brand, terms), ...score(shopify, terms)];
-    scored.sort((a, b) => {
+    // Matrix (brand) rows come first so the canonical price-list is
+    // always surfaced. Within each source we sort by match score, then
+    // newest-to-oldest so recent pre-owned inventory floats up among
+    // equally-matching Shopify rows.
+    const bySort = (a, b) => {
       if (b.sc !== a.sc) return b.sc - a.sc;
       return createdMs(b.p) - createdMs(a.p);
-    });
+    };
 
-    const products = scored.slice(0, limit).map(r => r.p);
+    const brandResults = score(brand, terms).sort(bySort);
+
+    // Fill remaining slots with Shopify Product Catalog rows
+    const remaining = Math.max(0, limit - brandResults.length);
+    const shopifyResults = remaining > 0
+      ? score(shopify, terms).sort(bySort).slice(0, remaining)
+      : [];
+
+    const products = [
+      ...brandResults.slice(0, limit).map(r => r.p),
+      ...shopifyResults.map(r => r.p),
+    ];
 
     return Response.json({ products }, { headers: cors });
   } catch (err) {
