@@ -283,31 +283,37 @@ body {
 /* DIVIDER */
 .div { height: 1px; background: var(--border); margin: 18px 0; }
 
-/* PRICE TYPE TOGGLE */
-.pt-row { display: flex; gap: 5px; margin-bottom: 14px; }
-.ptbtn { font-family: var(--font-body); font-size: 10px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; padding: 9px 17px; border: 1px solid var(--border-l); background: transparent; color: var(--dim); cursor: pointer; transition: all .15s; }
-.ptbtn:hover { border-color: var(--dim); color: var(--white); }
-.ptbtn.on { background: var(--white); border-color: var(--white); color: var(--bg); }
+/* RETAIL ROW */
+.pr-ret { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 13px 16px; background: var(--bg3); border: 1px solid var(--border); margin-bottom: 12px; flex-wrap: wrap; }
+.pr-ret-main { flex: 1; min-width: 120px; }
+.pr-lbl { font-size: 10px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; color: var(--dim); margin-bottom: 4px; }
+.pr-ret-v { font-family: var(--font-serif); font-size: 21px; font-weight: 400; color: var(--white); line-height: 1.1; }
+.pr-ret-or { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.pr-ret-or label { font-size: 10px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+.pr-ret-or input { background: var(--bg); border: 1px solid var(--border-l); color: var(--white); font-family: var(--font-body); font-size: 13px; font-weight: 300; padding: 8px 11px; outline: none; width: 130px; border-radius: 0; transition: border-color .15s; }
+.pr-ret-or input:focus { border-color: var(--acc-mid); }
+.pr-ret-or input::placeholder { color: rgba(245,245,240,.22); }
 
-/* PRICE GRID */
-.pgrid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: var(--border); margin-bottom: 14px; }
-.pbox { background: var(--bg3); padding: 13px 14px; text-align: center; }
-.pbox-l { font-size: 10px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); margin-bottom: 5px; }
-.pbox-v { font-family: var(--font-serif); font-size: 22px; font-weight: 400; color: var(--white); }
-.pbox-p { font-size: 10px; color: var(--dim); margin-top: 2px; }
+/* PROMINENT PRICING OPTION CARDS (Trade-In vs Sell Outright) */
+.po-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 16px; }
+.pobtn { background: var(--bg3); border: 2px solid var(--border-l); padding: 18px 20px; cursor: pointer; transition: all .15s; display: flex; flex-direction: column; gap: 5px; font-family: var(--font-body); text-align: left; }
+.pobtn:hover { border-color: var(--dim); }
+.pobtn.on { background: var(--acc-dim); border-color: var(--accent); }
+.pobtn-hd { font-size: 11px; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; color: var(--dim); display: flex; align-items: center; gap: 10px; }
+.pobtn.on .pobtn-hd { color: var(--accent); }
+.pobtn-radio { width: 13px; height: 13px; border: 1.5px solid currentColor; border-radius: 50%; display: inline-block; position: relative; flex-shrink: 0; }
+.pobtn-radio::after { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0); transition: transform .15s; }
+.pobtn.on .pobtn-radio::after { transform: translate(-50%,-50%) scale(1); }
+.pobtn-v { font-family: var(--font-serif); font-size: 30px; font-weight: 400; color: var(--white); line-height: 1.05; align-self: flex-start; margin-top: 2px; }
+.pobtn.on .pobtn-v { color: var(--accent); }
+.pobtn-rate { font-size: 10px; color: var(--dim); letter-spacing: .06em; margin-top: 2px; }
+.pobtn.on .pobtn-rate { color: var(--accent); opacity: .85; }
 
 /* NET BAR */
 .net-bar { background: var(--acc-dim); border: 1px solid var(--acc-mid); padding: 13px 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .net-lbl { font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin-bottom: 3px; }
 .net-v { font-family: var(--font-serif); font-size: 29px; font-weight: 400; color: var(--accent); }
-.net-r { font-size: 10px; color: var(--dim); text-align: right; line-height: 1.7; }
-
-/* RETAIL OVERRIDE */
-.or-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-.or-row label { font-size: 11px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
-.or-row input { background: var(--bg3); border: 1px solid var(--border-l); color: var(--white); font-family: var(--font-body); font-size: 14px; font-weight: 300; padding: 9px 12px; outline: none; width: 130px; border-radius: 0; transition: border-color .15s; }
-.or-row input:focus { border-color: var(--acc-mid); }
-.or-row input::placeholder { color: rgba(245,245,240,0.2); }
+.net-r { font-size: 11px; color: var(--accent); text-align: right; letter-spacing: .08em; text-transform: uppercase; opacity: .75; }
 
 /* DETAIL SECTION */
 .det { display: none; }
@@ -502,12 +508,16 @@ body {
   .main { padding: 20px 16px; }
   .pg-title h1 { font-size: 26px; }
   .fg.t3 { grid-template-columns: 1fr 1fr; }
-  .pgrid { grid-template-columns: 1fr 1fr; }
   .exp-acts { grid-template-columns: 1fr; }
+}
+@media (max-width: 580px) {
+  .po-row { grid-template-columns: 1fr; }
+  .pr-ret { flex-direction: column; align-items: stretch; }
+  .pr-ret-or { justify-content: space-between; }
+  .pr-ret-or input { flex: 1; }
 }
 @media (max-width: 520px) {
   .fg, .fg.t3 { grid-template-columns: 1fr; }
-  .pgrid { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -977,25 +987,36 @@ body {
         <span id="p-src" style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim);">From catalog</span>
       </div>
 
-      <div class="or-row">
-        <label>Retail Override</label>
-        <input type="number" id="r-override" placeholder="Auto-populated" min="0" step="0.01" oninput="updPricing()">
+      <!-- Retail value + optional manual override -->
+      <div class="pr-ret">
+        <div class="pr-ret-main">
+          <div class="pr-lbl">Retail Value</div>
+          <div class="pr-ret-v" id="p-ret">—</div>
+        </div>
+        <div class="pr-ret-or">
+          <label>Override</label>
+          <input type="number" id="r-override" placeholder="—" min="0" step="0.01" oninput="updPricing()">
+        </div>
       </div>
 
-      <div class="pt-row">
-        <button class="ptbtn on" id="pt-ti" onclick="setPT('tradein')">Trade In</button>
-        <button class="ptbtn" id="pt-or" onclick="setPT('outright')">Sell Outright</button>
+      <!-- Prominent pricing options: Trade-In vs Sell Outright -->
+      <div class="po-row" role="radiogroup" aria-label="Pricing option">
+        <div class="pobtn on" id="pt-ti" role="radio" aria-checked="true" tabindex="0" onclick="setPT('tradein')" onkeydown="if(event.key===' '||event.key==='Enter'){event.preventDefault();setPT('tradein');}">
+          <div class="pobtn-hd"><span class="pobtn-radio"></span>Trade In</div>
+          <div class="pobtn-v" id="p-ti">—</div>
+          <div class="pobtn-rate" id="p-ti-pct">70% of retail</div>
+        </div>
+        <div class="pobtn" id="pt-or" role="radio" aria-checked="false" tabindex="0" onclick="setPT('outright')" onkeydown="if(event.key===' '||event.key==='Enter'){event.preventDefault();setPT('outright');}">
+          <div class="pobtn-hd"><span class="pobtn-radio"></span>Sell Outright</div>
+          <div class="pobtn-v" id="p-or">—</div>
+          <div class="pobtn-rate" id="p-or-pct">50% of retail</div>
+        </div>
       </div>
 
-      <div class="pgrid">
-        <div class="pbox"><div class="pbox-l">Retail Value</div><div class="pbox-v" id="p-ret">—</div></div>
-        <div class="pbox"><div class="pbox-l">Trade-In Credit</div><div class="pbox-v" id="p-ti">—</div><div class="pbox-p" id="p-ti-pct">70% of retail</div></div>
-        <div class="pbox"><div class="pbox-l">Sell Outright</div><div class="pbox-v" id="p-or">—</div><div class="pbox-p" id="p-or-pct">50% of retail</div></div>
-      </div>
-
+      <!-- Final net due to customer -->
       <div class="net-bar">
         <div><div class="net-lbl">Net to Customer — NetSuite</div><div class="net-v" id="p-net">—</div></div>
-        <div class="net-r" id="net-r">Trade-In<br>selected</div>
+        <div class="net-r" id="net-r">via Trade-In</div>
       </div>
 
       <button class="btn btn-w btn-full" id="add-btn" onclick="addItem()" disabled>Add to Session</button>
@@ -1595,9 +1616,14 @@ function tradeInRate(grade) {
 
 function setPT(t) {
   selPT = t;
-  document.getElementById('pt-ti').classList.toggle('on', t === 'tradein');
-  document.getElementById('pt-or').classList.toggle('on', t === 'outright');
-  document.getElementById('net-r').innerHTML = t === 'tradein' ? 'Trade-In<br>selected' : 'Sell Outright<br>selected';
+  const tiBtn = document.getElementById('pt-ti');
+  const orBtn = document.getElementById('pt-or');
+  tiBtn.classList.toggle('on', t === 'tradein');
+  orBtn.classList.toggle('on', t === 'outright');
+  tiBtn.setAttribute('aria-checked', t === 'tradein' ? 'true' : 'false');
+  orBtn.setAttribute('aria-checked', t === 'outright' ? 'true' : 'false');
+  const nr = document.getElementById('net-r');
+  if (nr) nr.textContent = t === 'tradein' ? 'via Trade-In' : 'via Sell Outright';
   updPricing();
 }
 function updPricing() {
