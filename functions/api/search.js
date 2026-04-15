@@ -2,8 +2,9 @@
  * GET /api/search?q=leica&limit=25
  *
  * Searches products from the Google Sheets trade-in catalog.
- * Brand (matrix) price-list results appear first;
- * remaining slots are filled from the "Shopify Product Catalog" sheet.
+ * Brand (matrix) price-list rows and the "Shopify Product Catalog"
+ * (pre-owned inventory) rows are scored together; results are sorted
+ * by match quality, then newest-to-oldest by Date Created.
  *
  * Data is cached in Cloudflare KV (AUTH_KV) for 1 hour so searches
  * are fast even on cold worker starts.
@@ -195,8 +196,21 @@ function score(products, terms) {
     }
     if (ok && sc) scored.push({ p, sc });
   }
-  scored.sort((a, b) => b.sc - a.sc);
   return scored;
+}
+
+/**
+ * Parse a Shopify "Date Created" value ("2023-05-08 21:43:27 +0000")
+ * into a numeric timestamp (ms). Returns 0 when missing/unparseable —
+ * matrix rows have no date, so they fall to the bottom of date ties.
+ */
+function createdMs(p) {
+  const raw = p && p.created;
+  if (!raw) return 0;
+  const m = String(raw).match(/(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}):(\d{2}))?/);
+  if (!m) return 0;
+  const t = Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0));
+  return isNaN(t) ? 0 : t;
 }
 
 // ── Request handler ─────────────────────────────────────────────────
@@ -218,20 +232,17 @@ export async function onRequestGet({ request, env }) {
     const { brand, shopify } = await loadAll(env?.AUTH_KV);
     const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
 
-    // Brand (matrix) results first
-    const brandResults = score(brand, terms);
+    // Score matrix and Shopify rows in a single pool — no source-based
+    // priority. Sort by best match first, then newest-to-oldest. Matrix
+    // rows have no `created` date so they naturally fall after Shopify
+    // rows of equal score.
+    const scored = [...score(brand, terms), ...score(shopify, terms)];
+    scored.sort((a, b) => {
+      if (b.sc !== a.sc) return b.sc - a.sc;
+      return createdMs(b.p) - createdMs(a.p);
+    });
 
-    // Fill remaining slots with Shopify Product Catalog
-    const remaining = limit - brandResults.length;
-    let shopifyResults = [];
-    if (remaining > 0) {
-      shopifyResults = score(shopify, terms).slice(0, remaining);
-    }
-
-    const products = [
-      ...brandResults.slice(0, limit).map(r => r.p),
-      ...shopifyResults.map(r => r.p),
-    ];
+    const products = scored.slice(0, limit).map(r => r.p);
 
     return Response.json({ products }, { headers: cors });
   } catch (err) {
