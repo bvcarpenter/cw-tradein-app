@@ -945,7 +945,10 @@ body {
 
       <div class="sel-bar">
         <div><input type="text" id="sel-name" style="background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--white);font-family:var(--font-body);font-size:14px;font-weight:500;width:100%;outline:none;padding:2px 0;" oninput="if(selItem)selItem.name=this.value;valAdd();"><p id="sel-meta">—</p></div>
-        <button class="btn-chg" onclick="clrItem()">Change Item</button>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="btn-chg" onclick="editItem()" title="Edit this item's categorization in Manual Entry">Edit Item</button>
+          <button class="btn-chg" onclick="clrItem()">Change Item</button>
+        </div>
       </div>
 
       <div class="fg" style="margin-bottom:18px;">
@@ -1417,6 +1420,31 @@ function addCustomAccessory() {
 function clrItem() {
   selItem = null; selGrade = null;
   document.getElementById('det-sec').classList.remove('vis');
+}
+
+/**
+ * Edit the currently selected item's categorization.
+ * Pre-fills Manual Entry with the current selItem, switches to the
+ * Manual Entry tab so the user can tweak brand/system/type/medium/format
+ * and then click "Use This Item" to re-show Item Details with the edits.
+ */
+function editItem() {
+  if (!selItem) return;
+  document.getElementById('m-name').value = selItem.name || '';
+  const vendorEl = document.getElementById('m-vendor');
+  vendorEl.value = selItem.vendor || '';
+  vendorEl.dataset.userEdited = 'true';
+  setSelectVal('m-sys', selItem.systemId || '');
+  setSelectVal('m-type', selItem.itemType || '');
+  setSelectVal('m-med', selItem.medium || '');
+  setSelectVal('m-format', selItem.format || '');
+  const retEl = document.getElementById('m-ret');
+  if (retEl) retEl.value = selItem.price || '';
+  // Switch to the Manual Entry tab
+  const manualBtn = [...document.querySelectorAll('.tnav')].find(b => (b.textContent || '').trim() === 'Manual Entry');
+  if (manualBtn) tab('manual', manualBtn);
+  document.getElementById('tab-manual').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  document.getElementById('m-name').focus();
 }
 
 // ─── GRADES ───
