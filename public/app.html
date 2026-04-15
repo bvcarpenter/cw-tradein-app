@@ -1312,11 +1312,24 @@ function setLoc(btn, loc) {
 // ─── SEARCH ───
 let searchResultsCache = [];
 let activeSearch = null; // track in-flight request
+// Tab-local cache: instant replay when the user re-types or backspaces
+// back to a recent query. TTL matches the edge cache so stock status
+// can't lag behind the server by more than a minute.
+const _searchCache = new Map();
+const SEARCH_CACHE_TTL = 60 * 1000;
+const SEARCH_CACHE_MAX = 50;
 
 function dSearch(v) {
   clearTimeout(srchT);
   const el = document.getElementById('srch-res');
   if (v.length < 2) { closeRes(); return; }
+  // Instant hit: skip the debounce entirely when we already have the answer.
+  const key = v.toLowerCase();
+  const hit = _searchCache.get(key);
+  if (hit && Date.now() - hit.t < SEARCH_CACHE_TTL) {
+    renderSearchResults(hit.d);
+    return;
+  }
   // Show loading state immediately
   el.innerHTML = '<div class="no-res" id="srch-loading">Searching…</div>';
   el.style.display = 'block';
@@ -1336,29 +1349,9 @@ async function runSearch(q) {
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    const products = data.products || [];
-
-    searchResultsCache = products;
-
-    if (!products.length) {
-      el.innerHTML = '<div class="no-res">No results — try Manual Entry</div>';
-    } else {
-      el.innerHTML = products.map((p, i) => {
-        const pr = p.p ? '$'+p.p.toLocaleString('en-US',{minimumFractionDigits:0}) : '';
-        const meta = [p.si, p.it, p.m].filter(Boolean).join(' · ');
-        const name = p.n.replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        const mpn = p.src === 'brand' ? (p.sku||'').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
-        // For Shopify-sourced items (not matrix), show when the item entered the system
-        const dateTag = (p.src !== 'brand' && p.created) ? fmtCreatedDate(p.created) : '';
-        const stockTag = p.inStock === true
-          ? `<span class="ri-stock" title="Currently in stock in Shopify">In Stock</span>` : '';
-        return `<div class="ri" onclick="pickResult(${i})">
-          <div style="flex:1;min-width:0;"><div class="ri-n">${name}${dateTag ? ` <span class="ri-date" title="Date added to inventory">${dateTag}</span>` : ''} ${stockTag}</div>${mpn ? `<div class="ri-mpn">MPN: ${mpn}</div>` : ''}<div class="ri-m">${meta}</div></div>
-          ${pr ? `<div class="ri-p">${pr}</div>` : ''}
-        </div>`;
-      }).join('');
-    }
-    el.style.display = 'block';
+    if (_searchCache.size >= SEARCH_CACHE_MAX) _searchCache.clear();
+    _searchCache.set(q.toLowerCase(), { t: Date.now(), d: data });
+    renderSearchResults(data);
 
   } catch (err) {
     if (err.name === 'AbortError') return; // cancelled, ignore
@@ -1368,6 +1361,32 @@ async function runSearch(q) {
     </div>`;
     el.style.display = 'block';
   }
+}
+
+const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function renderSearchResults(data) {
+  const el = document.getElementById('srch-res');
+  const products = data.products || [];
+  searchResultsCache = products;
+
+  if (!products.length) {
+    el.innerHTML = '<div class="no-res">No results — try Manual Entry</div>';
+  } else {
+    el.innerHTML = products.map((p, i) => {
+      const pr = p.p ? '$'+p.p.toLocaleString('en-US',{minimumFractionDigits:0}) : '';
+      const meta = [p.si, p.it, p.m].filter(Boolean).join(' · ');
+      const mpn = p.src === 'brand' ? p.sku : '';
+      const dateTag = (p.src !== 'brand' && p.created) ? fmtCreatedDate(p.created) : '';
+      const stockTag = p.inStock === true
+        ? `<span class="ri-stock" title="Currently in stock in Shopify">In Stock</span>` : '';
+      return `<div class="ri" onclick="pickResult(${i})">
+        <div style="flex:1;min-width:0;"><div class="ri-n">${esc(p.n)}${dateTag ? ` <span class="ri-date" title="Date added to inventory">${esc(dateTag)}</span>` : ''} ${stockTag}</div>${mpn ? `<div class="ri-mpn">MPN: ${esc(mpn)}</div>` : ''}<div class="ri-m">${esc(meta)}</div></div>
+        ${pr ? `<div class="ri-p">${pr}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+  el.style.display = 'block';
 }
 
 function pickResult(i) {

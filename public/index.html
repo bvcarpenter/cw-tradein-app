@@ -1216,10 +1216,25 @@ function stripToModel(raw) {
 // ════════════════════════════════════════════
 // SEARCH (via /api/search — Google Sheets catalog)
 // ════════════════════════════════════════════
+// Tab-local cache: instant reuse when the user re-types or backspaces
+// to a recent query. TTL matches the edge cache so stock status can't
+// lag behind the server by more than a minute.
+const _searchCache = new Map();
+const SEARCH_CACHE_TTL = 60 * 1000;
+const SEARCH_CACHE_MAX = 50;
+let _searchAbort = null;
+
 function dSearch(v) {
   clearTimeout(srchT);
   const el = document.getElementById('srch-res');
   if (v.length < 2) { el.style.display = 'none'; return; }
+  // If we have a fresh cached hit, render immediately — skip the debounce.
+  const key = v.toLowerCase();
+  const hit = _searchCache.get(key);
+  if (hit && Date.now() - hit.t < SEARCH_CACHE_TTL) {
+    renderSearchResults(hit.d);
+    return;
+  }
   el.innerHTML = '<div class="no-res">Searching…</div>';
   el.style.display = 'block';
   srchT = setTimeout(() => runSearch(v), 250);
@@ -1228,49 +1243,63 @@ function dSearch(v) {
 async function runSearch(q) {
   const el = document.getElementById('srch-res');
 
+  // Cancel any in-flight request — user has typed something newer.
+  if (_searchAbort) _searchAbort.abort();
+  _searchAbort = new AbortController();
+
   try {
-    const res = await fetch(SEARCH_API + '?q=' + encodeURIComponent(q) + '&limit=25');
+    const res = await fetch(SEARCH_API + '?q=' + encodeURIComponent(q) + '&limit=25', {
+      signal: _searchAbort.signal,
+    });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    const top = data.products || [];
-    searchResultsCache = top;
-
-    if (!top.length) {
-      el.innerHTML = '<div class="no-res">No results — try Manual Entry</div>';
-    } else {
-      el.innerHTML = top.map((p, i) => {
-        const pr   = p.p ? '$' + p.p.toLocaleString('en-US', {minimumFractionDigits:0}) : '';
-        const meta = [p.it, p.m, p.fmt].filter(Boolean).join(' · ');
-        // Brand/matrix items → blue MATRIX badge; Shopify items → grade badge
-        let badge = '';
-        if (p.src === 'brand') {
-          badge = `<div class="ri-g" style="color:#1a6fc4;background:rgba(26,111,196,.10);border-color:rgba(26,111,196,.40)">MATRIX</div>`;
-        } else if (p.grade) {
-          badge = `<div class="ri-g" style="color:${gradeColor(p.grade).c};background:${gradeColor(p.grade).bg};border-color:${gradeColor(p.grade).bd}">${esc(p.grade)}</div>`;
-        }
-        const mpn = p.src === 'brand' ? (p.sku || '') : '';
-        // For Shopify-sourced items (not matrix), show when the item entered the system
-        const dateTag = (p.src !== 'brand' && p.created) ? fmtCreatedDate(p.created) : '';
-        const stockTag = p.inStock === true
-          ? `<div class="ri-stock" title="Currently in stock in Shopify">In Stock</div>` : '';
-        return `<div class="ri" onclick="pickResult(${i})">
-          <div style="flex:1;min-width:0;">
-            <div class="ri-n">${esc(p.n)}${dateTag ? ` <span class="ri-date" title="Date added to inventory">${esc(dateTag)}</span>` : ''}</div>${mpn ? `<div class="ri-mpn">MPN: ${esc(mpn)}</div>` : ''}
-            <div class="ri-m">${esc(meta)}</div>
-          </div>
-          <div class="ri-r">
-            ${pr ? `<div class="ri-p">${pr}</div>` : ''}
-            ${stockTag}
-            ${badge}
-          </div>
-        </div>`;
-      }).join('');
-    }
-    el.style.display = 'block';
+    if (_searchCache.size >= SEARCH_CACHE_MAX) _searchCache.clear();
+    _searchCache.set(q.toLowerCase(), { t: Date.now(), d: data });
+    renderSearchResults(data);
   } catch(err) {
+    if (err.name === 'AbortError') return; // user typed again, newer request in flight
     el.innerHTML = `<div class="no-res" style="color:#e07070;">Search failed — ${esc(err.message)}</div>`;
     el.style.display = 'block';
   }
+}
+
+function renderSearchResults(data) {
+  const el = document.getElementById('srch-res');
+  const top = data.products || [];
+  searchResultsCache = top;
+
+  if (!top.length) {
+    el.innerHTML = '<div class="no-res">No results — try Manual Entry</div>';
+  } else {
+    el.innerHTML = top.map((p, i) => {
+      const pr   = p.p ? '$' + p.p.toLocaleString('en-US', {minimumFractionDigits:0}) : '';
+      const meta = [p.it, p.m, p.fmt].filter(Boolean).join(' · ');
+      // Brand/matrix items → blue MATRIX badge; Shopify items → grade badge
+      let badge = '';
+      if (p.src === 'brand') {
+        badge = `<div class="ri-g" style="color:#1a6fc4;background:rgba(26,111,196,.10);border-color:rgba(26,111,196,.40)">MATRIX</div>`;
+      } else if (p.grade) {
+        badge = `<div class="ri-g" style="color:${gradeColor(p.grade).c};background:${gradeColor(p.grade).bg};border-color:${gradeColor(p.grade).bd}">${esc(p.grade)}</div>`;
+      }
+      const mpn = p.src === 'brand' ? (p.sku || '') : '';
+      // For Shopify-sourced items (not matrix), show when the item entered the system
+      const dateTag = (p.src !== 'brand' && p.created) ? fmtCreatedDate(p.created) : '';
+      const stockTag = p.inStock === true
+        ? `<div class="ri-stock" title="Currently in stock in Shopify">In Stock</div>` : '';
+      return `<div class="ri" onclick="pickResult(${i})">
+        <div style="flex:1;min-width:0;">
+          <div class="ri-n">${esc(p.n)}${dateTag ? ` <span class="ri-date" title="Date added to inventory">${esc(dateTag)}</span>` : ''}</div>${mpn ? `<div class="ri-mpn">MPN: ${esc(mpn)}</div>` : ''}
+          <div class="ri-m">${esc(meta)}</div>
+        </div>
+        <div class="ri-r">
+          ${pr ? `<div class="ri-p">${pr}</div>` : ''}
+          ${stockTag}
+          ${badge}
+        </div>
+      </div>`;
+    }).join('');
+  }
+  el.style.display = 'block';
 }
 
 function pickResult(i) { const p = searchResultsCache[i]; if (p) selProduct(p); }
