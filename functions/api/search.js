@@ -25,7 +25,7 @@ const BRAND_SHEETS = [
 // "Shopify Product Catalog" is the 120-day pre-owned inventory (lower priority).
 const SHOPIFY_SHEET = 'Shopify Product Catalog';
 
-const KV_KEY = 'catalog:v3';
+const KV_KEY = 'catalog:v4';
 const KV_TTL = 3600; // 1 hour
 
 // ── Category helpers ────────────────────────────────────────────────
@@ -117,6 +117,7 @@ function parseShopifyRow(row) {
     p:     parseFloat(row['Price']) || 0,
     cat:   categorize(type),
     sku,
+    created: row['Date Created'] || '',
     src:   'shopify',
   };
 }
