@@ -5,13 +5,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Trade // Sell — Camera West</title>
-<script>(function(){try{var t=localStorage.getItem('cw-theme')||'dark';var f=localStorage.getItem('cw-font')||'sans';document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-font',f);}catch(e){}})();</script>
+<script>(function(){try{var t=localStorage.getItem('cw-theme')||'dark';var f=localStorage.getItem('cw-fontsize')||'md';document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-fontsize',f);}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Inter:wght@300;400;500;600&family=IBM+Plex+Serif:wght@300;400;500;600&family=Palatino+Linotype&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Palatino+Linotype&display=swap" rel="stylesheet">
 <style>
 /* ─── RESET & TOKENS ─── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -34,25 +34,21 @@ html,body{height:100%}
   --red-soft:#f4dcd8;--grn-soft:#d8e8dc;
   --logo:#1a1a1a;
 }
-:root[data-font="modern"]{
-  --font-body:'Inter',sans-serif;
-  --font-serif:'Inter',sans-serif;
-}
-:root[data-font="serif"]{
-  --font-body:'IBM Plex Serif',serif;
-  --font-serif:'IBM Plex Serif',serif;
-}
+@media screen{:root[data-fontsize="sm"]{zoom:.92}:root[data-fontsize="lg"]{zoom:1.08}}
 .hdr svg path{fill:var(--logo)}
 :root[data-theme="light"] input::placeholder,:root[data-theme="light"] textarea::placeholder{color:rgba(26,26,26,.4)!important}
 :root[data-theme="light"] .fld select,:root[data-theme="light"] .proc-field select,:root[data-theme="light"] #sm-filter-loc,:root[data-theme="light"] #sm-filter-assoc{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(26,26,26,0.55)'/%3E%3C/svg%3E")!important}
 
-/* UI TOGGLES (theme + font) */
+/* UI TOGGLES (theme + font size) */
 .ui-toggles{display:flex;align-items:center;gap:8px}
 .font-pick{display:inline-flex;border:1px solid var(--border-l);background:var(--bg2)}
-.fpbtn{background:transparent;border:none;color:var(--dim);width:30px;height:28px;font-size:13px;cursor:pointer;border-right:1px solid var(--border-l);transition:all .15s;padding:0;line-height:1}
+.fpbtn{background:transparent;border:none;color:var(--dim);height:28px;padding:0 9px;cursor:pointer;border-right:1px solid var(--border-l);transition:all .15s;line-height:1;font-family:var(--font-body);letter-spacing:.03em}
 .fpbtn:last-child{border-right:none}
 .fpbtn:hover{color:var(--white);background:var(--bg3)}
 .fpbtn.on{color:var(--accent);background:var(--acc-dim)}
+.fpbtn.fs-sm{font-size:10px}
+.fpbtn.fs-md{font-size:12px}
+.fpbtn.fs-lg{font-size:14px}
 .theme-toggle{background:transparent;border:1px solid var(--border-l);color:var(--dim);width:32px;height:28px;cursor:pointer;font-size:14px;display:inline-flex;align-items:center;justify-content:center;transition:all .15s;padding:0;line-height:1}
 .theme-toggle:hover{color:var(--white);border-color:var(--dim)}
 :root[data-theme="light"] .ic-moon,:root:not([data-theme="light"]) .ic-sun{display:none}
@@ -373,10 +369,10 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
   <div class="hdr-r">
     <span class="badge" id="badge">0 Items</span>
     <div class="ui-toggles">
-      <div class="font-pick" role="group" aria-label="Font style">
-        <button type="button" class="fpbtn" data-font="sans" onclick="setFont('sans')" title="Sans" style="font-family:Jost,sans-serif">Aa</button>
-        <button type="button" class="fpbtn" data-font="modern" onclick="setFont('modern')" title="Modern" style="font-family:Inter,sans-serif">Aa</button>
-        <button type="button" class="fpbtn" data-font="serif" onclick="setFont('serif')" title="Serif" style="font-family:'IBM Plex Serif',serif">Aa</button>
+      <div class="font-pick" role="group" aria-label="Text size">
+        <button type="button" class="fpbtn fs-sm" data-fontsize="sm" onclick="setFontSize('sm')" title="Small" aria-label="Small text">Aa</button>
+        <button type="button" class="fpbtn fs-md" data-fontsize="md" onclick="setFontSize('md')" title="Medium" aria-label="Medium text">Aa</button>
+        <button type="button" class="fpbtn fs-lg" data-fontsize="lg" onclick="setFontSize('lg')" title="Large" aria-label="Large text">Aa</button>
       </div>
       <button type="button" class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme"><span class="ic-moon">☾</span><span class="ic-sun">☀</span></button>
     </div>
@@ -626,7 +622,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
       </div>
       <div class="exp-acts">
         <button class="btn btn-g" onclick="exportXLSX()">Export NetSuite XLSX</button>
-        <button class="btn btn-a" id="print-btn" onclick="openPrint()">Print Credit Memo</button>
+        <button class="btn btn-a" id="print-btn" onclick="openPrint()">Print Estimate</button>
         <button class="btn" id="email-cust-btn" onclick="emailEstimateToCustomer()" style="background:#1a3a5a;color:#7ab8e0;border:1px solid #2a5a8a;">Email to Customer</button>
         <button class="btn" id="sc-btn" onclick="issueStoreCredit()" style="background:#2a6e3f;color:#fff;border:1px solid #2a6e3f;">Issue Store Credit</button>
         <button class="btn" id="cm-only-btn" onclick="issueCmOnly()" style="background:#1a2a4a;color:#7090d0;border:1px solid #3a4a7a;">Issue CM Only</button>
@@ -813,7 +809,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 const SEARCH_API = '/api/search';
 
 // ════════════════════════════════════════════
-// UI PREFERENCES (theme + font)
+// UI PREFERENCES (theme + font size)
 // ════════════════════════════════════════════
 function toggleTheme(){
   const cur = document.documentElement.getAttribute('data-theme') || 'dark';
@@ -821,17 +817,17 @@ function toggleTheme(){
   document.documentElement.setAttribute('data-theme', next);
   try { localStorage.setItem('cw-theme', next); } catch(e) {}
 }
-function setFont(f){
-  document.documentElement.setAttribute('data-font', f);
-  try { localStorage.setItem('cw-font', f); } catch(e) {}
+function setFontSize(s){
+  document.documentElement.setAttribute('data-fontsize', s);
+  try { localStorage.setItem('cw-fontsize', s); } catch(e) {}
   document.querySelectorAll('.fpbtn').forEach(b => {
-    b.classList.toggle('on', b.dataset.font === f);
+    b.classList.toggle('on', b.dataset.fontsize === s);
   });
 }
 document.addEventListener('DOMContentLoaded', () => {
-  const f = document.documentElement.getAttribute('data-font') || 'sans';
+  const s = document.documentElement.getAttribute('data-fontsize') || 'md';
   document.querySelectorAll('.fpbtn').forEach(b => {
-    b.classList.toggle('on', b.dataset.font === f);
+    b.classList.toggle('on', b.dataset.fontsize === s);
   });
 });
 
@@ -2318,6 +2314,8 @@ function restoreSessionData(d) {
   // Show process button if session is finalized
   const procSec = document.getElementById('process-tradein-section');
   if (procSec) procSec.style.display = d.finalized ? '' : 'none';
+  // Refresh the print button label now that CM# (if any) is populated
+  if (typeof updatePrintBtnLabel === 'function') updatePrintBtnLabel();
 }
 
 
@@ -2672,6 +2670,8 @@ function lockCreditButtons(cmNum) {
   cmBtn.textContent = 'CM# ' + cmNum;
   cmBtn.style.opacity = '0.5';
   cmBtn.style.cursor = 'not-allowed';
+  // Credit memo exists now — refresh print button label
+  if (typeof updatePrintBtnLabel === 'function') updatePrintBtnLabel();
 }
 
 let _otpApproved = false;
@@ -3039,6 +3039,8 @@ function resetSessionForm() {
   // Hide process trade-in button
   const procSec = document.getElementById('process-tradein-section');
   if (procSec) procSec.style.display = 'none';
+  // Reset print button back to Estimate
+  if (typeof updatePrintBtnLabel === 'function') updatePrintBtnLabel();
 }
 function clrSession() {
   if (!confirm('Clear all items and start a new session?')) return;
@@ -3151,6 +3153,12 @@ function getDocLabel() {
   return hasCM ? 'Credit Memo' : 'Estimate';
 }
 
+/** Refresh the print button text based on current state */
+function updatePrintBtnLabel() {
+  const printBtn = document.getElementById('print-btn');
+  if (printBtn) printBtn.textContent = 'Print ' + getDocLabel();
+}
+
 /** Update print button label and show/hide FedEx section based on location */
 function updateFedExSection() {
   const sec = document.getElementById('fedex-label-section');
@@ -3163,8 +3171,7 @@ function updateFedExSection() {
   if (fedBtn) { fedBtn.disabled = false; fedBtn.innerHTML = 'Generate FedEx Label <em style="font-style:italic">//</em> Express Saver One Rate'; }
   const statusEl = document.getElementById('fedex-label-status');
   if (statusEl) { statusEl.className = ''; statusEl.textContent = ''; }
-  const printBtn = document.getElementById('print-btn');
-  if (printBtn) printBtn.textContent = 'Print ' + getDocLabel();
+  updatePrintBtnLabel();
 }
 
 // Patch setLoc to also update FedEx section visibility
