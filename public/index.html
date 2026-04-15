@@ -547,14 +547,12 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
       <div class="sel-bar">
         <div><input type="text" id="sel-name" style="background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--white);font-family:var(--font-body);font-size:14px;font-weight:500;width:100%;outline:none;padding:2px 0;" oninput="if(selItem)selItem.name=this.value;valAdd();"><p id="sel-meta">—</p></div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
-          <button class="btn-chg" onclick="editItem()" title="Edit this item's categorization in Manual Entry">Edit Item</button>
+          <button class="btn-chg" onclick="editSelItem()" title="Edit this item's categorization">Edit Item</button>
           <button class="btn-chg" onclick="clrItem()">Change Item</button>
         </div>
       </div>
-      <div class="fg" style="margin-bottom:22px;">
+      <div style="margin-bottom:22px;">
         <div class="fld"><label>Serial Number</label><input type="text" id="serial" placeholder="Optional"></div>
-        <div class="fld"><label>Catalog Number (MPN)</label><input type="text" id="catalog" placeholder="Optional"></div>
-        <div class="fld"><label>Amazon ASIN</label><input type="text" id="asin" placeholder="Auto-populated from catalog" readonly style="color:var(--dim);"></div>
       </div>
       <span class="sl">Cosmetic Grade *</span>
       <div class="grade-row" id="grade-row"></div>
@@ -801,6 +799,33 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
     <div class="mod-f">
       <button class="btn btn-ol" onclick="closeMo()">Cancel</button>
       <button class="btn btn-w" onclick="doPrint()">Print</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT ITEM MODAL -->
+<div class="mo" id="edit-item-mo" onclick="if(event.target===this)closeEditItem()">
+  <div class="mod" style="max-width:660px;">
+    <div class="mod-h">
+      <h3>Edit Item</h3>
+      <button class="mod-x" onclick="closeEditItem()">×</button>
+    </div>
+    <div class="mod-b" style="padding:22px;">
+      <div class="fg">
+        <div class="fld ff"><label>Item Name *</label><input type="text" id="ei-name" placeholder="e.g. Leica M11, Black Chrome"></div>
+        <div class="fld"><label>Brand</label><input type="text" id="ei-vendor" placeholder="Leica"></div>
+        <div class="fld"><label>System ID</label><select id="ei-sys"></select></div>
+        <div class="fld"><label>Item Type</label><select id="ei-type"></select></div>
+        <div class="fld"><label>Medium</label><select id="ei-med"></select></div>
+        <div class="fld"><label>Format</label><select id="ei-format"></select></div>
+        <div class="fld"><label>Retail Price</label><input type="number" id="ei-ret" placeholder="0.00" min="0" step="0.01"></div>
+        <div class="fld"><label>Catalog Number (MPN)</label><input type="text" id="ei-catalog" placeholder="Optional"></div>
+        <div class="fld ff"><label>Amazon ASIN</label><input type="text" id="ei-asin" placeholder="Optional"></div>
+      </div>
+    </div>
+    <div class="mod-f">
+      <button class="btn btn-ol" onclick="closeEditItem()">Cancel</button>
+      <button class="btn btn-w" onclick="saveEditItem()">Save</button>
     </div>
   </div>
 </div>
@@ -1340,7 +1365,8 @@ function selProduct(p) {
   else if (LEN_T.has(p.it)) cat = 'lens';
   const fmt = p.fmt || inferFormat(p.si || '', p.it || '');
   selItem = { name: p.n, vendor: '', systemId: p.si||'', itemType: p.it||'',
-              medium: p.m||'', price: p.p||0, sku: p.sku||'', format: fmt, category: cat, asin: p.asin||'' };
+              medium: p.m||'', price: p.p||0, sku: p.sku||'', format: fmt, category: cat,
+              catalog: p.sku||'', asin: p.asin||'' };
   setSelectVal('m-sys', p.si||'');
   setSelectVal('m-type', p.it||'');
   setSelectVal('m-med', p.m||'');
@@ -1368,7 +1394,7 @@ function useManual() {
     name, vendor: document.getElementById('m-vendor').value.trim(),
     systemId: sysV, itemType: it, medium: document.getElementById('m-med').value,
     price: parseFloat(document.getElementById('r-override').value) || 0,
-    format: fmtV, sku: '', category: cat
+    format: fmtV, sku: '', category: cat, catalog: '', asin: ''
   };
   showDet();
 }
@@ -1384,8 +1410,8 @@ function showDet() {
     + `<div class="acc-add-btn" onclick="addCustomAccessory()" title="Add custom accessory">+</div>`;
   document.getElementById('r-override').value = '';
   document.getElementById('serial').value = '';
-  document.getElementById('catalog').value = selItem.sku || '';
-  document.getElementById('asin').value = selItem.asin || '';
+  if (!selItem.catalog) selItem.catalog = selItem.sku || '';
+  if (!selItem.asin) selItem.asin = '';
   document.getElementById('notes').value = '';
   updPricing();
   document.getElementById('det-sec').classList.add('vis');
@@ -1421,28 +1447,74 @@ function clrItem() {
 }
 
 /**
- * Edit the currently selected item's categorization.
- * Pre-fills Manual Entry with the current selItem, switches to the
- * Manual Entry tab so the user can tweak brand/system/type/medium/format
- * and then click "Use This Item" to re-show Item Details with the edits.
+ * Lazy-clone option lists from the Manual Entry selects into the
+ * Edit Item modal selects so we don't duplicate the (long) option markup.
  */
-function editItem() {
+function initEditItemSelects() {
+  [['m-sys','ei-sys'],['m-type','ei-type'],['m-med','ei-med'],['m-format','ei-format']].forEach(([src,dst]) => {
+    const s = document.getElementById(src);
+    const d = document.getElementById(dst);
+    if (s && d && !d.options.length) d.innerHTML = s.innerHTML;
+  });
+}
+
+/**
+ * Open the Edit Item popup pre-filled with the current selItem.
+ */
+function editSelItem() {
   if (!selItem) return;
-  document.getElementById('m-name').value = selItem.name || '';
-  const vendorEl = document.getElementById('m-vendor');
-  vendorEl.value = selItem.vendor || '';
-  vendorEl.dataset.userEdited = 'true';
-  setSelectVal('m-sys', selItem.systemId || '');
-  setSelectVal('m-type', selItem.itemType || '');
-  setSelectVal('m-med', selItem.medium || '');
-  setSelectVal('m-format', selItem.format || '');
-  // useManual() reads price from r-override — pre-fill so it's preserved
-  document.getElementById('r-override').value = selItem.price || '';
-  // Switch to the Manual Entry tab
-  const manualBtn = [...document.querySelectorAll('.tnav')].find(b => (b.textContent || '').trim() === 'Manual Entry');
-  if (manualBtn) tab('manual', manualBtn);
-  document.getElementById('tab-manual').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  document.getElementById('m-name').focus();
+  initEditItemSelects();
+  document.getElementById('ei-name').value = selItem.name || '';
+  document.getElementById('ei-vendor').value = selItem.vendor || '';
+  setSelectVal('ei-sys', selItem.systemId || '');
+  setSelectVal('ei-type', selItem.itemType || '');
+  setSelectVal('ei-med', selItem.medium || '');
+  setSelectVal('ei-format', selItem.format || '');
+  document.getElementById('ei-ret').value = selItem.price || '';
+  document.getElementById('ei-catalog').value = selItem.catalog || selItem.sku || '';
+  document.getElementById('ei-asin').value = selItem.asin || '';
+  document.getElementById('edit-item-mo').classList.add('open');
+  setTimeout(() => document.getElementById('ei-name').focus(), 50);
+}
+
+function closeEditItem() {
+  document.getElementById('edit-item-mo').classList.remove('open');
+}
+
+function saveEditItem() {
+  if (!selItem) { closeEditItem(); return; }
+  const name = document.getElementById('ei-name').value.trim();
+  if (!name) { alert('Enter an item name.'); return; }
+  const it = document.getElementById('ei-type').value;
+  let cat = 'accessory';
+  if (CAM_T.has(it)) cat = 'camera';
+  else if (LEN_T.has(it)) cat = 'lens';
+  const sysVal = document.getElementById('ei-sys').value;
+  const fmtVal = document.getElementById('ei-format').value || inferFormat(sysVal, it);
+  const newPrice = parseFloat(document.getElementById('ei-ret').value) || 0;
+  const categoryChanged = cat !== selItem.category;
+  selItem.name = name;
+  selItem.vendor = document.getElementById('ei-vendor').value.trim();
+  selItem.systemId = sysVal;
+  selItem.itemType = it;
+  selItem.medium = document.getElementById('ei-med').value;
+  selItem.format = fmtVal;
+  selItem.price = newPrice;
+  selItem.category = cat;
+  selItem.catalog = document.getElementById('ei-catalog').value.trim();
+  selItem.asin = document.getElementById('ei-asin').value.trim();
+  document.getElementById('sel-name').value = selItem.name;
+  document.getElementById('sel-meta').textContent =
+    [selItem.systemId, selItem.itemType, selItem.medium, selItem.format, selItem.vendor].filter(Boolean).join(' · ');
+  document.getElementById('p-src').textContent = selItem.price > 0 ? 'From catalog' : 'Enter retail price';
+  if (categoryChanged) {
+    const accs = ACC_MAP[selItem.category] || ACC_MAP.default;
+    document.getElementById('acc-row').innerHTML = accs.map(a =>
+      `<div class="achip" onclick="this.classList.toggle('on')"><div class="achk"></div><span>${a}</span></div>`).join('')
+      + `<div class="acc-add-btn" onclick="addCustomAccessory()" title="Add custom accessory">+</div>`;
+  }
+  updPricing();
+  closeEditItem();
 }
 
 // ════════════════════════════════════════════
@@ -1633,8 +1705,8 @@ function addItem() {
     const accs=[...document.querySelectorAll('.achip.on')].map(c=>c.querySelector('span').textContent);
     const upd={id:_editingId,name:selItem.name,vendor:selItem.vendor,systemId:selItem.systemId,
       itemType:selItem.itemType,medium:selItem.medium,format:selItem.format||'',category:selItem.category,sku:selItem.sku,
-      asin:document.getElementById('asin').value.trim(),
-      serial:document.getElementById('serial').value.trim(),catalog:document.getElementById('catalog').value.trim(),
+      asin:(selItem.asin||'').trim(),
+      serial:document.getElementById('serial').value.trim(),catalog:(selItem.catalog||selItem.sku||'').trim(),
       grade:selGrade,accessories:accs,notes:document.getElementById('notes').value.trim(),
       retail:ret,tradein:ti,outright:or,net,priceType:selPT,svcCharge,svcReason};
     if(idx>=0)sessionItems[idx]=upd;else sessionItems.push(upd);
@@ -1658,9 +1730,9 @@ function addItem() {
     id: Date.now(),
     name: selItem.name, vendor: selItem.vendor, systemId: selItem.systemId,
     itemType: selItem.itemType, medium: selItem.medium, format: selItem.format||'',
-    category: selItem.category, sku: selItem.sku, asin: document.getElementById('asin').value.trim(),
+    category: selItem.category, sku: selItem.sku, asin: (selItem.asin||'').trim(),
     serial:  document.getElementById('serial').value.trim(),
-    catalog: document.getElementById('catalog').value.trim(),
+    catalog: (selItem.catalog||selItem.sku||'').trim(),
     grade: selGrade, accessories: accs,
     notes: document.getElementById('notes').value.trim(),
     retail: ret, tradein: ti, outright: or, net, priceType: selPT, svcCharge, svcReason
@@ -1713,12 +1785,10 @@ function editItem(id) {
   const it = sessionItems.find(i => i.id === id);
   if (!it) return;
   _editingId = id;
-  selItem = {name:it.name,vendor:it.vendor,systemId:it.systemId,itemType:it.itemType,medium:it.medium,format:it.format||'',category:it.category,sku:it.sku,asin:it.asin||'',price:it.retail};
+  selItem = {name:it.name,vendor:it.vendor,systemId:it.systemId,itemType:it.itemType,medium:it.medium,format:it.format||'',category:it.category,sku:it.sku,asin:it.asin||'',catalog:it.catalog||'',price:it.retail};
   selGrade=it.grade; selPT=it.priceType;
   showDet();
   document.getElementById('serial').value=it.serial||'';
-  document.getElementById('catalog').value=it.catalog||'';
-  document.getElementById('asin').value=it.asin||'';
   document.getElementById('notes').value=it.notes||'';
   document.getElementById('r-override').value='';
   document.getElementById('svc-charge').value=it.svcCharge||'';
