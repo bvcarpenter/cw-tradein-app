@@ -797,7 +797,8 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
   </div>
   <div class="proc-toolbar">
     <div class="proc-progress">Items certified: <strong id="proc-cert-count">0</strong> / <strong id="proc-total-count">0</strong></div>
-    <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+    <div style="margin-left:auto;display:flex;align-items:center;gap:12px;">
+      <button class="btn btn-ol" id="proc-zip-btn" onclick="downloadProcessingZip(this)" style="font-size:9px;padding:7px 13px;letter-spacing:.14em;">Download ZIP</button>
       <span style="font-size:9px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;">Shopify:</span>
       <span class="proc-shopify-status loading" id="proc-shopify-overall">Checking…</span>
     </div>
@@ -3559,6 +3560,25 @@ function renderProcessingItems() {
       </div>
       <div class="proc-item-body">
 
+        <!-- Item Identifiers -->
+        <span class="sl">Item Identifiers</span>
+        <div class="proc-row t3">
+          <div class="proc-field">
+            <label>Serial Number</label>
+            <input type="text" id="proc-serial-${idx}" value="${esc(pd.serial ?? item.serial ?? '')}" placeholder="—" onchange="procMetaChange(${idx})">
+          </div>
+          <div class="proc-field">
+            <label>MPN / Catalog Number</label>
+            <input type="text" id="proc-mpn-${idx}" value="${esc(pd.mpn ?? item.catalog ?? '')}" placeholder="—" onchange="procMetaChange(${idx})">
+          </div>
+          <div class="proc-field">
+            <label>ASIN</label>
+            <input type="text" id="proc-asin-${idx}" value="${esc(pd.asin ?? item.asin ?? '')}" placeholder="—" onchange="procMetaChange(${idx})">
+          </div>
+        </div>
+
+        <div class="proc-divider"></div>
+
         <!-- Condition Confirmation -->
         <span class="sl">Condition Confirmation</span>
         ${item.grade ? `<div style="font-size:11px;color:var(--dim);margin-bottom:8px;">Customer submitted: <strong style="color:var(--fg);">${esc(item.grade)}</strong>${item.condition ? ` (${esc(item.condition)})` : ''}</div>` : ''}
@@ -3750,6 +3770,20 @@ function procFieldChange(idx) {
   procData[idx].mechOpticalNotes = document.getElementById('proc-mech-' + idx).value;
   procData[idx].generalNotes = document.getElementById('proc-notes-' + idx).value;
   procData[idx].description = document.getElementById('proc-desc-' + idx).value;
+}
+
+function procMetaChange(idx) {
+  if (!procData[idx]) procData[idx] = {};
+  const serial = document.getElementById('proc-serial-' + idx).value.trim();
+  const mpn    = document.getElementById('proc-mpn-' + idx).value.trim();
+  const asin   = document.getElementById('proc-asin-' + idx).value.trim();
+  procData[idx].serial = serial;
+  procData[idx].mpn    = mpn;
+  procData[idx].asin   = asin;
+  const item = procSession.data.items[idx];
+  item.serial  = serial;
+  item.catalog = mpn;
+  item.asin    = asin;
 }
 
 function toggleCertify(idx) {
@@ -3946,6 +3980,140 @@ async function saveProcessing() {
     alert('Save failed: ' + err.message);
     btn.textContent = 'Save Processing Data';
     btn.disabled = false;
+  }
+}
+
+// ─── DOWNLOAD SESSION AS ZIP ───
+
+let _jszipPromise = null;
+function loadJSZip() {
+  if (window.JSZip) return Promise.resolve(window.JSZip);
+  if (!_jszipPromise) {
+    _jszipPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+      s.crossOrigin = 'anonymous';
+      s.onload = () => resolve(window.JSZip);
+      s.onerror = () => { _jszipPromise = null; reject(new Error('Failed to load JSZip')); };
+      document.head.appendChild(s);
+    });
+  }
+  return _jszipPromise;
+}
+
+function _safeFilename(s) {
+  return (String(s || '').replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^_+|_+$/g, '')).slice(0, 80) || 'untitled';
+}
+function _dataUrlBase64(dataUrl) {
+  const i = (dataUrl || '').indexOf(',');
+  return i < 0 ? '' : dataUrl.slice(i + 1);
+}
+function _dataUrlExt(dataUrl) {
+  const m = /^data:image\/([a-zA-Z0-9+]+)/.exec(dataUrl || '');
+  if (!m) return 'jpg';
+  const mime = m[1].toLowerCase();
+  return mime === 'jpeg' ? 'jpg' : mime;
+}
+
+const SERVICE_LABEL = {
+  'no': 'No — Ready for Sale',
+  'cla': 'Yes — CLA Required',
+  'repair': 'Yes — Repair Needed',
+  'sensor-clean': 'Yes — Sensor Cleaning',
+  'calibration': 'Yes — Calibration',
+  'other': 'Yes — Other (see notes)',
+};
+
+function _procItemTxt(item, pd, idx) {
+  const out = [];
+  const line  = (label, val) => { if (val != null && val !== '') out.push(label + ': ' + val); };
+  const block = (label, val) => { if (val != null && val !== '') out.push('', label + ':', String(val)); };
+
+  out.push('ITEM ' + (idx + 1) + ': ' + (item.name || '—'));
+  out.push('─'.repeat(60));
+  line('SKU', item.sku || item.catalog);
+  line('System ID', item.systemId);
+  line('Item Type', item.itemType);
+  line('Initial Grade', item.grade);
+  out.push('');
+  out.push('── IDENTIFIERS ──');
+  line('Serial Number',        pd.serial ?? item.serial);
+  line('MPN / Catalog Number', pd.mpn    ?? item.catalog);
+  line('ASIN',                 pd.asin   ?? item.asin);
+  out.push('');
+  out.push('── PROCESSING ──');
+  line('Confirmed Condition / Grade', pd.confirmedGrade);
+  line('Needs Additional Service?',   SERVICE_LABEL[pd.needsService] || pd.needsService);
+  line('Certified',                   pd.certified ? 'Yes' : 'No');
+  block('Cosmetic Condition Notes',   pd.cosmeticNotes);
+  block('Mechanical / Optical Notes', pd.mechOpticalNotes);
+  block('General Notes',              pd.generalNotes);
+  block('Item Description (for Shopify listing)', pd.description);
+  if (pd.confirmedAccessories?.length) {
+    out.push('', 'Confirmed Accessories:');
+    pd.confirmedAccessories.forEach(a => out.push('  - ' + a));
+  }
+  if (pd.addedAccessories?.length) {
+    out.push('', 'Added Accessories:');
+    pd.addedAccessories.forEach(a => out.push('  - ' + a));
+  }
+  out.push('');
+  line('Images Included', (pd.images || []).length);
+  return out.join('\n') + '\n';
+}
+
+async function downloadProcessingZip(btn) {
+  if (!procSession) return;
+  const orig = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
+  try {
+    procSession.data.items.forEach((_, idx) => {
+      if (document.getElementById('proc-cond-' + idx))   procFieldChange(idx);
+      if (document.getElementById('proc-serial-' + idx)) procMetaChange(idx);
+    });
+
+    const JSZip = await loadJSZip();
+    const zip = new JSZip();
+
+    const items = procSession.data.items;
+    items.forEach((item, idx) => {
+      const pd = procData[idx] || {};
+      const serial = pd.serial ?? item.serial ?? '';
+      const folderName = [
+        String(idx + 1).padStart(2, '0'),
+        _safeFilename(item.name),
+        serial ? 'SN_' + _safeFilename(serial) : null,
+      ].filter(Boolean).join('_');
+      const folder = zip.folder(folderName);
+      folder.file('notes.txt', _procItemTxt(item, pd, idx));
+      (pd.images || []).forEach((img, i) => {
+        const ext  = _dataUrlExt(img.dataUrl);
+        const base = _safeFilename((img.name || '').replace(/\.[^.]+$/, '')) || `image_${i + 1}`;
+        folder.file(`${String(i + 1).padStart(2, '0')}_${base}.${ext}`, _dataUrlBase64(img.dataUrl), { base64: true });
+      });
+    });
+
+    const blob  = await zip.generateAsync({ type: 'blob' });
+    const tid   = procSession.data.tradeInId || procSession.key;
+    const stamp = new Date().toISOString().slice(0, 10);
+    const filename = `tradein_${_safeFilename(tid)}_${stamp}.zip`;
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+
+    if (btn) {
+      btn.textContent = 'Downloaded ✓';
+      setTimeout(() => { btn.textContent = orig || 'Download ZIP'; btn.disabled = false; }, 2000);
+    }
+  } catch (err) {
+    alert('ZIP download failed: ' + (err.message || err));
+    if (btn) { btn.textContent = orig || 'Download ZIP'; btn.disabled = false; }
   }
 }
 </script>
