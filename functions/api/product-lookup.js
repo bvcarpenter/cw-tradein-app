@@ -42,9 +42,13 @@ export async function onRequestGet({ request, env }) {
                 id
                 title
                 status
+                descriptionHtml
                 onlineStoreUrl
                 featuredImage {
                   url
+                }
+                images(first: 50) {
+                  edges { node { id } }
                 }
                 totalInventory
               }
@@ -72,10 +76,13 @@ export async function onRequestGet({ request, env }) {
     const variant = match.node;
     const product = variant.product;
 
+    const hasDescription = !!(product.descriptionHtml && product.descriptionHtml.trim());
+    const imageCount = product.images?.edges?.length || 0;
+
     return Response.json({
       found: true,
       sku,
-      status: product.status, // ACTIVE, DRAFT, ARCHIVED
+      status: product.status,
       title: product.title,
       variantTitle: variant.title,
       price: variant.price,
@@ -83,6 +90,8 @@ export async function onRequestGet({ request, env }) {
       totalInventory: product.totalInventory,
       onlineStoreUrl: product.onlineStoreUrl,
       imageUrl: product.featuredImage?.url || null,
+      hasDescription,
+      imageCount,
       productId: product.id,
       variantId: variant.id,
     });

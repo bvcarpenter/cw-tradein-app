@@ -572,6 +572,7 @@ body {
     <button class="sess-tab" onclick="setSessTab(this,'in-transit')">In Transit</button>
     <button class="sess-tab" onclick="setSessTab(this,'finalized')">Finalized</button>
     <button class="sess-tab" onclick="setSessTab(this,'processing')">Processing</button>
+    <button class="sess-tab" onclick="setSessTab(this,'complete')">Complete</button>
   </div>
   <div class="sess-list" id="sess-list">
     <div class="sess-empty">Loading…</div>
@@ -2412,7 +2413,8 @@ function renderSessions() {
   if (sessFilter === 'drafts') filtered = sessionsCache.filter(s => !s.data?.finalized && s.data?.source !== 'web-form');
   if (sessFilter === 'in-transit') filtered = sessionsCache.filter(s => s.data?.trackingNumber && !s.data?.finalized);
   if (sessFilter === 'finalized') filtered = sessionsCache.filter(s => s.data?.finalized);
-  if (sessFilter === 'processing') filtered = sessionsCache.filter(s => s.data?.finalized && s.data?.items?.length > 0);
+  if (sessFilter === 'processing') filtered = sessionsCache.filter(s => s.data?.finalized && s.data?.items?.length > 0 && !s.data?.processingComplete);
+  if (sessFilter === 'complete') filtered = sessionsCache.filter(s => s.data?.processingComplete);
 
   if (!filtered.length) {
     el.innerHTML = '<div class="sess-empty">No sessions found.</div>';
@@ -3730,12 +3732,11 @@ document.addEventListener('drop', (e) => {
 // ─── SHOPIFY STATUS LOOKUP ───
 async function lookupShopifyStatuses() {
   const items = procSession.data.items;
-  // Reset overall status
   const overall = document.getElementById('proc-shopify-overall');
   overall.textContent = 'Checking…';
   overall.className = 'proc-shopify-status loading';
 
-  let foundCount = 0, activeCount = 0;
+  let foundCount = 0, activeCount = 0, readyCount = 0;
 
   for (let idx = 0; idx < items.length; idx++) {
     const item = items[idx];
@@ -3758,6 +3759,10 @@ async function lookupShopifyStatuses() {
       if (data.found) {
         foundCount++;
         const status = data.status || 'UNKNOWN';
+        const hasDesc = data.hasDescription;
+        const hasPhotos = (data.imageCount || 0) > 0;
+        if (hasDesc && hasPhotos) readyCount++;
+
         if (status === 'ACTIVE') {
           activeCount++;
           badge.textContent = 'Active';
@@ -3769,6 +3774,9 @@ async function lookupShopifyStatuses() {
           badge.textContent = status.toLowerCase();
           badge.className = 'proc-item-shopify draft';
         }
+        if (hasDesc && hasPhotos) {
+          badge.textContent += ' ✓';
+        }
       } else {
         badge.textContent = 'Not in Shopify';
         badge.className = 'proc-item-shopify not-found';
@@ -3779,7 +3787,6 @@ async function lookupShopifyStatuses() {
     }
   }
 
-  // Update overall status
   if (activeCount === items.length) {
     overall.textContent = `All ${activeCount} Active`;
     overall.className = 'proc-shopify-status active';
@@ -3789,6 +3796,25 @@ async function lookupShopifyStatuses() {
   } else {
     overall.textContent = 'None Found';
     overall.className = 'proc-shopify-status not-found';
+  }
+
+  if (readyCount === items.length && items.length > 0) {
+    if (!procSession.data.processingComplete) {
+      procSession.data.processingComplete = true;
+      await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: procSession.key, data: procSession.data }),
+      });
+      showToast('All items have description & photos — moved to Complete');
+    }
+  } else if (procSession.data.processingComplete) {
+    procSession.data.processingComplete = false;
+    await fetch('/api/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: procSession.key, data: procSession.data }),
+    });
   }
 }
 
