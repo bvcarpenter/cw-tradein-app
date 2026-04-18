@@ -168,7 +168,20 @@ export async function onRequestPost({ request, env }) {
       });
     }
 
-    const saKey = typeof saKeyRaw === 'string' ? JSON.parse(saKeyRaw) : saKeyRaw;
+    let saKey;
+    try {
+      saKey = typeof saKeyRaw === 'string' ? JSON.parse(saKeyRaw) : saKeyRaw;
+    } catch (parseErr) {
+      const preview = String(saKeyRaw).slice(0, 60);
+      return new Response(JSON.stringify({
+        error: `GDRIVE_SA_KEY is set but its value is not valid JSON. Re-paste the full Google service account JSON (must start with {"type":"service_account"...). Current value starts with: "${preview}"`,
+      }), { status: 500, headers: { ...cors, 'Content-Type': 'application/json' } });
+    }
+    if (!saKey || !saKey.client_email || !saKey.private_key) {
+      return new Response(JSON.stringify({
+        error: 'GDRIVE_SA_KEY parsed but is missing client_email or private_key. Make sure you pasted the ENTIRE service account JSON file.',
+      }), { status: 500, headers: { ...cors, 'Content-Type': 'application/json' } });
+    }
     const { cmNum, items } = await request.json();
 
     if (!cmNum) {
