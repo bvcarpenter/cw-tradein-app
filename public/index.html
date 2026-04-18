@@ -4026,7 +4026,7 @@ async function saveProcessing() {
         await _uploadProcessingToDrive(cmNum);
         showToast('Saved & uploaded to Drive ✓');
       } catch (driveErr) {
-        showToast('Saved locally. Drive upload failed: ' + (driveErr.message || driveErr));
+        _showCopyableError('Saved locally. Drive upload failed:', driveErr.message || String(driveErr));
       }
     } else {
       showToast('Processing data saved ✓');
@@ -4042,6 +4042,32 @@ async function saveProcessing() {
     btn.textContent = 'Save Processing Data';
     btn.disabled = false;
   }
+}
+
+function _showCopyableError(title, body) {
+  const full = title + '\n\n' + body;
+  console.error(full);
+  try { navigator.clipboard && navigator.clipboard.writeText(full); } catch(e) {}
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  ov.innerHTML = `
+    <div style="background:var(--bg2,#141414);color:var(--white,#f5f5f0);border:1px solid var(--border,#2a2a2a);max-width:640px;width:100%;padding:20px;font-family:var(--font-body,sans-serif);">
+      <div style="font-size:12px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px;color:#e07070;">${title.replace(/</g,'&lt;')}</div>
+      <textarea readonly style="width:100%;min-height:160px;background:var(--bg3,#1a1a1a);color:var(--white,#f5f5f0);border:1px solid var(--border-l,#333);padding:10px;font-family:ui-monospace,monospace;font-size:11px;line-height:1.5;resize:vertical;">${body.replace(/</g,'&lt;')}</textarea>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+        <button id="_err-copy" style="background:transparent;border:1px solid var(--border-l,#333);color:var(--white,#f5f5f0);padding:8px 16px;cursor:pointer;font-size:11px;letter-spacing:.12em;text-transform:uppercase;">Copy</button>
+        <button id="_err-close" style="background:var(--white,#f5f5f0);color:var(--bg,#0e0e0e);border:none;padding:8px 16px;cursor:pointer;font-size:11px;letter-spacing:.12em;text-transform:uppercase;">Close</button>
+      </div>
+      <div style="font-size:10px;color:var(--dim,rgba(245,245,240,.7));margin-top:8px;">Error has been copied to your clipboard.</div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('textarea').select();
+  ov.querySelector('#_err-copy').onclick = () => {
+    const ta = ov.querySelector('textarea');
+    ta.select(); document.execCommand('copy');
+  };
+  ov.querySelector('#_err-close').onclick = () => ov.remove();
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
 }
 
 async function _uploadProcessingToDrive(cmNum) {
