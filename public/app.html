@@ -1155,7 +1155,6 @@ body {
     <div class="proc-progress">Items certified: <strong id="proc-cert-count">0</strong> / <strong id="proc-total-count">0</strong></div>
     <div style="margin-left:auto;display:flex;align-items:center;gap:12px;">
       <button class="btn btn-ol" id="proc-zip-btn" onclick="downloadProcessingZip(this)" style="font-size:9px;padding:7px 13px;letter-spacing:.14em;">Download ZIP</button>
-      <button class="btn btn-ol" id="proc-drive-btn" onclick="uploadToDrive(this)" style="font-size:9px;padding:7px 13px;letter-spacing:.14em;border-color:#4a90d9;color:#7ab8ff;">Upload to Drive</button>
       <span style="font-size:9px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;">Shopify:</span>
       <span class="proc-shopify-status loading" id="proc-shopify-overall">Checking…</span>
     </div>
@@ -4003,35 +4002,6 @@ async function downloadProcessingZip(btn) {
   } catch (err) {
     alert('ZIP download failed: ' + (err.message || err));
     if (btn) { btn.textContent = orig || 'Download ZIP'; btn.disabled = false; }
-  }
-}
-
-// ─── UPLOAD TO GOOGLE DRIVE ───
-async function uploadToDrive(btn) {
-  if (!procSession) return;
-  const cmNum = procSession.data.cmNum || procSession.data.tradeInId || '';
-  if (!cmNum || cmNum === 'PENDING') {
-    alert('A Credit Memo number is required before uploading to Drive.');
-    return;
-  }
-  const orig = btn ? btn.textContent : '';
-  if (btn) { btn.disabled = true; btn.textContent = 'Uploading…'; }
-  try {
-    procSession.data.items.forEach((_, idx) => {
-      if (document.getElementById('proc-cond-' + idx))   procFieldChange(idx);
-      if (document.getElementById('proc-serial-' + idx)) procMetaChange(idx);
-    });
-
-    const result = await _uploadProcessingToDrive(cmNum);
-
-    if (btn) {
-      btn.textContent = 'Uploaded ✓';
-      setTimeout(() => { btn.textContent = orig || 'Upload to Drive'; btn.disabled = false; }, 3000);
-    }
-    if (result.folderUrl) window.open(result.folderUrl, '_blank');
-  } catch (err) {
-    alert('Drive upload failed: ' + (err.message || err));
-    if (btn) { btn.textContent = orig || 'Upload to Drive'; btn.disabled = false; }
   }
 }
 </script>
