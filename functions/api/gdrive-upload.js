@@ -1,6 +1,6 @@
 const PARENT_FOLDER_ID = '10FV6E5bXRoLN5bE9Zsk2F5QoBDsKpmZ3';
 const PROCESSING_SUBFOLDER = 'Processing';
-const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+const SCOPES = 'https://www.googleapis.com/auth/drive';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
 function base64url(buf) {
