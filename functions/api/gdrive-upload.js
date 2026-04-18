@@ -54,6 +54,20 @@ async function getAccessToken(saKey) {
   return data.access_token;
 }
 
+async function verifyFolderAccess(token, folderId, saEmail) {
+  const url = `https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,name,mimeType&supportsAllDrives=true`;
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(
+      `Cannot access parent folder ${folderId}. ` +
+      `Make sure you shared the folder with the service account email: ${saEmail} (Editor access). ` +
+      `Drive API response: ${txt}`
+    );
+  }
+  return await res.json();
+}
+
 async function createFolder(token, name, parentId) {
   const res = await fetch('https://www.googleapis.com/drive/v3/files?supportsAllDrives=true', {
     method: 'POST',
@@ -73,7 +87,7 @@ async function createFolder(token, name, parentId) {
 
 async function findFolderByName(token, name, parentId) {
   const q = `name = '${name.replace(/'/g, "\\'")}' and '${parentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=allDrives`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true`;
   const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
   if (!res.ok) throw new Error('Folder lookup failed: ' + await res.text());
   const data = await res.json();
@@ -191,6 +205,8 @@ export async function onRequestPost({ request, env }) {
     }
 
     const token = await getAccessToken(saKey);
+
+    await verifyFolderAccess(token, PARENT_FOLDER_ID, saKey.client_email);
 
     const processingRootId = await findOrCreateFolder(token, PROCESSING_SUBFOLDER, PARENT_FOLDER_ID);
 
