@@ -84,22 +84,13 @@ async function createFolder(token, name, parentId) {
   return (await res.json()).id;
 }
 
-async function findFolderByName(token, name, parentId, driveId) {
+async function findFoldersByName(token, name, parentId, driveId) {
   const q = `name = '${name.replace(/'/g, "\\'")}' and '${parentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=drive&driveId=${driveId}`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=drive&driveId=${driveId}&pageSize=1000`;
   const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
   if (!res.ok) throw new Error('Folder lookup failed: ' + await res.text());
   const data = await res.json();
-  return (data.files && data.files[0]) ? data.files[0].id : null;
-}
-
-async function listFolderContents(token, folderId, driveId) {
-  const q = `'${folderId}' in parents and trashed = false`;
-  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=drive&driveId=${driveId}&pageSize=1000`;
-  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-  if (!res.ok) throw new Error('List folder failed: ' + await res.text());
-  const data = await res.json();
-  return data.files || [];
+  return (data.files || []).map(f => f.id);
 }
 
 async function deleteFile(token, fileId) {
@@ -210,15 +201,12 @@ export async function onRequestPost({ request, env }) {
 
     await verifyFolderAccess(token, PARENT_FOLDER_ID, saKey.client_email);
 
-    let folderId = await findFolderByName(token, cmNum, PARENT_FOLDER_ID, PARENT_FOLDER_ID);
-    if (folderId) {
-      const existing = await listFolderContents(token, folderId, PARENT_FOLDER_ID);
-      for (const f of existing) {
-        await deleteFile(token, f.id);
-      }
-    } else {
-      folderId = await createFolder(token, cmNum, PARENT_FOLDER_ID);
+    const existingIds = await findFoldersByName(token, cmNum, PARENT_FOLDER_ID, PARENT_FOLDER_ID);
+    for (const id of existingIds) {
+      await deleteFile(token, id);
     }
+
+    const folderId = await createFolder(token, cmNum, PARENT_FOLDER_ID);
 
     let globalImgIdx = 0;
     for (const item of items) {
