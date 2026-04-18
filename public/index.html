@@ -767,6 +767,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
         <button class="tnav" id="sm-tab-landed" onclick="smTab('landed',this)">Landed</button>
         <button class="tnav" id="sm-tab-final" onclick="smTab('final',this)">Finalized</button>
         <button class="tnav" id="sm-tab-processing" onclick="smTab('processing',this)">Processing</button>
+        <button class="tnav" id="sm-tab-complete" onclick="smTab('complete',this)">Complete</button>
       </div>
       <div style="padding:12px 20px 0;">
         <input id="sm-search" type="text" placeholder="Search by name, email, item, serial…" oninput="renderSessionsMgr()" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--white);font-family:var(--font-body);font-size:12px;padding:9px 12px;outline:none;box-sizing:border-box;margin-bottom:8px;">
@@ -2721,7 +2722,9 @@ async function renderSessionsMgr() {
     } else if (_smTab === 'final') {
       if (!d.finalized) return false;
     } else if (_smTab === 'processing') {
-      if (!d.finalized || !d.items?.length) return false;
+      if (!d.finalized || !d.items?.length || d.processingComplete) return false;
+    } else if (_smTab === 'complete') {
+      if (!d.processingComplete) return false;
     } else {
       // draft: not finalized and no tracking
       if (d.finalized) return false;
@@ -2742,7 +2745,7 @@ async function renderSessionsMgr() {
   });
 
   if (!rows.length) {
-    const tabLabel = _smTab === 'final' ? 'finalized' : _smTab === 'transit' ? 'in-transit' : _smTab === 'landed' ? 'landed' : _smTab === 'processing' ? 'processing' : 'draft';
+    const tabLabel = _smTab === 'final' ? 'finalized' : _smTab === 'transit' ? 'in-transit' : _smTab === 'landed' ? 'landed' : _smTab === 'processing' ? 'processing' : _smTab === 'complete' ? 'complete' : 'draft';
     el.innerHTML = `<div style="font-size:12px;color:var(--dim);padding:28px;text-align:center;">No ${tabLabel} sessions${q ? ' matching "' + q + '"' : ''}.</div>`;
     return;
   }
@@ -2762,13 +2765,15 @@ async function renderSessionsMgr() {
       `<span style="background:var(--bg3);padding:1px 7px;border:1px solid var(--border);font-size:9px;border-radius:2px;">${esc(i.name)}</span>`
     ).join('') + (items.length > 4 ? `<span style="font-size:9px;color:var(--dim);"> +${items.length - 4} more</span>` : '');
     // Processing status badge
-    const procStatus = d.processing ? (() => {
+    const procStatus = d.processingComplete ? 'done' : d.processing ? (() => {
       const total = items.length || 0;
       const certified = Object.values(d.processing).filter(p => p.certified).length;
-      return certified === total ? 'complete' : 'partial';
+      return certified === total ? 'certified' : 'partial';
     })() : 'none';
-    const procBadge = procStatus === 'complete'
-      ? '<span style="font-size:7px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;padding:3px 7px;color:#70d090;border:1px solid rgba(112,208,144,.4);border-radius:2px;white-space:nowrap;">Processed</span>'
+    const procBadge = procStatus === 'done'
+      ? '<span style="font-size:7px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;padding:3px 7px;color:#70d090;border:1px solid rgba(112,208,144,.4);border-radius:2px;white-space:nowrap;">Complete</span>'
+      : procStatus === 'certified'
+      ? '<span style="font-size:7px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;padding:3px 7px;color:#90b0d0;border:1px solid rgba(144,176,208,.4);border-radius:2px;white-space:nowrap;">Processed</span>'
       : procStatus === 'partial'
       ? '<span style="font-size:7px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;padding:3px 7px;color:#d0a070;border:1px solid rgba(208,160,112,.4);border-radius:2px;white-space:nowrap;">Processing…</span>'
       : '';
@@ -3939,7 +3944,7 @@ async function lookupShopifyStatuses() {
   overall.textContent = 'Checking…';
   overall.className = 'proc-shopify-status loading';
 
-  let foundCount = 0, activeCount = 0;
+  let foundCount = 0, activeCount = 0, readyCount = 0;
 
   for (let idx = 0; idx < items.length; idx++) {
     const item = items[idx];
@@ -3962,6 +3967,10 @@ async function lookupShopifyStatuses() {
       if (data.found) {
         foundCount++;
         const status = data.status || 'UNKNOWN';
+        const hasDesc = data.hasDescription;
+        const hasPhotos = (data.imageCount || 0) > 0;
+        if (hasDesc && hasPhotos) readyCount++;
+
         if (status === 'ACTIVE') {
           activeCount++;
           badge.textContent = 'Active';
@@ -3972,6 +3981,9 @@ async function lookupShopifyStatuses() {
         } else {
           badge.textContent = status.toLowerCase();
           badge.className = 'proc-item-shopify draft';
+        }
+        if (hasDesc && hasPhotos) {
+          badge.textContent += ' ✓';
         }
       } else {
         badge.textContent = 'Not in Shopify';
@@ -3992,6 +4004,25 @@ async function lookupShopifyStatuses() {
   } else {
     overall.textContent = 'None Found';
     overall.className = 'proc-shopify-status not-found';
+  }
+
+  if (readyCount === items.length && items.length > 0) {
+    if (!procSession.data.processingComplete) {
+      procSession.data.processingComplete = true;
+      await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: procSession.key, data: procSession.data }),
+      });
+      showToast('All items have description & photos — moved to Complete');
+    }
+  } else if (procSession.data.processingComplete) {
+    procSession.data.processingComplete = false;
+    await fetch('/api/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: procSession.key, data: procSession.data }),
+    });
   }
 }
 
