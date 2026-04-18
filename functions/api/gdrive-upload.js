@@ -93,6 +93,15 @@ async function findFolderByName(token, name, parentId, driveId) {
   return (data.files && data.files[0]) ? data.files[0].id : null;
 }
 
+async function listFolderContents(token, folderId, driveId) {
+  const q = `'${folderId}' in parents and trashed = false`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=drive&driveId=${driveId}&pageSize=1000`;
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+  if (!res.ok) throw new Error('List folder failed: ' + await res.text());
+  const data = await res.json();
+  return data.files || [];
+}
+
 async function deleteFile(token, fileId) {
   const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`, {
     method: 'DELETE',
@@ -201,10 +210,15 @@ export async function onRequestPost({ request, env }) {
 
     await verifyFolderAccess(token, PARENT_FOLDER_ID, saKey.client_email);
 
-    const existingId = await findFolderByName(token, cmNum, PARENT_FOLDER_ID, PARENT_FOLDER_ID);
-    if (existingId) await deleteFile(token, existingId);
-
-    const folderId = await createFolder(token, cmNum, PARENT_FOLDER_ID);
+    let folderId = await findFolderByName(token, cmNum, PARENT_FOLDER_ID, PARENT_FOLDER_ID);
+    if (folderId) {
+      const existing = await listFolderContents(token, folderId, PARENT_FOLDER_ID);
+      for (const f of existing) {
+        await deleteFile(token, f.id);
+      }
+    } else {
+      folderId = await createFolder(token, cmNum, PARENT_FOLDER_ID);
+    }
 
     let globalImgIdx = 0;
     for (const item of items) {
