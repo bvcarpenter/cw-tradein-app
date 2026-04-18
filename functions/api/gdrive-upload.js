@@ -103,6 +103,20 @@ async function deleteFile(token, fileId) {
   }
 }
 
+async function trashAndRename(token, fileId, newName) {
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ name: newName, trashed: true }),
+  });
+  if (!res.ok) {
+    throw new Error(`Trash+rename failed for ${fileId} (HTTP ${res.status}): ` + await res.text());
+  }
+}
+
 async function uploadFile(token, name, mimeType, bytes, parentId) {
   const metadata = JSON.stringify({ name, parents: [parentId] });
   const boundary = '----CWBoundary' + Math.random().toString(36).slice(2);
@@ -203,7 +217,9 @@ export async function onRequestPost({ request, env }) {
 
     const existingFolders = await findFoldersByName(token, cmNum, PARENT_FOLDER_ID);
     for (const f of existingFolders) {
-      await deleteFile(token, f.id);
+      const trashName = `_deleted_${cmNum}_${Date.now()}_${f.id.slice(-6)}`;
+      await trashAndRename(token, f.id, trashName);
+      try { await deleteFile(token, f.id); } catch (e) { /* trash is enough */ }
     }
 
     const folderId = await createFolder(token, cmNum, PARENT_FOLDER_ID);
