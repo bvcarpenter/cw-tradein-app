@@ -1,4 +1,5 @@
-const PARENT_FOLDER_ID = '0AIR37NuhBx3uUk9PVA';
+const PARENT_FOLDER_ID = '10FV6E5bXRoLN5bE9Zsk2F5QoBDsKpmZ3';
+const PROCESSING_SUBFOLDER = 'Processing';
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
@@ -79,6 +80,12 @@ async function findFolderByName(token, name, parentId) {
   return (data.files && data.files[0]) ? data.files[0].id : null;
 }
 
+async function findOrCreateFolder(token, name, parentId) {
+  const existing = await findFolderByName(token, name, parentId);
+  if (existing) return existing;
+  return createFolder(token, name, parentId);
+}
+
 async function deleteFile(token, fileId) {
   const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`, {
     method: 'DELETE',
@@ -147,7 +154,16 @@ export async function onRequestPost({ request, env }) {
   try {
     const saKeyRaw = env.GDRIVE_SA_KEY;
     if (!saKeyRaw) {
-      return new Response(JSON.stringify({ error: 'Google Drive service account not configured. Set GDRIVE_SA_KEY secret.' }), {
+      const visibleKeys = Object.keys(env).filter(k =>
+        /gdrive|drive|gsa|google|sa_key|service/i.test(k)
+      );
+      const allKeysSample = Object.keys(env).slice(0, 30);
+      return new Response(JSON.stringify({
+        error: 'Google Drive service account not configured. GDRIVE_SA_KEY is not present on the Worker env.',
+        matching_env_keys: visibleKeys,
+        sample_env_keys: allKeysSample,
+        total_env_keys: Object.keys(env).length,
+      }), {
         status: 500, headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }
@@ -163,10 +179,12 @@ export async function onRequestPost({ request, env }) {
 
     const token = await getAccessToken(saKey);
 
-    const existingId = await findFolderByName(token, cmNum, PARENT_FOLDER_ID);
+    const processingRootId = await findOrCreateFolder(token, PROCESSING_SUBFOLDER, PARENT_FOLDER_ID);
+
+    const existingId = await findFolderByName(token, cmNum, processingRootId);
     if (existingId) await deleteFile(token, existingId);
 
-    const folderId = await createFolder(token, cmNum, PARENT_FOLDER_ID);
+    const folderId = await createFolder(token, cmNum, processingRootId);
 
     let globalImgIdx = 0;
     for (let i = 0; i < items.length; i++) {
