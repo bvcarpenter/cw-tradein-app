@@ -84,8 +84,8 @@ async function createFolder(token, name, parentId) {
   return (await res.json()).id;
 }
 
-async function findFoldersByName(token, name, parentId, driveId) {
-  const q = `name = '${name.replace(/'/g, "\\'")}' and '${parentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+async function findFoldersByName(token, name, driveId) {
+  const q = `name = '${name.replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
   const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=drive&driveId=${driveId}&pageSize=1000`;
   const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
   if (!res.ok) throw new Error('Folder lookup failed: ' + await res.text());
@@ -201,7 +201,7 @@ export async function onRequestPost({ request, env }) {
 
     await verifyFolderAccess(token, PARENT_FOLDER_ID, saKey.client_email);
 
-    const existingIds = await findFoldersByName(token, cmNum, PARENT_FOLDER_ID, PARENT_FOLDER_ID);
+    const existingIds = await findFoldersByName(token, cmNum, PARENT_FOLDER_ID);
     for (const id of existingIds) {
       await deleteFile(token, id);
     }
