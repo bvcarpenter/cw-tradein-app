@@ -17,6 +17,7 @@ import { onRequestPost as fedexLabelPost, onRequestOptions as fedexLabelOptions 
 import { onRequestPost as fedexTrackPost, onRequestOptions as fedexTrackOptions } from '../functions/api/fedex-track.js';
 import { onRequestPost as approveOtpPost, onRequestOptions as approveOtpOptions } from '../functions/api/approve-otp.js';
 import { onRequestGet as productLookupGet, onRequestOptions as productLookupOptions } from '../functions/api/product-lookup.js';
+import { onRequestPost as gdriveUploadPost, onRequestOptions as gdriveUploadOptions } from '../functions/api/gdrive-upload.js';
 import { onRequestPost as authRequestPost, onRequestOptions as authRequestOptions } from '../functions/api/auth/request.js';
 import { onRequestGet as authSessionGet, onRequestPost as authSessionPost } from '../functions/api/auth/session.js';
 import { onRequestGet as authVerifyGet } from '../functions/api/auth/verify.js';
@@ -104,6 +105,11 @@ export default {
     if (path === '/api/approve-otp') {
       if (method === 'OPTIONS') return approveOtpOptions(c);
       if (method === 'POST')    return approveOtpPost(c);
+    }
+
+    if (path === '/api/gdrive-upload') {
+      if (method === 'OPTIONS') return gdriveUploadOptions(c);
+      if (method === 'POST')    return gdriveUploadPost(c);
     }
 
     if (path === '/api/auth/request') {

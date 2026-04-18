@@ -3802,7 +3802,10 @@ async function saveProcessing() {
   btn.textContent = 'Saving…';
 
   // Gather final field data for each item
-  procSession.data.items.forEach((_, idx) => procFieldChange(idx));
+  procSession.data.items.forEach((_, idx) => {
+    procFieldChange(idx);
+    if (document.getElementById('proc-serial-' + idx)) procMetaChange(idx);
+  });
 
   // Attach processing data to session
   procSession.data.processing = procData;
@@ -3813,6 +3816,14 @@ async function saveProcessing() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: procSession.key, data: procSession.data }),
     });
+
+    const cmNum = (procSession.data.cmNum || '').trim();
+    if (cmNum && cmNum !== 'PENDING') {
+      btn.textContent = 'Uploading to Drive…';
+      try { await _uploadProcessingToDrive(cmNum); }
+      catch (driveErr) { alert('Saved locally. Drive upload failed: ' + (driveErr.message || driveErr)); }
+    }
+
     btn.textContent = 'Saved ✓';
     setTimeout(() => {
       btn.textContent = 'Save Processing Data';
@@ -3823,6 +3834,34 @@ async function saveProcessing() {
     btn.textContent = 'Save Processing Data';
     btn.disabled = false;
   }
+}
+
+async function _uploadProcessingToDrive(cmNum) {
+  const items = procSession.data.items;
+  const payload = {
+    cmNum,
+    items: items.map((item, idx) => {
+      const pd = procData[idx] || {};
+      return {
+        name: item.name || '',
+        notesTxt: _procItemTxt(item, pd, idx),
+        images: (pd.images || []).map(img => ({
+          dataUrl: img.dataUrl,
+          ext: _dataUrlExt(img.dataUrl),
+        })),
+      };
+    }),
+  };
+  const res = await fetch('/api/gdrive-upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const text = await res.text();
+  let result = {};
+  try { result = text ? JSON.parse(text) : {}; } catch(e) {}
+  if (!res.ok) throw new Error(result.error || text || `HTTP ${res.status}`);
+  return result;
 }
 
 // ─── DOWNLOAD SESSION AS ZIP ───
@@ -3983,33 +4022,7 @@ async function uploadToDrive(btn) {
       if (document.getElementById('proc-serial-' + idx)) procMetaChange(idx);
     });
 
-    const items = procSession.data.items;
-    const payload = {
-      cmNum,
-      items: items.map((item, idx) => {
-        const pd = procData[idx] || {};
-        return {
-          name: item.name || '',
-          notesTxt: _procItemTxt(item, pd, idx),
-          images: (pd.images || []).map(img => ({
-            dataUrl: img.dataUrl,
-            ext: _dataUrlExt(img.dataUrl),
-          })),
-        };
-      }),
-    };
-
-    const res = await fetch('/api/gdrive-upload', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const text = await res.text();
-    let result = {};
-    try { result = text ? JSON.parse(text) : {}; } catch(e) {}
-    if (!res.ok) {
-      throw new Error(result.error || text || `HTTP ${res.status} ${res.statusText}`);
-    }
+    const result = await _uploadProcessingToDrive(cmNum);
 
     if (btn) {
       btn.textContent = 'Uploaded ✓';

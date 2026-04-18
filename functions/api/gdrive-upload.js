@@ -54,7 +54,7 @@ async function getAccessToken(saKey) {
 }
 
 async function createFolder(token, name, parentId) {
-  const res = await fetch('https://www.googleapis.com/drive/v3/files', {
+  const res = await fetch('https://www.googleapis.com/drive/v3/files?supportsAllDrives=true', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -68,6 +68,25 @@ async function createFolder(token, name, parentId) {
   });
   if (!res.ok) throw new Error('Failed to create folder: ' + await res.text());
   return (await res.json()).id;
+}
+
+async function findFolderByName(token, name, parentId) {
+  const q = `name = '${name.replace(/'/g, "\\'")}' and '${parentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=allDrives`;
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+  if (!res.ok) throw new Error('Folder lookup failed: ' + await res.text());
+  const data = await res.json();
+  return (data.files && data.files[0]) ? data.files[0].id : null;
+}
+
+async function deleteFile(token, fileId) {
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  if (!res.ok && res.status !== 404) {
+    throw new Error('Delete failed: ' + await res.text());
+  }
 }
 
 async function uploadFile(token, name, mimeType, bytes, parentId) {
@@ -85,7 +104,7 @@ async function uploadFile(token, name, mimeType, bytes, parentId) {
   body.set(bytes, preamble.length);
   body.set(closing, preamble.length + bytes.length);
 
-  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -143,6 +162,10 @@ export async function onRequestPost({ request, env }) {
     }
 
     const token = await getAccessToken(saKey);
+
+    const existingId = await findFolderByName(token, cmNum, PARENT_FOLDER_ID);
+    if (existingId) await deleteFile(token, existingId);
+
     const folderId = await createFolder(token, cmNum, PARENT_FOLDER_ID);
 
     let globalImgIdx = 0;
