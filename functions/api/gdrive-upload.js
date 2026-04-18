@@ -86,11 +86,11 @@ async function createFolder(token, name, parentId) {
 
 async function findFoldersByName(token, name, driveId) {
   const q = `name = '${name.replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=drive&driveId=${driveId}&pageSize=1000`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,parents)&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=drive&driveId=${driveId}&pageSize=1000`;
   const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
   if (!res.ok) throw new Error('Folder lookup failed: ' + await res.text());
   const data = await res.json();
-  return (data.files || []).map(f => f.id);
+  return data.files || [];
 }
 
 async function deleteFile(token, fileId) {
@@ -99,7 +99,7 @@ async function deleteFile(token, fileId) {
     headers: { 'Authorization': `Bearer ${token}` },
   });
   if (!res.ok && res.status !== 404) {
-    throw new Error('Delete failed: ' + await res.text());
+    throw new Error(`Delete failed for ${fileId} (HTTP ${res.status}): ` + await res.text());
   }
 }
 
@@ -201,9 +201,28 @@ export async function onRequestPost({ request, env }) {
 
     await verifyFolderAccess(token, PARENT_FOLDER_ID, saKey.client_email);
 
-    const existingIds = await findFoldersByName(token, cmNum, PARENT_FOLDER_ID);
-    for (const id of existingIds) {
-      await deleteFile(token, id);
+    const existingBefore = await findFoldersByName(token, cmNum, PARENT_FOLDER_ID);
+    const deletedIds = [];
+    const deleteErrors = [];
+    for (const f of existingBefore) {
+      try {
+        await deleteFile(token, f.id);
+        deletedIds.push(f.id);
+      } catch (e) {
+        deleteErrors.push({ id: f.id, error: e.message });
+      }
+    }
+
+    // Verify deletion worked before creating new folder
+    const remaining = await findFoldersByName(token, cmNum, PARENT_FOLDER_ID);
+    if (remaining.length > 0) {
+      throw new Error(
+        `Could not delete ${remaining.length} existing "${cmNum}" folder(s). ` +
+        `Found ${existingBefore.length} before delete, ${deletedIds.length} deleted, ` +
+        `${remaining.length} still remain (ids: ${remaining.map(r => r.id).join(', ')}). ` +
+        `Delete errors: ${JSON.stringify(deleteErrors)}. ` +
+        `The service account may need Manager access (not just Content Manager) on the Shared Drive.`
+      );
     }
 
     const folderId = await createFolder(token, cmNum, PARENT_FOLDER_ID);
@@ -223,7 +242,13 @@ export async function onRequestPost({ request, env }) {
     }
 
     const folderUrl = `https://drive.google.com/drive/folders/${folderId}`;
-    return new Response(JSON.stringify({ ok: true, folderId, folderUrl }), {
+    return new Response(JSON.stringify({
+      ok: true,
+      folderId,
+      folderUrl,
+      foundExisting: existingBefore.length,
+      deleted: deletedIds.length,
+    }), {
       headers: { ...cors, 'Content-Type': 'application/json' },
     });
   } catch (err) {
