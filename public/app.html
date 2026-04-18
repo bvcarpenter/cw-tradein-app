@@ -3863,6 +3863,11 @@ function _showCopyableError(title, body) {
 
 async function _uploadProcessingToDrive(cmNum) {
   const items = procSession.data.items;
+  // Re-read current UI values right before building Drive payload
+  items.forEach((_, idx) => {
+    if (document.getElementById('proc-cond-' + idx))   procFieldChange(idx);
+    if (document.getElementById('proc-serial-' + idx)) procMetaChange(idx);
+  });
   const payload = {
     cmNum,
     items: items.map((item, idx) => {
