@@ -147,7 +147,16 @@ export async function onRequestPost({ request, env }) {
   try {
     const saKeyRaw = env.GDRIVE_SA_KEY;
     if (!saKeyRaw) {
-      return new Response(JSON.stringify({ error: 'Google Drive service account not configured. Set GDRIVE_SA_KEY secret.' }), {
+      const visibleKeys = Object.keys(env).filter(k =>
+        /gdrive|drive|gsa|google|sa_key|service/i.test(k)
+      );
+      const allKeysSample = Object.keys(env).slice(0, 30);
+      return new Response(JSON.stringify({
+        error: 'Google Drive service account not configured. GDRIVE_SA_KEY is not present on the Worker env.',
+        matching_env_keys: visibleKeys,
+        sample_env_keys: allKeysSample,
+        total_env_keys: Object.keys(env).length,
+      }), {
         status: 500, headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }
