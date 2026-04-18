@@ -464,8 +464,12 @@ body {
 .proc-img-zone-text { font-size:11px; color:var(--dim); letter-spacing:.06em; }
 .proc-img-zone input[type="file"] { display:none; }
 .proc-img-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(100px,1fr)); gap:8px; margin-top:10px; }
-.proc-img-thumb { position:relative; aspect-ratio:1; overflow:hidden; border:1px solid var(--border); }
-.proc-img-thumb img { width:100%; height:100%; object-fit:cover; }
+.proc-img-thumb { position:relative; aspect-ratio:1; overflow:hidden; border:1px solid var(--border); cursor:grab; user-select:none; transition:opacity .15s,border-color .15s; }
+.proc-img-thumb:active { cursor:grabbing; }
+.proc-img-thumb.drag-over { border-color:var(--accent); box-shadow:0 0 0 2px var(--acc-mid); }
+.proc-img-thumb.dragging { opacity:.35; }
+.proc-img-thumb img { width:100%; height:100%; object-fit:cover; pointer-events:none; }
+.proc-img-num { position:absolute; top:2px; left:2px; background:rgba(0,0,0,.75); color:#fff; font-size:9px; font-weight:600; min-width:18px; height:18px; display:flex; align-items:center; justify-content:center; padding:0 4px; letter-spacing:.05em; }
 .proc-img-rm { position:absolute; top:2px; right:2px; background:rgba(0,0,0,.7); border:none; color:#e07070; font-size:14px; width:20px; height:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
 
 .proc-footer { padding:14px 24px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:12px; flex-shrink:0; background:var(--bg2); }
@@ -1151,6 +1155,7 @@ body {
     <div class="proc-progress">Items certified: <strong id="proc-cert-count">0</strong> / <strong id="proc-total-count">0</strong></div>
     <div style="margin-left:auto;display:flex;align-items:center;gap:12px;">
       <button class="btn btn-ol" id="proc-zip-btn" onclick="downloadProcessingZip(this)" style="font-size:9px;padding:7px 13px;letter-spacing:.14em;">Download ZIP</button>
+      <button class="btn btn-ol" id="proc-drive-btn" onclick="uploadToDrive(this)" style="font-size:9px;padding:7px 13px;letter-spacing:.14em;border-color:#4a90d9;color:#7ab8ff;">Upload to Drive</button>
       <span style="font-size:9px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;">Shopify:</span>
       <span class="proc-shopify-status loading" id="proc-shopify-overall">Checking…</span>
     </div>
@@ -3476,9 +3481,13 @@ function renderProcessingItems() {
         </div>
         <div class="proc-img-grid" id="proc-imgs-${idx}">
           ${(pd.images || []).map((img, imgIdx) =>
-            `<div class="proc-img-thumb">
+            `<div class="proc-img-thumb" draggable="true" data-item="${idx}" data-img="${imgIdx}"
+                  ondragstart="_imgDragStart(event)" ondragover="_imgDragOver(event)"
+                  ondragenter="_imgDragEnter(event)" ondragleave="_imgDragLeave(event)"
+                  ondrop="_imgDrop(event)" ondragend="_imgDragEnd(event)">
+              <span class="proc-img-num">${String(imgIdx).padStart(3,'0')}</span>
               <img src="${img.dataUrl}" alt="Image ${imgIdx + 1}">
-              <button class="proc-img-rm" onclick="removeProcImage(${idx}, ${imgIdx})">&times;</button>
+              <button class="proc-img-rm" onclick="event.stopPropagation();removeProcImage(${idx}, ${imgIdx})">&times;</button>
             </div>`
           ).join('')}
         </div>
@@ -3650,11 +3659,49 @@ function renderProcImages(idx) {
   const container = document.getElementById('proc-imgs-' + idx);
   const images = procData[idx]?.images || [];
   container.innerHTML = images.map((img, imgIdx) =>
-    `<div class="proc-img-thumb">
-      <img src="${img.dataUrl}" alt="${img.name}">
-      <button class="proc-img-rm" onclick="removeProcImage(${idx}, ${imgIdx})">&times;</button>
+    `<div class="proc-img-thumb" draggable="true" data-item="${idx}" data-img="${imgIdx}"
+          ondragstart="_imgDragStart(event)" ondragover="_imgDragOver(event)"
+          ondragenter="_imgDragEnter(event)" ondragleave="_imgDragLeave(event)"
+          ondrop="_imgDrop(event)" ondragend="_imgDragEnd(event)">
+      <span class="proc-img-num">${String(imgIdx).padStart(3,'0')}</span>
+      <img src="${img.dataUrl}" alt="${esc(img.name)}">
+      <button class="proc-img-rm" onclick="event.stopPropagation();removeProcImage(${idx}, ${imgIdx})">&times;</button>
     </div>`
   ).join('');
+}
+
+let _dragImgItem = null, _dragImgIdx = null;
+function _imgDragStart(e) {
+  const el = e.target.closest('.proc-img-thumb');
+  _dragImgItem = +el.dataset.item; _dragImgIdx = +el.dataset.img;
+  el.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function _imgDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+function _imgDragEnter(e) {
+  const el = e.target.closest('.proc-img-thumb');
+  if (el && +el.dataset.item === _dragImgItem) el.classList.add('drag-over');
+}
+function _imgDragLeave(e) {
+  const el = e.target.closest('.proc-img-thumb');
+  if (el) el.classList.remove('drag-over');
+}
+function _imgDrop(e) {
+  e.preventDefault();
+  const el = e.target.closest('.proc-img-thumb');
+  if (!el) return;
+  const toIdx = +el.dataset.img;
+  const itemIdx = +el.dataset.item;
+  if (itemIdx !== _dragImgItem || toIdx === _dragImgIdx) return;
+  const imgs = procData[itemIdx].images;
+  const [moved] = imgs.splice(_dragImgIdx, 1);
+  imgs.splice(toIdx, 0, moved);
+  renderProcImages(itemIdx);
+}
+function _imgDragEnd(e) {
+  _dragImgItem = null; _dragImgIdx = null;
+  document.querySelectorAll('.proc-img-thumb.dragging,.proc-img-thumb.drag-over')
+    .forEach(el => el.classList.remove('dragging','drag-over'));
 }
 
 function removeProcImage(idx, imgIdx) {
@@ -3664,23 +3711,21 @@ function removeProcImage(idx, imgIdx) {
   }
 }
 
-// ─── DRAG AND DROP IMAGES ───
+// ─── DRAG AND DROP FILES INTO IMAGE ZONE ───
 document.addEventListener('dragover', (e) => {
   if (!document.getElementById('proc-panel').classList.contains('vis')) return;
-  e.preventDefault();
+  if (e.dataTransfer?.types?.includes('Files')) e.preventDefault();
 });
 document.addEventListener('drop', (e) => {
   if (!document.getElementById('proc-panel').classList.contains('vis')) return;
+  if (!e.dataTransfer?.files?.length) return;
   e.preventDefault();
-  // Find the closest proc-img-zone
   const zone = e.target.closest('.proc-img-zone');
   if (!zone) return;
   const fileInput = zone.querySelector('input[type="file"]');
   if (!fileInput) return;
   const idx = parseInt(fileInput.id.replace('proc-file-', ''));
-  if (!isNaN(idx) && e.dataTransfer.files.length) {
-    handleProcImages(idx, e.dataTransfer.files);
-  }
+  if (!isNaN(idx)) handleProcImages(idx, e.dataTransfer.files);
 });
 
 // ─── SHOPIFY STATUS LOOKUP ───
@@ -3876,7 +3921,10 @@ async function downloadProcessingZip(btn) {
     const JSZip = await loadJSZip();
     const zip = new JSZip();
 
+    const cmNum = procSession.data.cmNum || procSession.data.tradeInId || procSession.key;
+    const cmSafe = _safeFilename(cmNum);
     const items = procSession.data.items;
+    let globalImgCounter = 0;
     items.forEach((item, idx) => {
       const pd = procData[idx] || {};
       const serial = pd.serial ?? item.serial ?? '';
@@ -3888,16 +3936,15 @@ async function downloadProcessingZip(btn) {
       const folder = zip.folder(folderName);
       folder.file('notes.txt', _procItemTxt(item, pd, idx));
       (pd.images || []).forEach((img, i) => {
-        const ext  = _dataUrlExt(img.dataUrl);
-        const base = _safeFilename((img.name || '').replace(/\.[^.]+$/, '')) || `image_${i + 1}`;
-        folder.file(`${String(i + 1).padStart(2, '0')}_${base}.${ext}`, _dataUrlBase64(img.dataUrl), { base64: true });
+        const ext = _dataUrlExt(img.dataUrl);
+        folder.file(`${cmSafe}-${String(globalImgCounter).padStart(3,'0')}.${ext}`, _dataUrlBase64(img.dataUrl), { base64: true });
+        globalImgCounter++;
       });
     });
 
     const blob  = await zip.generateAsync({ type: 'blob' });
-    const tid   = procSession.data.tradeInId || procSession.key;
     const stamp = new Date().toISOString().slice(0, 10);
-    const filename = `tradein_${_safeFilename(tid)}_${stamp}.zip`;
+    const filename = `${cmSafe}_${stamp}.zip`;
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -3917,6 +3964,57 @@ async function downloadProcessingZip(btn) {
   } catch (err) {
     alert('ZIP download failed: ' + (err.message || err));
     if (btn) { btn.textContent = orig || 'Download ZIP'; btn.disabled = false; }
+  }
+}
+
+// ─── UPLOAD TO GOOGLE DRIVE ───
+async function uploadToDrive(btn) {
+  if (!procSession) return;
+  const cmNum = procSession.data.cmNum || procSession.data.tradeInId || '';
+  if (!cmNum || cmNum === 'PENDING') {
+    alert('A Credit Memo number is required before uploading to Drive.');
+    return;
+  }
+  const orig = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Uploading…'; }
+  try {
+    procSession.data.items.forEach((_, idx) => {
+      if (document.getElementById('proc-cond-' + idx))   procFieldChange(idx);
+      if (document.getElementById('proc-serial-' + idx)) procMetaChange(idx);
+    });
+
+    const items = procSession.data.items;
+    const payload = {
+      cmNum,
+      items: items.map((item, idx) => {
+        const pd = procData[idx] || {};
+        return {
+          name: item.name || '',
+          notesTxt: _procItemTxt(item, pd, idx),
+          images: (pd.images || []).map(img => ({
+            dataUrl: img.dataUrl,
+            ext: _dataUrlExt(img.dataUrl),
+          })),
+        };
+      }),
+    };
+
+    const res = await fetch('/api/gdrive-upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Upload failed');
+
+    if (btn) {
+      btn.textContent = 'Uploaded ✓';
+      setTimeout(() => { btn.textContent = orig || 'Upload to Drive'; btn.disabled = false; }, 3000);
+    }
+    if (result.folderUrl) window.open(result.folderUrl, '_blank');
+  } catch (err) {
+    alert('Drive upload failed: ' + (err.message || err));
+    if (btn) { btn.textContent = orig || 'Upload to Drive'; btn.disabled = false; }
   }
 }
 </script>
