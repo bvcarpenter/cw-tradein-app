@@ -207,19 +207,15 @@ export async function onRequestPost({ request, env }) {
     const folderId = await createFolder(token, cmNum, PARENT_FOLDER_ID);
 
     let globalImgIdx = 0;
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      const itemFolderName = `${String(i + 1).padStart(2, '0')}_${(item.name || 'item').replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 60)}`;
-      const itemFolderId = await createFolder(token, itemFolderName, folderId);
-
+    for (const item of items) {
       const notesBytes = new TextEncoder().encode(item.notesTxt || '');
-      await uploadFile(token, 'notes.txt', 'text/plain; charset=utf-8', notesBytes, itemFolderId);
+      await uploadFile(token, 'notes.txt', 'text/plain; charset=utf-8', notesBytes, folderId);
 
       for (const img of (item.images || [])) {
         const ext = img.ext || 'jpg';
         const imgName = `${cmNum}-${String(globalImgIdx).padStart(3, '0')}.${ext}`;
         const bytes = base64ToBytes(dataUrlBase64(img.dataUrl));
-        await uploadFile(token, imgName, mimeFromExt(ext), bytes, itemFolderId);
+        await uploadFile(token, imgName, mimeFromExt(ext), bytes, folderId);
         globalImgIdx++;
       }
     }
