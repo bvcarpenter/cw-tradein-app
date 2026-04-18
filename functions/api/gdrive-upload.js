@@ -1,4 +1,5 @@
-const PARENT_FOLDER_ID = '0AIR37NuhBx3uUk9PVA';
+const PARENT_FOLDER_ID = '10FV6E5bXRoLN5bE9Zsk2F5QoBDsKpmZ3';
+const PROCESSING_SUBFOLDER = 'Processing';
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
@@ -77,6 +78,12 @@ async function findFolderByName(token, name, parentId) {
   if (!res.ok) throw new Error('Folder lookup failed: ' + await res.text());
   const data = await res.json();
   return (data.files && data.files[0]) ? data.files[0].id : null;
+}
+
+async function findOrCreateFolder(token, name, parentId) {
+  const existing = await findFolderByName(token, name, parentId);
+  if (existing) return existing;
+  return createFolder(token, name, parentId);
 }
 
 async function deleteFile(token, fileId) {
@@ -172,10 +179,12 @@ export async function onRequestPost({ request, env }) {
 
     const token = await getAccessToken(saKey);
 
-    const existingId = await findFolderByName(token, cmNum, PARENT_FOLDER_ID);
+    const processingRootId = await findOrCreateFolder(token, PROCESSING_SUBFOLDER, PARENT_FOLDER_ID);
+
+    const existingId = await findFolderByName(token, cmNum, processingRootId);
     if (existingId) await deleteFile(token, existingId);
 
-    const folderId = await createFolder(token, cmNum, PARENT_FOLDER_ID);
+    const folderId = await createFolder(token, cmNum, processingRootId);
 
     let globalImgIdx = 0;
     for (let i = 0; i < items.length; i++) {
