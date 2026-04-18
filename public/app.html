@@ -570,7 +570,6 @@ body {
     <button class="sess-tab" onclick="setSessTab(this,'web')">From Web</button>
     <button class="sess-tab" onclick="setSessTab(this,'drafts')">Drafts</button>
     <button class="sess-tab" onclick="setSessTab(this,'in-transit')">In Transit</button>
-    <button class="sess-tab" onclick="setSessTab(this,'finalized')">Finalized</button>
     <button class="sess-tab" onclick="setSessTab(this,'processing')">Processing</button>
     <button class="sess-tab" onclick="setSessTab(this,'complete')">Complete</button>
   </div>
@@ -2412,7 +2411,6 @@ function renderSessions() {
   if (sessFilter === 'web') filtered = sessionsCache.filter(s => s.data?.source === 'web-form');
   if (sessFilter === 'drafts') filtered = sessionsCache.filter(s => !s.data?.finalized && s.data?.source !== 'web-form');
   if (sessFilter === 'in-transit') filtered = sessionsCache.filter(s => s.data?.trackingNumber && !s.data?.finalized);
-  if (sessFilter === 'finalized') filtered = sessionsCache.filter(s => s.data?.finalized);
   if (sessFilter === 'processing') filtered = sessionsCache.filter(s => s.data?.finalized && s.data?.items?.length > 0 && !s.data?.processingComplete);
   if (sessFilter === 'complete') filtered = sessionsCache.filter(s => s.data?.processingComplete);
 

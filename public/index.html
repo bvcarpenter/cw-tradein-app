@@ -765,7 +765,6 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
         <button class="tnav on" id="sm-tab-draft" onclick="smTab('draft',this)">Drafts</button>
         <button class="tnav" id="sm-tab-transit" onclick="smTab('transit',this)">In Transit</button>
         <button class="tnav" id="sm-tab-landed" onclick="smTab('landed',this)">Landed</button>
-        <button class="tnav" id="sm-tab-final" onclick="smTab('final',this)">Finalized</button>
         <button class="tnav" id="sm-tab-processing" onclick="smTab('processing',this)">Processing</button>
         <button class="tnav" id="sm-tab-complete" onclick="smTab('complete',this)">Complete</button>
       </div>
@@ -2719,8 +2718,6 @@ async function renderSessionsMgr() {
       if (!hasTracking || delivered || d.finalized) return false;
     } else if (_smTab === 'landed') {
       if (!hasTracking || !delivered || d.finalized) return false;
-    } else if (_smTab === 'final') {
-      if (!d.finalized) return false;
     } else if (_smTab === 'processing') {
       if (!d.finalized || !d.items?.length || d.processingComplete) return false;
     } else if (_smTab === 'complete') {
@@ -2745,7 +2742,7 @@ async function renderSessionsMgr() {
   });
 
   if (!rows.length) {
-    const tabLabel = _smTab === 'final' ? 'finalized' : _smTab === 'transit' ? 'in-transit' : _smTab === 'landed' ? 'landed' : _smTab === 'processing' ? 'processing' : _smTab === 'complete' ? 'complete' : 'draft';
+    const tabLabel = _smTab === 'transit' ? 'in-transit' : _smTab === 'landed' ? 'landed' : _smTab === 'processing' ? 'processing' : _smTab === 'complete' ? 'complete' : 'draft';
     el.innerHTML = `<div style="font-size:12px;color:var(--dim);padding:28px;text-align:center;">No ${tabLabel} sessions${q ? ' matching "' + q + '"' : ''}.</div>`;
     return;
   }
@@ -2796,7 +2793,7 @@ async function renderSessionsMgr() {
       <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;min-width:88px;">
         <button class="btn-sm" onclick="loadSession('${s.key}');closeSessionsMgr();" style="text-align:center;">&#8629; Load</button>
         ${procBtn}
-        ${_smTab !== 'final' && _smTab !== 'processing' ? `<button class="btn-sm" onclick="finalizeSession('${s.key}')" style="color:#70d090;border-color:#2a5a3a;text-align:center;">&#10003; Finalize</button>` : ''}
+        ${_smTab !== 'processing' && _smTab !== 'complete' ? `<button class="btn-sm" onclick="finalizeSession('${s.key}')" style="color:#70d090;border-color:#2a5a3a;text-align:center;">&#10003; Finalize</button>` : ''}
         <button class="btn-sm" onclick="deleteSession('${s.key}')" style="color:#e07070;border-color:#5a2a2a;text-align:center;">&#215; Delete</button>
       </div>
     </div>`;
