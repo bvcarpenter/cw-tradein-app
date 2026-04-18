@@ -1,5 +1,4 @@
-const PARENT_FOLDER_ID = '10FV6E5bXRoLN5bE9Zsk2F5QoBDsKpmZ3';
-const PROCESSING_SUBFOLDER = 'Processing';
+const PARENT_FOLDER_ID = '0AIR37NuhBx3uUk9PVA';
 const SCOPES = 'https://www.googleapis.com/auth/drive';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
@@ -55,13 +54,13 @@ async function getAccessToken(saKey) {
 }
 
 async function verifyFolderAccess(token, folderId, saEmail) {
-  const url = `https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,name,mimeType&supportsAllDrives=true`;
+  const url = `https://www.googleapis.com/drive/v3/drives/${folderId}?fields=id,name`;
   const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
   if (!res.ok) {
     const txt = await res.text();
     throw new Error(
-      `Cannot access parent folder ${folderId}. ` +
-      `Make sure you shared the folder with the service account email: ${saEmail} (Editor access). ` +
+      `Cannot access Shared Drive ${folderId}. ` +
+      `Make sure the Shared Drive has the service account (${saEmail}) as a member with Content Manager or Manager access. ` +
       `Drive API response: ${txt}`
     );
   }
@@ -85,19 +84,13 @@ async function createFolder(token, name, parentId) {
   return (await res.json()).id;
 }
 
-async function findFolderByName(token, name, parentId) {
+async function findFolderByName(token, name, parentId, driveId) {
   const q = `name = '${name.replace(/'/g, "\\'")}' and '${parentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=drive&driveId=${driveId}`;
   const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
   if (!res.ok) throw new Error('Folder lookup failed: ' + await res.text());
   const data = await res.json();
   return (data.files && data.files[0]) ? data.files[0].id : null;
-}
-
-async function findOrCreateFolder(token, name, parentId) {
-  const existing = await findFolderByName(token, name, parentId);
-  if (existing) return existing;
-  return createFolder(token, name, parentId);
 }
 
 async function deleteFile(token, fileId) {
@@ -208,12 +201,10 @@ export async function onRequestPost({ request, env }) {
 
     await verifyFolderAccess(token, PARENT_FOLDER_ID, saKey.client_email);
 
-    const processingRootId = await findOrCreateFolder(token, PROCESSING_SUBFOLDER, PARENT_FOLDER_ID);
-
-    const existingId = await findFolderByName(token, cmNum, processingRootId);
+    const existingId = await findFolderByName(token, cmNum, PARENT_FOLDER_ID, PARENT_FOLDER_ID);
     if (existingId) await deleteFile(token, existingId);
 
-    const folderId = await createFolder(token, cmNum, processingRootId);
+    const folderId = await createFolder(token, cmNum, PARENT_FOLDER_ID);
 
     let globalImgIdx = 0;
     for (let i = 0; i < items.length; i++) {
