@@ -201,28 +201,9 @@ export async function onRequestPost({ request, env }) {
 
     await verifyFolderAccess(token, PARENT_FOLDER_ID, saKey.client_email);
 
-    const existingBefore = await findFoldersByName(token, cmNum, PARENT_FOLDER_ID);
-    const deletedIds = [];
-    const deleteErrors = [];
-    for (const f of existingBefore) {
-      try {
-        await deleteFile(token, f.id);
-        deletedIds.push(f.id);
-      } catch (e) {
-        deleteErrors.push({ id: f.id, error: e.message });
-      }
-    }
-
-    // Verify deletion worked before creating new folder
-    const remaining = await findFoldersByName(token, cmNum, PARENT_FOLDER_ID);
-    if (remaining.length > 0) {
-      throw new Error(
-        `Could not delete ${remaining.length} existing "${cmNum}" folder(s). ` +
-        `Found ${existingBefore.length} before delete, ${deletedIds.length} deleted, ` +
-        `${remaining.length} still remain (ids: ${remaining.map(r => r.id).join(', ')}). ` +
-        `Delete errors: ${JSON.stringify(deleteErrors)}. ` +
-        `The service account may need Manager access (not just Content Manager) on the Shared Drive.`
-      );
+    const existingFolders = await findFoldersByName(token, cmNum, PARENT_FOLDER_ID);
+    for (const f of existingFolders) {
+      await deleteFile(token, f.id);
     }
 
     const folderId = await createFolder(token, cmNum, PARENT_FOLDER_ID);
@@ -242,13 +223,7 @@ export async function onRequestPost({ request, env }) {
     }
 
     const folderUrl = `https://drive.google.com/drive/folders/${folderId}`;
-    return new Response(JSON.stringify({
-      ok: true,
-      folderId,
-      folderUrl,
-      foundExisting: existingBefore.length,
-      deleted: deletedIds.length,
-    }), {
+    return new Response(JSON.stringify({ ok: true, folderId, folderUrl }), {
       headers: { ...cors, 'Content-Type': 'application/json' },
     });
   } catch (err) {
