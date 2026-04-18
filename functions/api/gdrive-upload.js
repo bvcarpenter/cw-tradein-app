@@ -70,14 +70,20 @@ async function createFolder(token, name, parentId) {
   return (await res.json()).id;
 }
 
-async function uploadFile(token, name, mimeType, body, parentId) {
+async function uploadFile(token, name, mimeType, bytes, parentId) {
   const metadata = JSON.stringify({ name, parents: [parentId] });
-  const boundary = '----CWBoundary' + Date.now();
-  const parts = [
-    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n`,
-    `--${boundary}\r\nContent-Type: ${mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n${body}\r\n`,
-    `--${boundary}--`,
-  ];
+  const boundary = '----CWBoundary' + Math.random().toString(36).slice(2);
+  const enc = new TextEncoder();
+  const preamble = enc.encode(
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n` +
+    `--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`
+  );
+  const closing = enc.encode(`\r\n--${boundary}--`);
+
+  const body = new Uint8Array(preamble.length + bytes.length + closing.length);
+  body.set(preamble, 0);
+  body.set(bytes, preamble.length);
+  body.set(closing, preamble.length + bytes.length);
 
   const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
     method: 'POST',
@@ -85,10 +91,17 @@ async function uploadFile(token, name, mimeType, body, parentId) {
       'Authorization': `Bearer ${token}`,
       'Content-Type': `multipart/related; boundary=${boundary}`,
     },
-    body: parts.join(''),
+    body,
   });
   if (!res.ok) throw new Error('Upload failed for ' + name + ': ' + await res.text());
   return (await res.json()).id;
+}
+
+function base64ToBytes(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
 }
 
 function dataUrlBase64(dataUrl) {
@@ -138,14 +151,14 @@ export async function onRequestPost({ request, env }) {
       const itemFolderName = `${String(i + 1).padStart(2, '0')}_${(item.name || 'item').replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 60)}`;
       const itemFolderId = await createFolder(token, itemFolderName, folderId);
 
-      const notesTxtBase64 = btoa(unescape(encodeURIComponent(item.notesTxt || '')));
-      await uploadFile(token, 'notes.txt', 'text/plain', notesTxtBase64, itemFolderId);
+      const notesBytes = new TextEncoder().encode(item.notesTxt || '');
+      await uploadFile(token, 'notes.txt', 'text/plain; charset=utf-8', notesBytes, itemFolderId);
 
       for (const img of (item.images || [])) {
         const ext = img.ext || 'jpg';
         const imgName = `${cmNum}-${String(globalImgIdx).padStart(3, '0')}.${ext}`;
-        const base64 = dataUrlBase64(img.dataUrl);
-        await uploadFile(token, imgName, mimeFromExt(ext), base64, itemFolderId);
+        const bytes = base64ToBytes(dataUrlBase64(img.dataUrl));
+        await uploadFile(token, imgName, mimeFromExt(ext), bytes, itemFolderId);
         globalImgIdx++;
       }
     }

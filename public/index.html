@@ -4202,8 +4202,12 @@ async function uploadToDrive(btn) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    const result = await res.json();
-    if (!res.ok) throw new Error(result.error || 'Upload failed');
+    const text = await res.text();
+    let result = {};
+    try { result = text ? JSON.parse(text) : {}; } catch(e) {}
+    if (!res.ok) {
+      throw new Error(result.error || text || `HTTP ${res.status} ${res.statusText}`);
+    }
 
     if (btn) {
       btn.textContent = 'Uploaded ✓';
