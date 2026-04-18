@@ -3859,7 +3859,15 @@ async function _uploadProcessingToDrive(cmNum) {
   const text = await res.text();
   let result = {};
   try { result = text ? JSON.parse(text) : {}; } catch(e) {}
-  if (!res.ok) throw new Error(result.error || text || `HTTP ${res.status}`);
+  if (!res.ok) {
+    let msg = result.error || text || `HTTP ${res.status}`;
+    if (result.matching_env_keys !== undefined) {
+      msg += ` | matching=${JSON.stringify(result.matching_env_keys)}`;
+      msg += ` | total=${result.total_env_keys}`;
+      msg += ` | sample=${JSON.stringify(result.sample_env_keys)}`;
+    }
+    throw new Error(msg);
+  }
   return result;
 }
 
