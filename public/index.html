@@ -677,6 +677,10 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
         <button class="btn btn-a btn-full" id="process-tradein-btn" onclick="openProcessingCurrent()" style="background:linear-gradient(135deg,#3a2a5a,#2a1a4a);border:1px solid #5a3a7a;color:#b090d0;">
           Process Trade-In <em style="font-style:italic">//</em> Inspect &amp; Certify Items
         </button>
+        <button class="btn btn-full" id="ns-items-btn" onclick="createNetsuiteItemsFromCurrent()" style="margin-top:8px;background:transparent;border:1px solid #4a6a3a;color:#90d070;">
+          Create Items in NetSuite
+        </button>
+        <div id="ns-items-status" style="margin-top:8px;font-size:11px;display:none;"></div>
       </div>
     </section>
   </main>
@@ -3038,9 +3042,21 @@ async function execStoreCredit() {
     const credited = parseFloat(scData.storeCredit.credited).toFixed(2);
     const balance = parseFloat(scData.storeCredit.balance).toFixed(2);
 
-    // ── Step 3: Save and finalize session ──
+    // ── Step 3: Create inventory items in NetSuite (non-blocking) ──
+    scBtn.textContent = 'Creating NS items…';
+    scMsg.textContent = 'Step 3/4 — Creating inventory items in NetSuite…';
+
+    let nsItemsResult = null, nsItemsError = null;
+    try {
+      nsItemsResult = await createNetsuiteItems(cm, sessionItems, selLoc);
+    } catch (itemErr) {
+      nsItemsError = itemErr.message;
+      console.warn('NS item creation failed:', itemErr);
+    }
+
+    // ── Step 4: Save and finalize session ──
     scBtn.textContent = 'Finalizing session…';
-    scMsg.textContent = 'Step 3/3 — Saving and finalizing session…';
+    scMsg.textContent = 'Step 4/4 — Saving and finalizing session…';
 
     try {
       const sessionData = getSessionData();
@@ -3049,6 +3065,11 @@ async function execStoreCredit() {
       sessionData.finalizedAt = new Date().toISOString();
       sessionData.storeCredit = { credited, balance, issuedAt: new Date().toISOString() };
       sessionData.netsuiteId = nsData.internalId || '';
+      if (nsItemsResult) {
+        sessionData.nsItems = { cm, createdAt: new Date().toISOString(), items: nsItemsResult.items || [], errors: nsItemsResult.errors || [] };
+      } else if (nsItemsError) {
+        sessionData.nsItems = { cm, failedAt: new Date().toISOString(), lastError: nsItemsError };
+      }
       const name = (sessionData.customer.first + ' ' + sessionData.customer.last).trim()
         || 'Session ' + new Date().toLocaleDateString();
       const key = 'cwti_' + Date.now();
@@ -3062,8 +3083,17 @@ async function execStoreCredit() {
     // ── Done ──
     showToast(`CM# ${cm} — $${credited} store credit issued ✓`);
     scMsg.style.color = '#6fbf73';
+    let itemsLine = '';
+    if (nsItemsResult) {
+      const fa = nsItemsResult.failed || 0;
+      if (fa === 0) itemsLine = `<br>&#10003; ${nsItemsResult.created} NS item(s) created`;
+      else itemsLine = `<br><span style="color:#d0a070;">&#9888; ${nsItemsResult.created} of ${sessionItems.length} NS items created — ${fa} failed (use Retry button)</span>`;
+    } else if (nsItemsError) {
+      itemsLine = `<br><span style="color:#e07070;">&#10005; NS items failed: ${esc(nsItemsError)} (use Retry button)</span>`;
+    }
     scMsg.innerHTML = `<strong>CM# ${esc(cm)}</strong> created in NetSuite`
       + `<br>Store credit issued — <strong>$${esc(credited)}</strong> (balance: $${esc(balance)})`
+      + itemsLine
       + `<br><span style="font-size:10px;color:var(--dim);">Customer Refund will be created automatically in NetSuite.</span>`
       + (scData.noteAppended ? '<br><span style="font-size:10px;">Customer note updated.</span>' : '');
     scMsg.style.display = 'block';
@@ -3072,6 +3102,13 @@ async function execStoreCredit() {
     // Show "Process Trade-In" button
     const procSec = document.getElementById('process-tradein-section');
     if (procSec) procSec.style.display = '';
+    if (nsItemsError || (nsItemsResult && nsItemsResult.failed)) {
+      const btn = document.getElementById('ns-items-btn');
+      if (btn) { btn.textContent = 'Retry Create Items'; btn.disabled = false; }
+    } else if (nsItemsResult) {
+      const btn = document.getElementById('ns-items-btn');
+      if (btn) { btn.textContent = 'Items Created ✓'; btn.disabled = true; }
+    }
 
   } catch (err) {
     scMsg.style.color = '#e07070';
@@ -3163,6 +3200,92 @@ function issueCmOnly() {
     cmBtn.disabled = false;
     cmBtn.textContent = 'Issue CM Only';
   });
+}
+
+// ── CREATE ITEMS IN NETSUITE ──
+async function createNetsuiteItems(cmNum, items, location) {
+  const payload = {
+    cmNum,
+    location: location || selLoc,
+    items: items.map(it => ({
+      name:     it.name,
+      brand:    it.brand || '',
+      serial:   it.serial || '',
+      catalog:  it.catalog || '',
+      systemId: it.systemId || '',
+      format:   it.format || '',
+      itemType: it.itemType || '',
+      net:      it.net || 0,
+      retail:   it.retail || it.tradein || 0,
+      grade:    it.grade || '',
+    })),
+  };
+  const res = await fetch('/api/netsuite-items', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const text = await res.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch(e) {}
+  if (!res.ok) {
+    const msg = data.error || text || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+async function createNetsuiteItemsFromCurrent() {
+  const btn = document.getElementById('ns-items-btn');
+  const status = document.getElementById('ns-items-status');
+  const cm = document.getElementById('cm-num').value.trim();
+  if (!cm) { alert('No CM# yet — create the Credit Memo first.'); return; }
+  if (!sessionItems.length) { alert('No items in session'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Creating items…';
+  status.style.display = 'block';
+  status.style.color = 'var(--dim)';
+  status.textContent = `Creating ${sessionItems.length} item(s) in NetSuite…`;
+
+  try {
+    const data = await createNetsuiteItems(cm, sessionItems, selLoc);
+    const lines = [];
+    if (data.created) lines.push(`&#10003; Created ${data.created} of ${sessionItems.length} item(s) in NetSuite`);
+    if (data.items?.length) {
+      lines.push(...data.items.map(i => `&nbsp;&nbsp;&middot; ${esc(i.itemId)} (ID: ${esc(i.internalId)})`));
+    }
+    if (data.failed) {
+      lines.push(`<br><span style="color:#e07070;">${data.failed} failed:</span>`);
+      data.errors?.forEach(e => {
+        lines.push(`&nbsp;&nbsp;&middot; ${esc(e.itemId)} — ${esc(e.error)}`);
+      });
+    }
+    status.innerHTML = lines.join('<br>');
+    status.style.color = data.failed ? '#d0a070' : '#6fbf73';
+    btn.textContent = data.failed ? 'Retry Failed Items' : 'Items Created ✓';
+    btn.disabled = !!data.failed;
+
+    // Persist result on session
+    try {
+      const sd = getSessionData();
+      sd.nsItems = { cm, createdAt: new Date().toISOString(), items: data.items || [], errors: data.errors || [] };
+      if (sd.key) await kvSaveSession(sd.key, sd);
+    } catch(e) { /* ignore save failure */ }
+  } catch (err) {
+    status.style.color = '#e07070';
+    status.innerHTML = '<strong>NetSuite item creation failed:</strong><br>' + esc(err.message) +
+      '<br><span style="font-size:10px;color:var(--dim);">Session saved — click button again to retry.</span>';
+    btn.disabled = false;
+    btn.textContent = 'Retry Create Items';
+
+    // Persist failure info
+    try {
+      const sd = getSessionData();
+      sd.nsItems = { cm, failedAt: new Date().toISOString(), lastError: err.message };
+      if (sd.key) await kvSaveSession(sd.key, sd);
+    } catch(e) {}
+  }
 }
 
 function showToast(msg) {
