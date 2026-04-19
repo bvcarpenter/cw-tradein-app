@@ -155,11 +155,11 @@ export async function onRequestPost({ request, env }) {
         success: true,
       });
     } catch (err) {
+      console.error(`NS item ${record.itemId} failed:`, err.message);
       errors.push({
         itemId: record.itemId,
         itemName: item.name,
         error: err.message,
-        record,
       });
     }
   }
