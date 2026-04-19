@@ -12,6 +12,7 @@ import { onRequestPost as customerMarketingPost, onRequestOptions as customerMar
 import { onRequestPost as tradeEmailPost, onRequestOptions as tradeEmailOptions } from '../functions/api/trade-email.js';
 import { onRequestPost as storeCreditPost, onRequestOptions as storeCreditOptions } from '../functions/api/store-credit.js';
 import { onRequestPost as creditMemoPost, onRequestOptions as creditMemoOptions } from '../functions/api/netsuite-credit-memo.js';
+import { onRequestPost as nsItemsPost, onRequestOptions as nsItemsOptions } from '../functions/api/netsuite-items.js';
 import { onRequestPost as estimateEmailPost, onRequestOptions as estimateEmailOptions } from '../functions/api/estimate-email.js';
 import { onRequestPost as fedexLabelPost, onRequestOptions as fedexLabelOptions } from '../functions/api/fedex-label.js';
 import { onRequestPost as fedexTrackPost, onRequestOptions as fedexTrackOptions } from '../functions/api/fedex-track.js';
@@ -85,6 +86,11 @@ export default {
     if (path === '/api/netsuite-credit-memo') {
       if (method === 'OPTIONS') return creditMemoOptions(c);
       if (method === 'POST')    return creditMemoPost(c);
+    }
+
+    if (path === '/api/netsuite-items') {
+      if (method === 'OPTIONS') return nsItemsOptions(c);
+      if (method === 'POST')    return nsItemsPost(c);
     }
 
     if (path === '/api/fedex-label') {
