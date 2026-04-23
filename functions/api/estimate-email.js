@@ -232,8 +232,7 @@ Questions? Reply to this email or contact us at <a href="mailto:support@camerawe
 
 /* ── Main handler ────────────────────────────────────────────── */
 
-export async function onRequestPost(context) {
-  const { request, env } = context;
+export async function onRequestPost({ request, env }) {
   try {
     if (!env.RESEND_API_KEY) {
       return json({ error: 'RESEND_API_KEY not configured' }, 503);
@@ -341,20 +340,18 @@ export async function onRequestPost(context) {
       sessionLink ? `\n[Open session in Trade-In App →](${sessionLink})` : '',
     ].filter(Boolean).join('\n');
 
-    context.waitUntil(
-      logTradeInEvent(env, {
-        customer,
-        tradeInId: body.tradeInId,
-        content: csContent,
-        assignToEmail: body.issuedBy || body.assoc || '',
-        customAttributes: {
-          cm_number: cmDisplay,
-          doc_type: docLabel,
-          session_link: sessionLink,
-          ...(body.tracking ? { tracking_number: body.tracking } : {}),
-        },
-      }).catch(err => console.error('CommsLayer estimate log error:', err))
-    );
+    logTradeInEvent(env, {
+      customer,
+      tradeInId: body.tradeInId,
+      content: csContent,
+      assignToEmail: body.issuedBy || body.assoc || '',
+      customAttributes: {
+        cm_number: cmDisplay,
+        doc_type: docLabel,
+        session_link: sessionLink,
+        ...(body.tracking ? { tracking_number: body.tracking } : {}),
+      },
+    }).catch(err => console.error('CommsLayer estimate log error:', err));
 
     return json({ ok: true, id: result.id });
   } catch (err) {
