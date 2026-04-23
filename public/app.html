@@ -1059,6 +1059,11 @@ body {
         <button class="btn" id="email-cust-btn" onclick="emailEstimateToCustomer()" style="background:#1a3a5a;color:#7ab8e0;border:1px solid #2a5a8a;">Email to Customer</button>
         <button class="btn btn-r" onclick="clrSession()">Clear Session</button>
       </div>
+      <div id="cs-conv-row" style="display:none;margin-top:8px;">
+        <a id="cs-conv-link" href="#" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.06em;color:#7ab8e0;text-decoration:none;padding:6px 12px;background:#1a2a3a;border:1px solid #2a4a6a;transition:opacity .15s;">
+          <span style="font-size:13px;">&#x1F4AC;</span> Open in CommsLayer
+        </a>
+      </div>
 
       <button class="btn-finalize" id="finalize-btn" onclick="finalizeCredit()" disabled>
         Finalize <em style="font-style:italic">//</em> Credit + Shopify
@@ -2220,6 +2225,16 @@ async function emailEstimateToCustomer() {
     if (!res.ok) throw new Error(data.error || `Server returned ${res.status}: ${text.slice(0, 200)}`);
 
     alert('Email sent to ' + email + ' ✓');
+
+    if (data.conversationUrl) {
+      window._csConversationUrl = data.conversationUrl;
+      window._csConversationId = data.conversationId;
+      const linkEl = document.getElementById('cs-conv-link');
+      if (linkEl) {
+        linkEl.href = data.conversationUrl;
+        linkEl.parentElement.style.display = '';
+      }
+    }
   } catch (err) {
     console.error('Email estimate error:', err);
     alert('Email failed: ' + err.message);
@@ -2367,6 +2382,10 @@ function resetSessionForm() {
   const trkInput = document.getElementById('tracking-num');
   if (trkInput) trkInput.value = '';
   cachedFedExLabel = null;
+  window._csConversationUrl = '';
+  window._csConversationId = '';
+  const csRow = document.getElementById('cs-conv-row');
+  if (csRow) csRow.style.display = 'none';
   // Reset process trade-in section
   const procSec = document.getElementById('process-tradein-section');
   if (procSec) procSec.style.display = 'none';
@@ -2524,6 +2543,8 @@ function buildSessionData() {
     trackingNumber: (document.getElementById('tracking-num').value || '').trim() || (cachedFedExLabel?.trackingNumber || ''),
     assoc: (document.getElementById('assoc').value || '').trim(),
     txnDate: document.getElementById('txn-date').value || '',
+    commslayerUrl: window._csConversationUrl || '',
+    commslayerId: window._csConversationId || '',
     items: sessionItems,
     finalized: false,
   };
@@ -2587,6 +2608,15 @@ async function loadSessionFromPanel(key) {
     document.getElementById('tracking-num').value = d.trackingNumber;
     document.getElementById('tracking-num-row').style.display = '';
     cachedFedExLabel = { trackingNumber: d.trackingNumber, labelPdf: null, totalCharge: null };
+  }
+
+  // Restore CommsLayer conversation link
+  window._csConversationUrl = d.commslayerUrl || '';
+  window._csConversationId = d.commslayerId || '';
+  const csLink = document.getElementById('cs-conv-link');
+  if (csLink && d.commslayerUrl) {
+    csLink.href = d.commslayerUrl;
+    csLink.parentElement.style.display = '';
   }
 
   // Show process button if session is finalized

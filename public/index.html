@@ -664,6 +664,11 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
         <button class="btn btn-r" onclick="clrSession()">Clear Session</button>
       </div>
       <div id="sc-msg" style="display:none;font-size:11px;padding:8px 12px;margin-top:6px;border-left:2px solid var(--border);background:var(--bg3);line-height:1.5;"></div>
+      <div id="cs-conv-row" style="display:none;margin-top:8px;">
+        <a id="cs-conv-link" href="#" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.06em;color:#7ab8e0;text-decoration:none;padding:6px 12px;background:#1a2a3a;border:1px solid #2a4a6a;transition:opacity .15s;">
+          <span style="font-size:13px;">&#x1F4AC;</span> Open in CommsLayer
+        </a>
+      </div>
 
       <div id="fedex-label-section" style="display:none;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
@@ -2444,6 +2449,7 @@ async function emailEstimateToCustomer() {
         zip: document.getElementById('s-zip').value.trim(),
       } : null,
       tracking: tracking,
+      tradeInId: _loadedSessionKey || '',
       cmNum: document.getElementById('cm-num').value.trim(),
       txnDate: document.getElementById('txn-date').value || new Date().toISOString().split('T')[0],
       assoc: document.getElementById('assoc').value.trim(),
@@ -2487,6 +2493,16 @@ async function emailEstimateToCustomer() {
     if (!res.ok) throw new Error(data.error || `Server returned ${res.status}: ${text.slice(0, 200)}`);
 
     showToast('Email sent to ' + email + ' ✓');
+
+    if (data.conversationUrl) {
+      window._csConversationUrl = data.conversationUrl;
+      window._csConversationId = data.conversationId;
+      const linkEl = document.getElementById('cs-conv-link');
+      if (linkEl) {
+        linkEl.href = data.conversationUrl;
+        linkEl.parentElement.style.display = '';
+      }
+    }
   } catch (err) {
     console.error('Email estimate error:', err);
     alert('Email failed: ' + err.message);
@@ -2527,6 +2543,8 @@ function getSessionData() {
     assoc:    document.getElementById('assoc').value,
     txnDate:  document.getElementById('txn-date').value,
     acceptsMarketing: document.getElementById('c-marketing').checked,
+    commslayerUrl: window._csConversationUrl || '',
+    commslayerId: window._csConversationId || '',
     items: sessionItems.slice(),
   };
 }
@@ -2560,6 +2578,16 @@ function restoreSessionData(d) {
   }
   sessionItems = d.items || [];
   renderCart();
+  // Restore CommsLayer conversation link
+  window._csConversationUrl = d.commslayerUrl || '';
+  window._csConversationId = d.commslayerId || '';
+  const csLink = document.getElementById('cs-conv-link');
+  if (csLink && d.commslayerUrl) {
+    csLink.href = d.commslayerUrl;
+    csLink.parentElement.style.display = '';
+  } else if (csLink) {
+    csLink.parentElement.style.display = 'none';
+  }
   // If CM# was already assigned, lock the credit buttons
   if (d.cmNum) lockCreditButtons(d.cmNum);
   // Show process button if session is finalized
@@ -3394,6 +3422,8 @@ function resetSessionForm() {
   sessionItems = []; selItem = null; selGrade = null;
   window._shopifyCustId = '';
   window._trackingStatus = '';
+  window._csConversationUrl = '';
+  window._csConversationId = '';
   _loadedSessionKey = null;
   _nsGrandTotal = 0;
   renderCart(); clrItem();
@@ -3406,6 +3436,8 @@ function resetSessionForm() {
   document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
   document.getElementById('sc-msg').textContent = '';
   document.getElementById('sc-msg').style.display = 'none';
+  const csRow = document.getElementById('cs-conv-row');
+  if (csRow) csRow.style.display = 'none';
   // Re-enable credit buttons
   const scBtn = document.getElementById('sc-btn');
   const cmBtn = document.getElementById('cm-only-btn');
