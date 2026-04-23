@@ -2480,6 +2480,17 @@ async function confirmSendEstimate() {
 
     btn.textContent = 'Sending…';
 
+    // Ensure we have a session key to link back to
+    if (!_loadedSessionKey) {
+      _loadedSessionKey = 'cwti_' + Date.now();
+      try {
+        const sd = getSessionData();
+        sd.key = _loadedSessionKey;
+        sd.name = (sd.customer.first + ' ' + sd.customer.last).trim() || 'Session';
+        await kvSaveSession(_loadedSessionKey, sd);
+      } catch(e) { console.warn('Auto-save before email failed:', e); }
+    }
+
     const custFirst = document.getElementById('c-first').value.trim();
     const custLast = document.getElementById('c-last').value.trim();
     const email = document.getElementById('c-email').value.trim();
@@ -2744,6 +2755,7 @@ async function saveSession() {
   const name = (data.customer.first + ' ' + data.customer.last).trim()
     || 'Session ' + new Date().toLocaleDateString();
   const key = _loadedSessionKey || ('cwti_' + Date.now());
+  _loadedSessionKey = key;
   data.name = name;
   data.key = key;
   showToast('Saving…');
