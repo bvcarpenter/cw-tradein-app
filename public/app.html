@@ -1323,53 +1323,63 @@ function setLoc(btn, loc) {
 
 // ─── SEARCH ───
 let searchResultsCache = [];
-let activeSearch = null; // track in-flight request
-// Tab-local cache: instant replay when the user re-types or backspaces
-// back to a recent query. TTL matches the edge cache so stock status
-// can't lag behind the server by more than a minute.
+let activeSearch = null;
 const _searchCache = new Map();
 const SEARCH_CACHE_TTL = 60 * 1000;
 const SEARCH_CACHE_MAX = 50;
+let _searchSeq = 0;
 
 function dSearch(v) {
   clearTimeout(srchT);
   const el = document.getElementById('srch-res');
   if (v.length < 2) { closeRes(); return; }
-  // Instant hit: skip the debounce entirely when we already have the answer.
   const key = v.toLowerCase();
   const hit = _searchCache.get(key);
   if (hit && Date.now() - hit.t < SEARCH_CACHE_TTL) {
-    renderSearchResults(hit.d);
+    renderSearchResults(hit.brand, hit.shopify);
     return;
   }
-  // Show loading state immediately
-  el.innerHTML = '<div class="no-res" id="srch-loading">Searching…</div>';
+  el.innerHTML = '<div class="no-res">Searching…</div>';
   el.style.display = 'block';
-  srchT = setTimeout(() => runSearch(v), 280);
+  srchT = setTimeout(() => runSearch(v), 150);
 }
 
 async function runSearch(q) {
   const el = document.getElementById('srch-res');
 
-  // Cancel any previous in-flight request
   if (activeSearch) activeSearch.abort();
   activeSearch = new AbortController();
+  const signal = activeSearch.signal;
+  const seq = ++_searchSeq;
+
+  const qEnc = encodeURIComponent(q);
+  const brandReq = fetch(`/api/search?q=${qEnc}&limit=20&source=brand`, { signal });
+  const shopifyReq = fetch(`/api/search?q=${qEnc}&limit=20&source=shopify`, { signal });
 
   try {
-    const url = `/api/search?q=${encodeURIComponent(q)}&limit=20`;
-    const res = await fetch(url, { signal: activeSearch.signal });
+    const brandRes = await brandReq;
+    if (seq !== _searchSeq) return;
+    if (!brandRes.ok) throw new Error('HTTP ' + brandRes.status);
+    const brandData = await brandRes.json();
+    renderSearchResults(brandData.products || [], null);
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    if (_searchCache.size >= SEARCH_CACHE_MAX) _searchCache.clear();
-    _searchCache.set(q.toLowerCase(), { t: Date.now(), d: data });
-    renderSearchResults(data);
-
+    try {
+      const shopifyRes = await shopifyReq;
+      if (seq !== _searchSeq) return;
+      if (!shopifyRes.ok) throw new Error('HTTP ' + shopifyRes.status);
+      const shopifyData = await shopifyRes.json();
+      const shopifyProducts = shopifyData.products || [];
+      if (_searchCache.size >= SEARCH_CACHE_MAX) _searchCache.clear();
+      _searchCache.set(q.toLowerCase(), { t: Date.now(), brand: brandData.products || [], shopify: shopifyProducts });
+      renderSearchResults(brandData.products || [], shopifyProducts);
+    } catch(err) {
+      if (err.name === 'AbortError') return;
+    }
   } catch (err) {
-    if (err.name === 'AbortError') return; // cancelled, ignore
+    if (err.name === 'AbortError') return;
     el.innerHTML = `<div class="no-res" style="color:#e07070;">
       Search unavailable — use Manual Entry.<br>
-      <span style="font-size:9px;opacity:.6;">${err.message}</span>
+      <span style="font-size:9px;opacity:.6;">${esc(err.message)}</span>
     </div>`;
     el.style.display = 'block';
   }
@@ -1377,27 +1387,46 @@ async function runSearch(q) {
 
 const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-function renderSearchResults(data) {
-  const el = document.getElementById('srch-res');
-  const products = data.products || [];
-  searchResultsCache = products;
+function renderResultRow(p, i) {
+  const pr = p.p ? '$'+p.p.toLocaleString('en-US',{minimumFractionDigits:0}) : '';
+  const meta = [p.si, p.it, p.m].filter(Boolean).join(' · ');
+  const mpn = p.src === 'brand' ? p.sku : '';
+  const dateTag = (p.src !== 'brand' && p.created) ? fmtCreatedDate(p.created) : '';
+  const stockTag = p.inStock === true
+    ? `<span class="ri-stock" title="Currently in stock in Shopify">In Stock</span>` : '';
+  return `<div class="ri" onclick="pickResult(${i})">
+    <div style="flex:1;min-width:0;"><div class="ri-n">${esc(p.n)}${dateTag ? ` <span class="ri-date" title="Date added to inventory">${esc(dateTag)}</span>` : ''} ${stockTag}</div>${mpn ? `<div class="ri-mpn">MPN: ${esc(mpn)}</div>` : ''}<div class="ri-m">${esc(meta)}</div></div>
+    ${pr ? `<div class="ri-p">${pr}</div>` : ''}
+  </div>`;
+}
 
-  if (!products.length) {
+function renderSearchResults(brandProducts, shopifyProducts) {
+  const el = document.getElementById('srch-res');
+  const all = [...(brandProducts || [])];
+  if (shopifyProducts) all.push(...shopifyProducts);
+  searchResultsCache = all;
+
+  if (!all.length && shopifyProducts !== null) {
     el.innerHTML = '<div class="no-res">No results — try Manual Entry</div>';
-  } else {
-    el.innerHTML = products.map((p, i) => {
-      const pr = p.p ? '$'+p.p.toLocaleString('en-US',{minimumFractionDigits:0}) : '';
-      const meta = [p.si, p.it, p.m].filter(Boolean).join(' · ');
-      const mpn = p.src === 'brand' ? p.sku : '';
-      const dateTag = (p.src !== 'brand' && p.created) ? fmtCreatedDate(p.created) : '';
-      const stockTag = p.inStock === true
-        ? `<span class="ri-stock" title="Currently in stock in Shopify">In Stock</span>` : '';
-      return `<div class="ri" onclick="pickResult(${i})">
-        <div style="flex:1;min-width:0;"><div class="ri-n">${esc(p.n)}${dateTag ? ` <span class="ri-date" title="Date added to inventory">${esc(dateTag)}</span>` : ''} ${stockTag}</div>${mpn ? `<div class="ri-mpn">MPN: ${esc(mpn)}</div>` : ''}<div class="ri-m">${esc(meta)}</div></div>
-        ${pr ? `<div class="ri-p">${pr}</div>` : ''}
-      </div>`;
-    }).join('');
+    el.style.display = 'block';
+    return;
   }
+
+  let html = '';
+  if (brandProducts && brandProducts.length) {
+    html += `<div style="padding:6px 14px 4px;font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:rgba(245,245,240,.35);background:var(--bg4);border-bottom:1px solid var(--border);">Trade Matrix</div>`;
+    html += brandProducts.map((p, i) => renderResultRow(p, i)).join('');
+  }
+  if (shopifyProducts === null) {
+    html += `<div style="padding:8px 14px;font-size:10px;color:var(--dim);letter-spacing:.06em;">Loading pre-owned inventory…</div>`;
+  } else if (shopifyProducts.length) {
+    const offset = (brandProducts || []).length;
+    html += `<div style="padding:6px 14px 4px;font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:rgba(245,245,240,.35);background:var(--bg4);border-bottom:1px solid var(--border);margin-top:2px;">Shopify Pre-Owned</div>`;
+    html += shopifyProducts.map((p, i) => renderResultRow(p, offset + i)).join('');
+  }
+  if (!html) html = '<div class="no-res">Searching…</div>';
+
+  el.innerHTML = html;
   el.style.display = 'block';
 }
 

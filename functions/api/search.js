@@ -1,17 +1,18 @@
 /**
- * GET /api/search?q=leica&limit=25
+ * GET /api/search?q=leica&limit=25&source=brand|shopify|all
  *
  * Searches products from the Google Sheets trade-in catalog.
+ *
+ * source=brand   → Only Trade Matrix (brand) rows — fast, no Shopify dependency
+ * source=shopify → Only Shopify Product Catalog rows — includes live inventory
+ * source=all     → Both (default, original behavior)
+ *
  * Result ordering:
  *   1. Brand (matrix) price-list rows — canonical pricing always first
- *   2. In-stock "Shopify Product Catalog" rows (live inventory from
- *      Shopify Admin API)
+ *   2. In-stock "Shopify Product Catalog" rows
  *   3. Remaining Shopify rows (out of stock / unknown)
- * Within each bucket, rows are sorted by match score, then newest-to-oldest
- * by Date Created.
  *
- * Data is cached in Cloudflare KV (AUTH_KV) for 1 hour so searches
- * are fast even on cold worker starts.
+ * Data is cached separately in KV so brand results are fast even on cold starts.
  *
  * Google Sheet:
  *   https://docs.google.com/spreadsheets/d/1hy4RzljHDASz_K4XO__w9rztCaW7rnCg_z5wa2uBTH4
@@ -22,20 +23,17 @@ import { shopifyGQL } from './_shopify.js';
 const SHEET_ID = '1hy4RzljHDASz_K4XO__w9rztCaW7rnCg_z5wa2uBTH4';
 const GVIZ_BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
 
-// 13 brand matrix tabs (searched first, prioritized in results)
 const BRAND_SHEETS = [
   'Canon EOS R', 'Fujifilm GFX', 'Fujifilm X', 'Hasselblad X',
   'Leica Accessories', 'Leica CL-TL', 'Leica M', 'Leica Q',
   'Leica S', 'Leica SL', 'Nikon Z', 'Panasonic Lumix S', 'Sony Alpha',
 ];
 
-// "Shopify Product Catalog" is the 120-day pre-owned inventory (lower priority).
 const SHOPIFY_SHEET = 'Shopify Product Catalog';
 
-// Bumped to v5: Shopify rows now carry a live `inStock` flag from the Shopify
-// Admin API so the search endpoint can surface in-stock pre-owned items first.
-const KV_KEY = 'catalog:v5';
-const KV_TTL = 3600; // 1 hour
+const KV_BRAND_KEY = 'catalog:brand:v6';
+const KV_SHOPIFY_KEY = 'catalog:shopify:v6';
+const KV_TTL = 3600;
 
 // ── Category helpers ────────────────────────────────────────────────
 const CAM_T = new Set(['Bodies','Body','Instant','Cine','Video','Scanners']);
@@ -138,22 +136,11 @@ function fetchSheet(sheetName) {
     .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); });
 }
 
-/**
- * Paginate through all Shopify product variants and build a SKU → inventory
- * quantity map. Used to enrich the Google Sheet's Shopify Product Catalog
- * rows with live stock status so the search dropdown can surface in-stock
- * pre-owned items first.
- *
- * Returns null if Shopify isn't configured; the caller should degrade
- * gracefully (items simply render without stock tags).
- */
 async function fetchShopifyInventoryMap(env) {
   if (!env?.SHOPIFY_STORE) return null;
 
   const map = new Map();
-  const MAX_PAGES = 20; // 20 × 250 = up to 5 000 variants — ample for the pre-owned catalog
-  // Only paginate variants with stock — everything else is treated as
-  // "not in stock" by default, so fetching them wastes round-trips.
+  const MAX_PAGES = 20;
   const query = `
     query VariantInventory($cursor: String) {
       productVariants(first: 250, after: $cursor, query: "inventory_quantity:>0") {
@@ -178,106 +165,111 @@ async function fetchShopifyInventoryMap(env) {
   return map;
 }
 
-// ── In-memory cache (survives within a single worker isolate) ───────
-let _brand = null, _shopify = null, _ts = 0, _refreshing = null;
-const MEM_TTL = 5 * 60 * 1000; // 5 min — after this we SWR-refresh
+// ── Separate in-memory caches ───────────────────────────────────────
+let _brand = null, _brandTs = 0, _brandRefreshing = null;
+let _shopify = null, _shopifyTs = 0, _shopifyRefreshing = null;
+const MEM_TTL = 5 * 60 * 1000;
 
-/**
- * Stale-while-revalidate loader. Never blocks a user request on a refresh
- * if we have *any* in-memory data — we serve stale and refresh in the
- * background via `waitUntil`. Only the very first request on a cold
- * isolate with no KV data has to wait for a full fetch.
- */
-async function loadAll(env, waitUntil) {
-  if (_brand && _shopify) {
-    const stale = Date.now() - _ts >= MEM_TTL;
-    if (stale && !_refreshing) {
-      const p = refreshCatalog(env).catch(err => {
-        console.error('Background refresh failed:', err.message);
-      });
-      if (waitUntil) waitUntil(p);
-    }
-    return { brand: _brand, shopify: _shopify };
+async function loadBrand(env, waitUntil) {
+  if (_brand && Date.now() - _brandTs < MEM_TTL) return _brand;
+  if (_brand && !_brandRefreshing) {
+    const p = refreshBrand(env).catch(e => console.error('Brand refresh:', e.message));
+    if (waitUntil) waitUntil(p);
+    return _brand;
   }
-  // Cold isolate — must block on first load
-  return await refreshCatalog(env);
+  return await refreshBrand(env);
 }
 
-/**
- * Refresh the in-memory catalog. Prefers KV (fast), falls back to
- * Google Sheets + Shopify inventory. Concurrent callers share the same
- * in-flight promise so we never do duplicate work.
- */
-function refreshCatalog(env) {
-  if (_refreshing) return _refreshing;
-  _refreshing = (async () => {
+function refreshBrand(env) {
+  if (_brandRefreshing) return _brandRefreshing;
+  _brandRefreshing = (async () => {
     try {
       const kv = env?.AUTH_KV;
-
-      // 1. KV cache first (fast, survives cold starts)
       if (kv) {
         try {
-          const cached = await kv.get(KV_KEY, 'json');
-          if (cached?.brand && cached?.shopify) {
-            _brand = cached.brand;
-            _shopify = cached.shopify;
-            _ts = Date.now();
-            console.log(`Catalog from KV: ${cached.brand.length} brand, ${cached.shopify.length} shopify`);
-            return { brand: _brand, shopify: _shopify };
+          const cached = await kv.get(KV_BRAND_KEY, 'json');
+          if (cached?.length) {
+            _brand = cached;
+            _brandTs = Date.now();
+            return _brand;
           }
-        } catch (e) { /* KV miss or parse error — continue to fetch */ }
+        } catch(e) {}
       }
 
-      // 2. Full fetch — 14 sheets + Shopify inventory in parallel
-      const [sheetResults, invMap] = await Promise.all([
-        Promise.all([
-          ...BRAND_SHEETS.map(name =>
-            fetchSheet(name)
-              .then(csv => parseCSV(csv).map(parseBrandRow).filter(Boolean))
-              .catch(() => [])
-          ),
-          fetchSheet(SHOPIFY_SHEET)
-            .then(csv => parseCSV(csv).map(parseShopifyRow).filter(Boolean))
-            .catch(() => []),
-        ]),
+      const results = await Promise.all(
+        BRAND_SHEETS.map(name =>
+          fetchSheet(name)
+            .then(csv => parseCSV(csv).map(parseBrandRow).filter(Boolean))
+            .catch(() => [])
+        )
+      );
+      const brand = results.flat();
+      _brand = brand;
+      _brandTs = Date.now();
+
+      if (kv) kv.put(KV_BRAND_KEY, JSON.stringify(brand), { expirationTtl: KV_TTL }).catch(() => {});
+      return brand;
+    } finally {
+      _brandRefreshing = null;
+    }
+  })();
+  return _brandRefreshing;
+}
+
+async function loadShopify(env, waitUntil) {
+  if (_shopify && Date.now() - _shopifyTs < MEM_TTL) return _shopify;
+  if (_shopify && !_shopifyRefreshing) {
+    const p = refreshShopify(env).catch(e => console.error('Shopify refresh:', e.message));
+    if (waitUntil) waitUntil(p);
+    return _shopify;
+  }
+  return await refreshShopify(env);
+}
+
+function refreshShopify(env) {
+  if (_shopifyRefreshing) return _shopifyRefreshing;
+  _shopifyRefreshing = (async () => {
+    try {
+      const kv = env?.AUTH_KV;
+      if (kv) {
+        try {
+          const cached = await kv.get(KV_SHOPIFY_KEY, 'json');
+          if (cached?.length) {
+            _shopify = cached;
+            _shopifyTs = Date.now();
+            return _shopify;
+          }
+        } catch(e) {}
+      }
+
+      const [rows, invMap] = await Promise.all([
+        fetchSheet(SHOPIFY_SHEET)
+          .then(csv => parseCSV(csv).map(parseShopifyRow).filter(Boolean))
+          .catch(() => []),
         fetchShopifyInventoryMap(env).catch(err => {
           console.error('Shopify inventory fetch failed:', err.message);
           return null;
         }),
       ]);
 
-      const brand = [];
-      for (let i = 0; i < BRAND_SHEETS.length; i++) brand.push(...sheetResults[i]);
-      const shopify = sheetResults[BRAND_SHEETS.length];
-
-      let inStockCount = 0;
       if (invMap) {
-        for (const p of shopify) {
+        for (const p of rows) {
           if (p.sku && invMap.has(p.sku)) {
             p.inStock = invMap.get(p.sku) > 0;
-            if (p.inStock) inStockCount++;
           }
         }
       }
 
-      _brand = brand;
-      _shopify = shopify;
-      _ts = Date.now();
-      console.log(
-        `Catalog refreshed: ${brand.length} brand, ${shopify.length} shopify ` +
-        `(${invMap ? `${inStockCount} in stock` : 'inventory unavailable'})`
-      );
+      _shopify = rows;
+      _shopifyTs = Date.now();
 
-      if (kv) {
-        kv.put(KV_KEY, JSON.stringify({ brand, shopify }), { expirationTtl: KV_TTL }).catch(() => {});
-      }
-
-      return { brand, shopify };
+      if (kv) kv.put(KV_SHOPIFY_KEY, JSON.stringify(rows), { expirationTtl: KV_TTL }).catch(() => {});
+      return rows;
     } finally {
-      _refreshing = null;
+      _shopifyRefreshing = null;
     }
   })();
-  return _refreshing;
+  return _shopifyRefreshing;
 }
 
 // ── Search scoring ──────────────────────────────────────────────────
@@ -296,11 +288,6 @@ function score(products, terms) {
   return scored;
 }
 
-/**
- * Parse a Shopify "Date Created" value ("2023-05-08 21:43:27 +0000")
- * into a numeric timestamp (ms). Returns 0 when missing/unparseable —
- * matrix rows have no date, so they fall to the bottom of date ties.
- */
 function createdMs(p) {
   const raw = p && p.created;
   if (!raw) return 0;
@@ -310,65 +297,69 @@ function createdMs(p) {
   return isNaN(t) ? 0 : t;
 }
 
+const bySort = (a, b) => {
+  if (b.sc !== a.sc) return b.sc - a.sc;
+  return createdMs(b.p) - createdMs(a.p);
+};
+
 // ── Request handler ─────────────────────────────────────────────────
-export async function onRequestGet({ request, env, waitUntil }) {
+export async function onRequestGet({ request, env, ctx }) {
+  const waitUntil = ctx?.waitUntil?.bind(ctx);
   const cors = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
   };
 
-  const url   = new URL(request.url);
-  const query = (url.searchParams.get('q') || '').trim();
-  const limit = Math.min(parseInt(url.searchParams.get('limit') || '25', 10), 50);
+  const url    = new URL(request.url);
+  const query  = (url.searchParams.get('q') || '').trim();
+  const limit  = Math.min(parseInt(url.searchParams.get('limit') || '25', 10), 50);
+  const source = url.searchParams.get('source') || 'all';
 
   if (!query || query.length < 2) {
     return Response.json({ products: [] }, { headers: cors });
   }
 
-  // Edge cache: normalize (q lowercased, limit clamped) so near-identical
-  // queries share a single cached response across users in this colo.
   const cacheUrl = new URL(url.origin + url.pathname);
   cacheUrl.searchParams.set('q', query.toLowerCase());
   cacheUrl.searchParams.set('limit', String(limit));
+  cacheUrl.searchParams.set('source', source);
   const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
   const cache = caches.default;
   const cached = await cache.match(cacheKey);
   if (cached) return cached;
 
   try {
-    const { brand, shopify } = await loadAll(env, waitUntil);
     const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+    let products = [];
 
-    // Matrix (brand) rows come first so the canonical price-list is
-    // always surfaced. Then in-stock Shopify items, then everything else.
-    // Within each bucket we sort by match score, then newest-to-oldest so
-    // recent pre-owned inventory floats up among equally-matching rows.
-    const bySort = (a, b) => {
-      if (b.sc !== a.sc) return b.sc - a.sc;
-      return createdMs(b.p) - createdMs(a.p);
-    };
+    if (source === 'brand') {
+      const brand = await loadBrand(env, waitUntil);
+      products = score(brand, terms).sort(bySort).slice(0, limit).map(r => r.p);
+    } else if (source === 'shopify') {
+      const shopify = await loadShopify(env, waitUntil);
+      const scored = score(shopify, terms);
+      const inStock = scored.filter(r => r.p.inStock === true).sort(bySort);
+      const other = scored.filter(r => r.p.inStock !== true).sort(bySort);
+      products = [...inStock, ...other].slice(0, limit).map(r => r.p);
+    } else {
+      const [brand, shopify] = await Promise.all([
+        loadBrand(env, waitUntil),
+        loadShopify(env, waitUntil),
+      ]);
+      const brandResults = score(brand, terms).sort(bySort);
+      const scoredShopify = score(shopify, terms);
+      const shopifyInStock = scoredShopify.filter(r => r.p.inStock === true).sort(bySort);
+      const shopifyOther = scoredShopify.filter(r => r.p.inStock !== true).sort(bySort);
+      const remaining = Math.max(0, limit - brandResults.length);
+      const shopifyResults = remaining > 0
+        ? [...shopifyInStock, ...shopifyOther].slice(0, remaining)
+        : [];
+      products = [
+        ...brandResults.slice(0, limit).map(r => r.p),
+        ...shopifyResults.map(r => r.p),
+      ];
+    }
 
-    const brandResults = score(brand, terms).sort(bySort);
-
-    // Split Shopify matches into in-stock / out-of-stock buckets so live
-    // inventory surfaces immediately after the matrix.
-    const scoredShopify = score(shopify, terms);
-    const shopifyInStock = scoredShopify.filter(r => r.p.inStock === true).sort(bySort);
-    const shopifyOther   = scoredShopify.filter(r => r.p.inStock !== true).sort(bySort);
-
-    const remaining = Math.max(0, limit - brandResults.length);
-    const shopifyResults = remaining > 0
-      ? [...shopifyInStock, ...shopifyOther].slice(0, remaining)
-      : [];
-
-    const products = [
-      ...brandResults.slice(0, limit).map(r => r.p),
-      ...shopifyResults.map(r => r.p),
-    ];
-
-    // s-maxage=60 → Cloudflare holds this at the edge for 60s so repeat
-    // queries in the colo skip the worker entirely. max-age=0 keeps
-    // browsers honest — we want fresh stock status within a minute.
     const body = JSON.stringify({ products });
     const headers = { ...cors, 'Cache-Control': 'public, max-age=0, s-maxage=60' };
     if (waitUntil) waitUntil(cache.put(cacheKey, new Response(body, { headers })));

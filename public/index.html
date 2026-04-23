@@ -1246,89 +1246,129 @@ function stripToModel(raw) {
 // ════════════════════════════════════════════
 // SEARCH (via /api/search — Google Sheets catalog)
 // ════════════════════════════════════════════
-// Tab-local cache: instant reuse when the user re-types or backspaces
-// to a recent query. TTL matches the edge cache so stock status can't
-// lag behind the server by more than a minute.
+// Two-phase search: brand/matrix results appear instantly,
+// Shopify pre-owned results roll in after.
 const _searchCache = new Map();
 const SEARCH_CACHE_TTL = 60 * 1000;
 const SEARCH_CACHE_MAX = 50;
 let _searchAbort = null;
+let _searchSeq = 0;
 
 function dSearch(v) {
   clearTimeout(srchT);
   const el = document.getElementById('srch-res');
   if (v.length < 2) { el.style.display = 'none'; return; }
-  // If we have a fresh cached hit, render immediately — skip the debounce.
   const key = v.toLowerCase();
   const hit = _searchCache.get(key);
   if (hit && Date.now() - hit.t < SEARCH_CACHE_TTL) {
-    renderSearchResults(hit.d);
+    renderSearchResults(hit.brand, hit.shopify);
     return;
   }
   el.innerHTML = '<div class="no-res">Searching…</div>';
   el.style.display = 'block';
-  srchT = setTimeout(() => runSearch(v), 250);
+  srchT = setTimeout(() => runSearch(v), 150);
 }
 
 async function runSearch(q) {
   const el = document.getElementById('srch-res');
 
-  // Cancel any in-flight request — user has typed something newer.
   if (_searchAbort) _searchAbort.abort();
   _searchAbort = new AbortController();
+  const signal = _searchAbort.signal;
+  const seq = ++_searchSeq;
+
+  const qEnc = encodeURIComponent(q);
+  const brandReq = fetch(SEARCH_API + '?q=' + qEnc + '&limit=25&source=brand', { signal });
+  const shopifyReq = fetch(SEARCH_API + '?q=' + qEnc + '&limit=25&source=shopify', { signal });
 
   try {
-    const res = await fetch(SEARCH_API + '?q=' + encodeURIComponent(q) + '&limit=25', {
-      signal: _searchAbort.signal,
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    if (_searchCache.size >= SEARCH_CACHE_MAX) _searchCache.clear();
-    _searchCache.set(q.toLowerCase(), { t: Date.now(), d: data });
-    renderSearchResults(data);
+    const brandRes = await brandReq;
+    if (seq !== _searchSeq) return;
+    if (!brandRes.ok) throw new Error('HTTP ' + brandRes.status);
+    const brandData = await brandRes.json();
+
+    renderSearchResults(brandData.products || [], null);
+
+    try {
+      const shopifyRes = await shopifyReq;
+      if (seq !== _searchSeq) return;
+      if (!shopifyRes.ok) throw new Error('HTTP ' + shopifyRes.status);
+      const shopifyData = await shopifyRes.json();
+      const shopifyProducts = shopifyData.products || [];
+
+      if (_searchCache.size >= SEARCH_CACHE_MAX) _searchCache.clear();
+      _searchCache.set(q.toLowerCase(), { t: Date.now(), brand: brandData.products || [], shopify: shopifyProducts });
+
+      renderSearchResults(brandData.products || [], shopifyProducts);
+    } catch(err) {
+      if (err.name === 'AbortError') return;
+      // Brand results already showing — just skip Shopify on error
+    }
   } catch(err) {
-    if (err.name === 'AbortError') return; // user typed again, newer request in flight
+    if (err.name === 'AbortError') return;
     el.innerHTML = `<div class="no-res" style="color:#e07070;">Search failed — ${esc(err.message)}</div>`;
     el.style.display = 'block';
   }
 }
 
-function renderSearchResults(data) {
-  const el = document.getElementById('srch-res');
-  const top = data.products || [];
-  searchResultsCache = top;
-
-  if (!top.length) {
-    el.innerHTML = '<div class="no-res">No results — try Manual Entry</div>';
-  } else {
-    el.innerHTML = top.map((p, i) => {
-      const pr   = p.p ? '$' + p.p.toLocaleString('en-US', {minimumFractionDigits:0}) : '';
-      const meta = [p.it, p.m, p.fmt].filter(Boolean).join(' · ');
-      // Brand/matrix items → blue MATRIX badge; Shopify items → grade badge
-      let badge = '';
-      if (p.src === 'brand') {
-        badge = `<div class="ri-g" style="color:#1a6fc4;background:rgba(26,111,196,.10);border-color:rgba(26,111,196,.40)">MATRIX</div>`;
-      } else if (p.grade) {
-        badge = `<div class="ri-g" style="color:${gradeColor(p.grade).c};background:${gradeColor(p.grade).bg};border-color:${gradeColor(p.grade).bd}">${esc(p.grade)}</div>`;
-      }
-      const mpn = p.src === 'brand' ? (p.sku || '') : '';
-      // For Shopify-sourced items (not matrix), show when the item entered the system
-      const dateTag = (p.src !== 'brand' && p.created) ? fmtCreatedDate(p.created) : '';
-      const stockTag = p.inStock === true
-        ? `<div class="ri-stock" title="Currently in stock in Shopify">In Stock</div>` : '';
-      return `<div class="ri" onclick="pickResult(${i})">
-        <div style="flex:1;min-width:0;">
-          <div class="ri-n">${esc(p.n)}${dateTag ? ` <span class="ri-date" title="Date added to inventory">${esc(dateTag)}</span>` : ''}</div>${mpn ? `<div class="ri-mpn">MPN: ${esc(mpn)}</div>` : ''}
-          <div class="ri-m">${esc(meta)}</div>
-        </div>
-        <div class="ri-r">
-          ${pr ? `<div class="ri-p">${pr}</div>` : ''}
-          ${stockTag}
-          ${badge}
-        </div>
-      </div>`;
-    }).join('');
+function renderResultRow(p, i) {
+  const pr   = p.p ? '$' + p.p.toLocaleString('en-US', {minimumFractionDigits:0}) : '';
+  const meta = [p.it, p.m, p.fmt].filter(Boolean).join(' · ');
+  let badge = '';
+  if (p.src === 'brand') {
+    badge = `<div class="ri-g" style="color:#1a6fc4;background:rgba(26,111,196,.10);border-color:rgba(26,111,196,.40)">MATRIX</div>`;
+  } else if (p.grade) {
+    badge = `<div class="ri-g" style="color:${gradeColor(p.grade).c};background:${gradeColor(p.grade).bg};border-color:${gradeColor(p.grade).bd}">${esc(p.grade)}</div>`;
   }
+  const mpn = p.src === 'brand' ? (p.sku || '') : '';
+  const dateTag = (p.src !== 'brand' && p.created) ? fmtCreatedDate(p.created) : '';
+  const stockTag = p.inStock === true
+    ? `<div class="ri-stock" title="Currently in stock in Shopify">In Stock</div>` : '';
+  return `<div class="ri" onclick="pickResult(${i})">
+    <div style="flex:1;min-width:0;">
+      <div class="ri-n">${esc(p.n)}${dateTag ? ` <span class="ri-date" title="Date added to inventory">${esc(dateTag)}</span>` : ''}</div>${mpn ? `<div class="ri-mpn">MPN: ${esc(mpn)}</div>` : ''}
+      <div class="ri-m">${esc(meta)}</div>
+    </div>
+    <div class="ri-r">
+      ${pr ? `<div class="ri-p">${pr}</div>` : ''}
+      ${stockTag}
+      ${badge}
+    </div>
+  </div>`;
+}
+
+function renderSearchResults(brandProducts, shopifyProducts) {
+  const el = document.getElementById('srch-res');
+  const all = [...(brandProducts || [])];
+  if (shopifyProducts) all.push(...shopifyProducts);
+  searchResultsCache = all;
+
+  if (!all.length && shopifyProducts !== null) {
+    el.innerHTML = '<div class="no-res">No results — try Manual Entry</div>';
+    el.style.display = 'block';
+    return;
+  }
+
+  let html = '';
+
+  if (brandProducts && brandProducts.length) {
+    html += `<div style="padding:6px 14px 4px;font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:rgba(245,245,240,.35);background:var(--bg4);border-bottom:1px solid var(--border);">Trade Matrix</div>`;
+    html += brandProducts.map((p, i) => renderResultRow(p, i)).join('');
+  }
+
+  if (shopifyProducts === null) {
+    html += `<div style="padding:8px 14px;font-size:10px;color:var(--dim);letter-spacing:.06em;">Loading pre-owned inventory…</div>`;
+  } else if (shopifyProducts.length) {
+    const offset = (brandProducts || []).length;
+    html += `<div style="padding:6px 14px 4px;font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:rgba(245,245,240,.35);background:var(--bg4);border-bottom:1px solid var(--border);margin-top:2px;">Shopify Pre-Owned</div>`;
+    html += shopifyProducts.map((p, i) => renderResultRow(p, offset + i)).join('');
+  }
+
+  if (!html) {
+    html = '<div class="no-res">Searching…</div>';
+  }
+
+  el.innerHTML = html;
   el.style.display = 'block';
 }
 
