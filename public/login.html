@@ -66,7 +66,7 @@ body{
   margin-bottom:6px;
 }
 
-.login-box p{
+.login-box .desc{
   font-size:12px;
   color:rgba(245,245,240,.55);
   letter-spacing:.04em;
@@ -84,7 +84,7 @@ body{
   margin-bottom:8px;
 }
 
-.email-input{
+.input{
   width:100%;
   background:#1a1a1a;
   border:1px solid #2a2a2a;
@@ -97,8 +97,16 @@ body{
   outline:none;
   transition:border-color .2s;
 }
-.email-input::placeholder{color:rgba(245,245,240,.25)}
-.email-input:focus{border-color:#d95e00}
+.input::placeholder{color:rgba(245,245,240,.25)}
+.input:focus{border-color:#d95e00}
+
+.code-input{
+  font-size:24px;
+  font-weight:500;
+  letter-spacing:.3em;
+  text-align:center;
+  padding:16px;
+}
 
 .submit-btn{
   width:100%;
@@ -118,6 +126,20 @@ body{
 .submit-btn:hover{opacity:.85}
 .submit-btn:disabled{opacity:.5;cursor:not-allowed}
 
+.back-link{
+  display:inline-block;
+  margin-top:16px;
+  font-size:11px;
+  letter-spacing:.06em;
+  color:rgba(245,245,240,.45);
+  cursor:pointer;
+  border:none;
+  background:none;
+  font-family:Jost,sans-serif;
+  transition:color .15s;
+}
+.back-link:hover{color:#f5f5f0}
+
 .status{
   margin-top:20px;
   font-size:12px;
@@ -127,6 +149,9 @@ body{
 }
 .status.success{color:#6fbf73}
 .status.error{color:#e07070}
+
+.step{display:none}
+.step.active{display:block}
 
 .footer{
   margin-top:48px;
@@ -159,13 +184,28 @@ body{
   <div class="app-name">Trade-In Manager</div>
 
   <div class="login-box">
-    <h2>Sign In</h2>
-    <p>Enter your email address and we'll send you a secure link to sign in.</p>
+    <!-- Step 1: Email -->
+    <div class="step active" id="step-email">
+      <h2>Sign In</h2>
+      <p class="desc">Enter your email and we'll send you a one-time sign-in code.</p>
 
-    <label class="field-label" for="email">Email Address</label>
-    <input class="email-input" id="email" type="email" placeholder="you@camerawest.com" autocomplete="email" autofocus>
+      <label class="field-label" for="email">Email Address</label>
+      <input class="input" id="email" type="email" placeholder="you@camerawest.com" autocomplete="email" autofocus>
 
-    <button class="submit-btn" id="submit" onclick="requestLogin()">Send Sign-In Link</button>
+      <button class="submit-btn" id="send-btn" onclick="sendCode()">Send Code</button>
+    </div>
+
+    <!-- Step 2: Code -->
+    <div class="step" id="step-code">
+      <h2>Enter Code</h2>
+      <p class="desc">We sent a 6-digit code to <strong id="sent-email"></strong>. It expires in 5 minutes.</p>
+
+      <label class="field-label" for="code">Sign-In Code</label>
+      <input class="input code-input" id="code" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code">
+
+      <button class="submit-btn" id="verify-btn" onclick="verifyCode()">Verify</button>
+      <button class="back-link" onclick="backToEmail()">Use a different email</button>
+    </div>
 
     <div class="status" id="status"></div>
   </div>
@@ -174,9 +214,11 @@ body{
 </div>
 
 <script>
-async function requestLogin() {
+let _email = '';
+
+async function sendCode() {
   const email = document.getElementById('email').value.trim();
-  const btn = document.getElementById('submit');
+  const btn = document.getElementById('send-btn');
   const status = document.getElementById('status');
 
   if (!email || !email.includes('@')) {
@@ -194,33 +236,97 @@ async function requestLogin() {
     const res = await fetch('/api/auth/request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ action: 'login-otp-send', email }),
     });
     const data = await res.json();
 
     if (data.error) {
       status.className = 'status error';
       status.textContent = data.error;
-    } else {
-      status.className = 'status success';
-      status.textContent = 'Check your inbox — a sign-in link has been sent.';
-      btn.textContent = 'Link Sent';
+      btn.disabled = false;
+      btn.textContent = 'Send Code';
       return;
     }
+
+    _email = email;
+    document.getElementById('sent-email').textContent = email;
+    document.getElementById('step-email').classList.remove('active');
+    document.getElementById('step-code').classList.add('active');
+    document.getElementById('code').value = '';
+    document.getElementById('code').focus();
+    status.className = 'status success';
+    status.textContent = 'Code sent — check your email.';
+    btn.disabled = false;
+    btn.textContent = 'Send Code';
   } catch (e) {
     status.className = 'status error';
     status.textContent = 'Something went wrong. Please try again.';
+    btn.disabled = false;
+    btn.textContent = 'Send Code';
+  }
+}
+
+async function verifyCode() {
+  const code = document.getElementById('code').value.trim();
+  const btn = document.getElementById('verify-btn');
+  const status = document.getElementById('status');
+
+  if (!code || code.length < 6) {
+    status.className = 'status error';
+    status.textContent = 'Please enter the 6-digit code.';
+    return;
   }
 
-  btn.disabled = false;
-  btn.textContent = 'Send Sign-In Link';
+  btn.disabled = true;
+  btn.textContent = 'Verifying…';
+  status.className = 'status';
+  status.textContent = '';
+
+  try {
+    const res = await fetch('/api/auth/request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'login-otp-verify', email: _email, code }),
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      status.className = 'status error';
+      status.textContent = data.error;
+      btn.disabled = false;
+      btn.textContent = 'Verify';
+      document.getElementById('code').select();
+      return;
+    }
+
+    status.className = 'status success';
+    status.textContent = 'Signed in — redirecting…';
+    btn.textContent = 'Success';
+    window.location.href = '/';
+  } catch (e) {
+    status.className = 'status error';
+    status.textContent = 'Something went wrong. Please try again.';
+    btn.disabled = false;
+    btn.textContent = 'Verify';
+  }
+}
+
+function backToEmail() {
+  document.getElementById('step-code').classList.remove('active');
+  document.getElementById('step-email').classList.add('active');
+  document.getElementById('status').className = 'status';
+  document.getElementById('status').textContent = '';
+  document.getElementById('email').focus();
 }
 
 document.getElementById('email').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') requestLogin();
+  if (e.key === 'Enter') sendCode();
+});
+document.getElementById('code').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') verifyCode();
 });
 
-// Show error from auth verify redirect (?error=expired, etc.)
+// Show error from verify redirect
 (function() {
   const params = new URLSearchParams(window.location.search);
   const err = params.get('error');
@@ -228,8 +334,8 @@ document.getElementById('email').addEventListener('keydown', function(e) {
     const status = document.getElementById('status');
     const msgs = {
       missing_token: 'Invalid sign-in link.',
-      invalid_or_expired: 'Sign-in link has expired or already been used.',
-      expired: 'Sign-in link has expired.',
+      invalid_or_expired: 'Session has expired. Please sign in again.',
+      expired: 'Session has expired. Please sign in again.',
       server_error: 'Something went wrong. Please try again.',
     };
     status.className = 'status error';
@@ -242,9 +348,7 @@ document.getElementById('email').addEventListener('keydown', function(e) {
   try {
     const res = await fetch('/api/auth/session');
     const data = await res.json();
-    if (data.authenticated) {
-      window.location.href = '/';
-    }
+    if (data.authenticated) window.location.href = '/';
   } catch(e) {}
 })();
 </script>
