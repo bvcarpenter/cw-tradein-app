@@ -127,13 +127,15 @@ export async function findConversationByTradeInId(env, tradeInId) {
  * Add a message to a conversation.
  * Uses message_type "incoming" since the API only supports incoming messages.
  * Set private=true for internal notes visible only to agents.
+ * content_type defaults to 'text'; set to 'input_email' for rich HTML.
  */
-export async function addMessage(env, conversationId, { content, isPrivate = false }) {
+export async function addMessage(env, conversationId, { content, isPrivate = false, contentType }) {
   const message = {
     content,
     message_type: 'incoming',
     private: isPrivate,
   };
+  if (contentType) message.content_type = contentType;
   const r = await fetch(`${BASE}/conversations/${conversationId}/messages`, {
     method: 'POST',
     headers: headers(env.COMMSLAYER_API_TOKEN),
@@ -146,6 +148,46 @@ export async function addMessage(env, conversationId, { content, isPrivate = fal
   return (await r.json()).data;
 }
 
+/* ── Agents / Assignment ──────────────────────────────────── */
+
+/**
+ * Assign a conversation to an agent by updating assignee_id.
+ */
+export async function assignConversation(env, conversationId, assigneeId) {
+  const r = await fetch(`${BASE}/conversations/${conversationId}`, {
+    method: 'PATCH',
+    headers: headers(env.COMMSLAYER_API_TOKEN),
+    body: JSON.stringify({ conversation: { assignee_id: assigneeId } }),
+  });
+  if (!r.ok) {
+    const err = await r.text().catch(() => '');
+    throw new Error(`CommsLayer assign conversation failed (${r.status}): ${err}`);
+  }
+  return (await r.json()).data;
+}
+
+/**
+ * Search for an agent by email. Returns { id } or null.
+ * Tries the integration search endpoint; falls back to listing agents.
+ */
+export async function findAgentByEmail(env, email) {
+  if (!email) return null;
+  const lower = email.toLowerCase();
+  const r = await fetch(
+    `${BASE}/agents?email=${encodeURIComponent(lower)}`,
+    { headers: headers(env.COMMSLAYER_API_TOKEN) },
+  );
+  if (r.ok) {
+    const body = await r.json();
+    const list = body.data || body;
+    if (Array.isArray(list)) {
+      const match = list.find(a => (a.email || '').toLowerCase() === lower);
+      if (match) return match;
+    }
+  }
+  return null;
+}
+
 /* ── High-level orchestrators ──────────────────────────── */
 
 /**
@@ -154,13 +196,13 @@ export async function addMessage(env, conversationId, { content, isPrivate = fal
  * Finds or creates the contact, finds or creates the conversation
  * (linked to the trade-in ID), then posts the message.
  *
- * @param {object} env         — Cloudflare env with COMMSLAYER_API_TOKEN & COMMSLAYER_INBOX_ID
- * @param {object} customer    — { first, last, email, phone }
- * @param {string} tradeInId   — e.g. "CWTI-260330-A7K2"
- * @param {string} content     — message body (plain text / markdown)
- * @param {object} [opts]      — { isPrivate, customAttributes }
+ * @param {object} env             — Cloudflare env with COMMSLAYER_API_TOKEN & COMMSLAYER_INBOX_ID
+ * @param {object} customer        — { first, last, email, phone }
+ * @param {string} tradeInId       — e.g. "CWTI-260330-A7K2"
+ * @param {string} content         — message body (plain text / markdown)
+ * @param {object} [opts]          — { isPrivate, customAttributes, contentType, assignToEmail }
  */
-export async function logTradeInEvent(env, { customer, tradeInId, content, isPrivate = false, customAttributes = {} }) {
+export async function logTradeInEvent(env, { customer, tradeInId, content, isPrivate = false, customAttributes = {}, contentType, assignToEmail }) {
   if (!env.COMMSLAYER_API_TOKEN || !env.COMMSLAYER_INBOX_ID) {
     console.warn('CommsLayer not configured — skipping event log');
     return null;
@@ -185,7 +227,6 @@ export async function logTradeInEvent(env, { customer, tradeInId, content, isPri
         customAttributes,
       });
     } else if (Object.keys(customAttributes).length) {
-      // Merge new attributes into existing conversation
       await updateConversation(env, conversation.id, {
         ...conversation.custom_attributes,
         ...customAttributes,
@@ -193,11 +234,22 @@ export async function logTradeInEvent(env, { customer, tradeInId, content, isPri
     }
 
     // 3. Post the message
-    const message = await addMessage(env, conversation.id, { content, isPrivate });
+    const message = await addMessage(env, conversation.id, { content, isPrivate, contentType });
+
+    // 4. Auto-assign conversation to the associate who sent the email
+    if (assignToEmail) {
+      try {
+        const agent = await findAgentByEmail(env, assignToEmail);
+        if (agent?.id) {
+          await assignConversation(env, conversation.id, agent.id);
+        }
+      } catch (assignErr) {
+        console.warn('CommsLayer agent assignment failed:', assignErr.message);
+      }
+    }
 
     return { contact, conversation, message };
   } catch (err) {
-    // Never let CommsLayer errors break the main flow
     console.error('CommsLayer logTradeInEvent error:', err);
     return null;
   }
