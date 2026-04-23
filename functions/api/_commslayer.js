@@ -166,23 +166,47 @@ export async function assignConversation(env, conversationId, assigneeId) {
 
 /**
  * Search for an agent by email. Returns { id } or null.
- * Tries the integration search endpoint; falls back to listing agents.
+ * Tries:
+ *   1. Integration API /agents (may not exist)
+ *   2. Platform API /api/v1/accounts/{id}/agents (needs COMMSLAYER_ACCOUNT_ID)
+ *   3. Platform API /api/v1/profile to get account, then list agents
  */
 export async function findAgentByEmail(env, email) {
   if (!email) return null;
   const lower = email.toLowerCase();
-  const r = await fetch(
-    `${BASE}/agents?email=${encodeURIComponent(lower)}`,
-    { headers: headers(env.COMMSLAYER_API_TOKEN) },
-  );
-  if (r.ok) {
-    const body = await r.json();
-    const list = body.data || body;
-    if (Array.isArray(list)) {
-      const match = list.find(a => (a.email || '').toLowerCase() === lower);
-      if (match) return match;
+  const hdrs = headers(env.COMMSLAYER_API_TOKEN);
+
+  // Try 1: integration API
+  try {
+    const r = await fetch(`${BASE}/agents?email=${encodeURIComponent(lower)}`, { headers: hdrs });
+    if (r.ok) {
+      const body = await r.json();
+      const list = body.data || body;
+      if (Array.isArray(list)) {
+        const match = list.find(a => (a.email || '').toLowerCase() === lower);
+        if (match) return match;
+      }
     }
+  } catch (_) {}
+
+  // Try 2: platform API with account ID
+  const accountId = env.COMMSLAYER_ACCOUNT_ID;
+  if (accountId) {
+    try {
+      const platformBase = 'https://app.commslayer.com/api/v1';
+      const userToken = env.COMMSLAYER_USER_TOKEN || env.COMMSLAYER_API_TOKEN;
+      const r = await fetch(`${platformBase}/accounts/${accountId}/agents`, {
+        headers: { 'api_access_token': userToken, 'Content-Type': 'application/json' },
+      });
+      if (r.ok) {
+        const agents = await r.json();
+        const list = Array.isArray(agents) ? agents : (agents.data || []);
+        const match = list.find(a => (a.email || '').toLowerCase() === lower);
+        if (match) return match;
+      }
+    } catch (_) {}
   }
+
   return null;
 }
 

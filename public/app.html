@@ -2222,6 +2222,11 @@ async function confirmSendEstimate() {
 
     btn.textContent = 'Sending…';
 
+    // Auto-save session so we have a key to link back to
+    if (sessionItems.length) {
+      try { await saveCurrentSession(); } catch(e) { console.warn('Auto-save before email failed:', e); }
+    }
+
     const custFirst = document.getElementById('c-first').value.trim();
     const custLast = document.getElementById('c-last').value.trim();
     const email = document.getElementById('c-email').value.trim();
