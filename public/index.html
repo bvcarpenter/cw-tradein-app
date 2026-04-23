@@ -5,6 +5,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Trade // Sell — Camera West</title>
+<script>
+fetch('/api/auth/session').then(r=>r.json()).then(d=>{
+  if(!d.authenticated)window.location.replace('/login');
+  else document.documentElement.style.visibility='visible';
+}).catch(()=>document.documentElement.style.visibility='visible');
+</script>
+<style>html{visibility:hidden}</style>
 <script>(function(){try{var t=localStorage.getItem('cw-theme')||'dark';var f=localStorage.getItem('cw-fontsize')||'md';document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-fontsize',f);}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1049,19 +1056,31 @@ let _loggedInEmail = '';
 async function autoFillAssociate() {
   const el = document.getElementById('assoc');
   if (!el) return;
+  let email = '';
   try {
     const res = await fetch('/cdn-cgi/access/get-identity');
-    if (!res.ok) throw new Error('not available');
-    const data = await res.json();
-    if (data.email) {
-      _loggedInEmail = data.email.toLowerCase();
-      el.value = data.email;
-      el.placeholder = data.email;
-      el.readOnly = true;
-      el.style.opacity = '.7';
-      el.style.cursor = 'not-allowed';
+    if (res.ok) {
+      const data = await res.json();
+      if (data.email) email = data.email;
     }
-  } catch(e) { /* not behind Access or anonymous */ }
+  } catch(e) {}
+  if (!email) {
+    try {
+      const res = await fetch('/api/auth/session');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.email) email = data.email;
+      }
+    } catch(e) {}
+  }
+  if (email) {
+    _loggedInEmail = email.toLowerCase();
+    el.value = email;
+    el.placeholder = email;
+    el.readOnly = true;
+    el.style.opacity = '.7';
+    el.style.cursor = 'not-allowed';
+  }
   applyFinalizePermissions();
 }
 
@@ -1184,10 +1203,12 @@ function showOtpMsg(msg, isErr) {
   el.style.borderColor = isErr ? '#5a2a2a' : '#2a5a3a';
 }
 
-function doLogout() {
-  if (confirm('Sign out of Camera West Trade-In?')) {
-    window.location.href = '/cdn-cgi/access/logout';
-  }
+async function doLogout() {
+  if (!confirm('Sign out of Camera West Trade-In?')) return;
+  try {
+    await fetch('/api/auth/session', { method: 'POST' });
+  } catch(e) {}
+  window.location.href = '/login';
 }
 
 // ════════════════════════════════════════════

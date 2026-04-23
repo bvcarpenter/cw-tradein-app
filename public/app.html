@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Trade // Sell — Camera West</title>
+<script>
+fetch('/api/auth/session').then(r=>r.json()).then(d=>{
+  if(!d.authenticated)window.location.replace('/login');
+  else document.documentElement.style.visibility='visible';
+}).catch(()=>document.documentElement.style.visibility='visible');
+</script>
+<style>html{visibility:hidden}</style>
 <script>(function(){try{var t=localStorage.getItem('cw-theme')||'dark';var f=localStorage.getItem('cw-fontsize')||'md';document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-fontsize',f);}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>

@@ -220,6 +220,23 @@ document.getElementById('email').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') requestLogin();
 });
 
+// Show error from auth verify redirect (?error=expired, etc.)
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const err = params.get('error');
+  if (err) {
+    const status = document.getElementById('status');
+    const msgs = {
+      missing_token: 'Invalid sign-in link.',
+      invalid_or_expired: 'Sign-in link has expired or already been used.',
+      expired: 'Sign-in link has expired.',
+      server_error: 'Something went wrong. Please try again.',
+    };
+    status.className = 'status error';
+    status.textContent = msgs[err] || 'Sign-in failed. Please try again.';
+  }
+})();
+
 // If already authenticated, redirect to main app
 (async function() {
   try {

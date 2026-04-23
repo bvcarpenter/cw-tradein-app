@@ -23,12 +23,44 @@ import { onRequestPost as authRequestPost, onRequestOptions as authRequestOption
 import { onRequestGet as authSessionGet, onRequestPost as authSessionPost } from '../functions/api/auth/session.js';
 import { onRequestGet as authVerifyGet } from '../functions/api/auth/verify.js';
 
+function parseCookie(cookieStr, name) {
+  const match = (cookieStr || '').split(';').map(c => c.trim())
+    .find(c => c.startsWith(`${name}=`));
+  return match ? match.split('=').slice(1).join('=') : null;
+}
+
+async function isAuthenticated(request, env) {
+  const sessionId = parseCookie(request.headers.get('Cookie'), 'cw_session');
+  if (!sessionId) return false;
+  const raw = await env.AUTH_KV.get(`session:${sessionId}`);
+  if (!raw) return false;
+  const { expires } = JSON.parse(raw);
+  return Date.now() <= expires;
+}
+
+const PUBLIC_PREFIXES = [
+  '/login', '/api/auth/', '/trade-form', '/cdn-cgi/',
+];
+
+function isPublicPath(path) {
+  if (PUBLIC_PREFIXES.some(p => path.startsWith(p))) return true;
+  const ext = path.split('.').pop();
+  if (['css', 'js', 'png', 'jpg', 'svg', 'ico', 'woff', 'woff2', 'ttf'].includes(ext)) return true;
+  return false;
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
     const method = request.method;
     const c = { request, env, ctx };
+
+    // ── Auth gate — redirect unauthenticated page requests to /login ──
+    const isPage = path === '/' || path === '/app' || path === '/index.html' || path === '/app.html';
+    if (isPage && !(await isAuthenticated(request, env))) {
+      return Response.redirect(url.origin + '/login', 302);
+    }
 
     // ── API routing ────────────────────────────────────────
     if (path === '/api/sessions') {
