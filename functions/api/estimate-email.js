@@ -232,7 +232,8 @@ Questions? Reply to this email or contact us at <a href="mailto:support@camerawe
 
 /* ── Main handler ────────────────────────────────────────────── */
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost(context) {
+  const { request, env } = context;
   try {
     if (!env.RESEND_API_KEY) {
       return json({ error: 'RESEND_API_KEY not configured' }, 503);
@@ -310,7 +311,7 @@ export async function onRequestPost({ request, env }) {
 
     const result = resBody ? JSON.parse(resBody) : {};
 
-    // Build markdown content for CommsLayer conversation
+    // Log to CommsLayer in background so the response returns immediately
     const itemCount = (body.items || []).length;
     const cmDisplay = body.cmNum || 'PENDING';
     const appOrigin = new URL(request.url).origin;
@@ -340,10 +341,8 @@ export async function onRequestPost({ request, env }) {
       sessionLink ? `\n[Open session in Trade-In App →](${sessionLink})` : '',
     ].filter(Boolean).join('\n');
 
-    let conversationId = null;
-    let conversationUrl = null;
-    try {
-      const csResult = await logTradeInEvent(env, {
+    context.waitUntil(
+      logTradeInEvent(env, {
         customer,
         tradeInId: body.tradeInId,
         content: csContent,
@@ -354,19 +353,10 @@ export async function onRequestPost({ request, env }) {
           session_link: sessionLink,
           ...(body.tracking ? { tracking_number: body.tracking } : {}),
         },
-      });
-      if (csResult?.conversation) {
-        conversationId = csResult.conversation.display_id || csResult.conversation.id;
-        const accountId = csResult.conversation.account_id || env.COMMSLAYER_ACCOUNT_ID;
-        if (accountId && conversationId) {
-          conversationUrl = `https://app.commslayer.com/app/accounts/${accountId}/conversations/${conversationId}`;
-        }
-      }
-    } catch (err) {
-      console.error('CommsLayer estimate log error:', err);
-    }
+      }).catch(err => console.error('CommsLayer estimate log error:', err))
+    );
 
-    return json({ ok: true, id: result.id, conversationId, conversationUrl });
+    return json({ ok: true, id: result.id });
   } catch (err) {
     console.error('estimate-email error:', err, err?.stack);
     return json({ error: `Email error: ${err.message || String(err)}` }, 500);
