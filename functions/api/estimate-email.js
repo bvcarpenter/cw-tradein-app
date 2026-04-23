@@ -123,7 +123,7 @@ ${personalMessage ? `<!-- PERSONAL MESSAGE -->
 <tr>
 <td style="border-left:3px solid #d95e00;padding:12px 16px;background:#faf8f5;">
 <p style="margin:0;font-size:13px;color:#333333;line-height:1.7;white-space:pre-line;">${esc(personalMessage)}</p>
-<p style="margin:10px 0 0;font-size:11px;color:#888888;">— ${esc(assoc || issuedBy || 'Camera West')}</p>
+<p style="margin:10px 0 0;font-size:11px;color:#888888;">— ${esc((assoc || issuedBy || '').split('@')[0] || 'Camera West')}</p>
 </td>
 </tr>
 </table>
@@ -232,7 +232,8 @@ Questions? Reply to this email or contact us at <a href="mailto:support@camerawe
 
 /* ── Main handler ────────────────────────────────────────────── */
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, ctx }) {
+  const waitUntil = ctx?.waitUntil?.bind(ctx);
   try {
     if (!env.RESEND_API_KEY) {
       return json({ error: 'RESEND_API_KEY not configured' }, 503);
@@ -340,7 +341,7 @@ export async function onRequestPost({ request, env }) {
       sessionLink ? `\n[Open session in Trade-In App →](${sessionLink})` : '',
     ].filter(Boolean).join('\n');
 
-    logTradeInEvent(env, {
+    const csPromise = logTradeInEvent(env, {
       customer,
       tradeInId: body.tradeInId,
       content: csContent,
@@ -351,9 +352,30 @@ export async function onRequestPost({ request, env }) {
         session_link: sessionLink,
         ...(body.tracking ? { tracking_number: body.tracking } : {}),
       },
-    }).catch(err => console.error('CommsLayer estimate log error:', err));
+    }).catch(err => { console.error('CommsLayer estimate log error:', err); return null; });
 
-    return json({ ok: true, id: result.id });
+    if (waitUntil) {
+      waitUntil(csPromise);
+      return json({ ok: true, id: result.id });
+    }
+
+    // No waitUntil available — await with a timeout so we can return the URL
+    const csResult = await Promise.race([
+      csPromise,
+      new Promise(resolve => setTimeout(() => resolve(null), 8000)),
+    ]);
+
+    let conversationId = null;
+    let conversationUrl = null;
+    if (csResult?.conversation) {
+      conversationId = csResult.conversation.display_id || csResult.conversation.id;
+      const accountId = csResult.conversation.account_id || env.COMMSLAYER_ACCOUNT_ID;
+      if (accountId && conversationId) {
+        conversationUrl = `https://app.commslayer.com/app/accounts/${accountId}/conversations/${conversationId}`;
+      }
+    }
+
+    return json({ ok: true, id: result.id, conversationId, conversationUrl });
   } catch (err) {
     console.error('estimate-email error:', err, err?.stack);
     return json({ error: `Email error: ${err.message || String(err)}` }, 500);
