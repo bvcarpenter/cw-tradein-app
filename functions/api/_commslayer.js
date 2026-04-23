@@ -127,15 +127,13 @@ export async function findConversationByTradeInId(env, tradeInId) {
  * Add a message to a conversation.
  * Uses message_type "incoming" since the API only supports incoming messages.
  * Set private=true for internal notes visible only to agents.
- * content_type defaults to 'text'; set to 'input_email' for rich HTML.
  */
-export async function addMessage(env, conversationId, { content, isPrivate = false, contentType }) {
+export async function addMessage(env, conversationId, { content, isPrivate = false }) {
   const message = {
     content,
     message_type: 'incoming',
     private: isPrivate,
   };
-  if (contentType) message.content_type = contentType;
   const r = await fetch(`${BASE}/conversations/${conversationId}/messages`, {
     method: 'POST',
     headers: headers(env.COMMSLAYER_API_TOKEN),
@@ -200,9 +198,9 @@ export async function findAgentByEmail(env, email) {
  * @param {object} customer        — { first, last, email, phone }
  * @param {string} tradeInId       — e.g. "CWTI-260330-A7K2"
  * @param {string} content         — message body (plain text / markdown)
- * @param {object} [opts]          — { isPrivate, customAttributes, contentType, assignToEmail }
+ * @param {object} [opts]          — { isPrivate, customAttributes, assignToEmail }
  */
-export async function logTradeInEvent(env, { customer, tradeInId, content, isPrivate = false, customAttributes = {}, contentType, assignToEmail }) {
+export async function logTradeInEvent(env, { customer, tradeInId, content, isPrivate = false, customAttributes = {}, assignToEmail }) {
   if (!env.COMMSLAYER_API_TOKEN || !env.COMMSLAYER_INBOX_ID) {
     console.warn('CommsLayer not configured — skipping event log');
     return null;
@@ -234,7 +232,7 @@ export async function logTradeInEvent(env, { customer, tradeInId, content, isPri
     }
 
     // 3. Post the message
-    const message = await addMessage(env, conversation.id, { content, isPrivate, contentType });
+    const message = await addMessage(env, conversation.id, { content, isPrivate });
 
     // 4. Auto-assign conversation to the associate who sent the email
     if (assignToEmail) {
