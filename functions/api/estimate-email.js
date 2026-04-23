@@ -315,18 +315,31 @@ export async function onRequestPost({ request, env }) {
       body.assoc ? `Associate: ${body.assoc}` : '',
     ].filter(Boolean).join('\n');
 
-    logTradeInEvent(env, {
-      customer,
-      tradeInId: body.tradeInId,
-      content: csContent,
-      customAttributes: {
-        cm_number: cmDisplay,
-        doc_type: docLabel,
-        ...(body.tracking ? { tracking_number: body.tracking } : {}),
-      },
-    }).catch(err => console.error('CommsLayer estimate log error:', err));
+    let conversationId = null;
+    let conversationUrl = null;
+    try {
+      const csResult = await logTradeInEvent(env, {
+        customer,
+        tradeInId: body.tradeInId,
+        content: csContent,
+        customAttributes: {
+          cm_number: cmDisplay,
+          doc_type: docLabel,
+          ...(body.tracking ? { tracking_number: body.tracking } : {}),
+        },
+      });
+      if (csResult?.conversation) {
+        conversationId = csResult.conversation.display_id || csResult.conversation.id;
+        const accountId = csResult.conversation.account_id || env.COMMSLAYER_ACCOUNT_ID;
+        if (accountId && conversationId) {
+          conversationUrl = `https://app.commslayer.com/app/accounts/${accountId}/conversations/${conversationId}`;
+        }
+      }
+    } catch (err) {
+      console.error('CommsLayer estimate log error:', err);
+    }
 
-    return json({ ok: true, id: result.id });
+    return json({ ok: true, id: result.id, conversationId, conversationUrl });
   } catch (err) {
     console.error('estimate-email error:', err, err?.stack);
     return json({ error: `Email error: ${err.message || String(err)}` }, 500);
