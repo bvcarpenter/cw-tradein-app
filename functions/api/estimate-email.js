@@ -74,7 +74,7 @@ function buildItemRow(item) {
 
 /* ── build email HTML ────────────────────────────────────────── */
 
-function buildEstimateEmailHtml({ customer, location, destStore, shippingAddress, tracking, tradeInId, cmNum, txnDate, assoc, issuedBy, items, totals, docLabel }) {
+function buildEstimateEmailHtml({ customer, location, destStore, shippingAddress, tracking, tradeInId, cmNum, txnDate, assoc, issuedBy, items, totals, docLabel, personalMessage }) {
   const custName = [customer.first, customer.last].filter(Boolean).join(' ') || '—';
   const loc = location === 'shipping' ? 'Requires Shipping' : (location || '—');
   const shipTo = location === 'shipping' && shippingAddress
@@ -116,6 +116,19 @@ Here is your ${cm !== 'PENDING' ? 'credit memo' : 'estimate'} from Camera West. 
 </p>
 </td>
 </tr>
+${personalMessage ? `<!-- PERSONAL MESSAGE -->
+<tr>
+<td style="padding:24px 48px;border-bottom:1px solid #e0ddd8;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td style="border-left:3px solid #d95e00;padding:12px 16px;background:#faf8f5;">
+<p style="margin:0;font-size:13px;color:#333333;line-height:1.7;white-space:pre-line;">${esc(personalMessage)}</p>
+<p style="margin:10px 0 0;font-size:11px;color:#888888;">— ${esc(assoc || issuedBy || 'Camera West')}</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>` : ''}
 <!-- DOCUMENT INFO -->
 <tr>
 <td style="padding:32px 48px;border-bottom:1px solid #e0ddd8;">
@@ -297,22 +310,37 @@ export async function onRequestPost({ request, env }) {
 
     const result = resBody ? JSON.parse(resBody) : {};
 
-    // Log to CommsLayer conversation thread (non-blocking)
+    // Build rich HTML content for CommsLayer conversation
     const itemCount = (body.items || []).length;
     const cmDisplay = body.cmNum || 'PENDING';
-    const trackingInfo = body.tracking ? `\nFedEx Tracking: ${body.tracking}` : '';
-    const labelNote = labelPdfBase64 ? '\n📦 FedEx shipping label PDF attached to email.' : '';
+    const appOrigin = new URL(request.url).origin;
+    const sessionLink = body.tradeInId ? `${appOrigin}/?session=${encodeURIComponent(body.tradeInId)}` : '';
+
+    const csItemRows = (body.items || []).map(it =>
+      `<tr><td style="padding:4px 6px;border-bottom:1px solid #eee;">${esc(it.name)}${it.serial ? ' <small>S/N: ' + esc(it.serial) + '</small>' : ''}</td>` +
+      `<td style="padding:4px 6px;border-bottom:1px solid #eee;text-align:center;">${esc(it.grade || '-')}</td>` +
+      `<td style="padding:4px 6px;border-bottom:1px solid #eee;text-align:right;">${ff(it.net)}</td></tr>`
+    ).join('');
 
     const csContent = [
-      `📧 ${docLabel} emailed to ${customer.email}`,
-      `Trade-In: ${body.tradeInId || 'N/A'}`,
-      `Credit Memo: ${cmDisplay}`,
-      `Items: ${itemCount}`,
-      `Net Total: $${Number(body.totals?.netTotal || 0).toFixed(2)}`,
-      trackingInfo,
-      labelNote,
-      `\nDate: ${body.txnDate || new Date().toISOString().split('T')[0]}`,
-      body.assoc ? `Associate: ${body.assoc}` : '',
+      `<h3>📧 ${esc(docLabel)} emailed to ${esc(customer.email)}</h3>`,
+      `<table style="width:100%;border-collapse:collapse;font-size:13px;margin:8px 0;">`,
+      `<tr><td><strong>Customer:</strong></td><td>${esc([customer.first, customer.last].filter(Boolean).join(' '))} &lt;${esc(customer.email)}&gt;${customer.phone ? ' · ' + esc(customer.phone) : ''}</td></tr>`,
+      `<tr><td><strong>Trade-In ID:</strong></td><td>${esc(body.tradeInId || 'N/A')}</td></tr>`,
+      `<tr><td><strong>Credit Memo:</strong></td><td>${esc(cmDisplay)}</td></tr>`,
+      `<tr><td><strong>Date:</strong></td><td>${esc(body.txnDate || new Date().toISOString().split('T')[0])}</td></tr>`,
+      body.assoc ? `<tr><td><strong>Associate:</strong></td><td>${esc(body.assoc)}</td></tr>` : '',
+      body.tracking ? `<tr><td><strong>FedEx Tracking:</strong></td><td>${esc(body.tracking)}</td></tr>` : '',
+      `</table>`,
+      `<h4 style="margin:12px 0 4px;">Items (${itemCount})</h4>`,
+      `<table style="width:100%;border-collapse:collapse;font-size:12px;">`,
+      `<thead><tr style="background:#f5f5f5;"><th style="padding:4px 6px;text-align:left;">Item</th><th style="padding:4px 6px;text-align:center;">Grade</th><th style="padding:4px 6px;text-align:right;">Net</th></tr></thead>`,
+      `<tbody>${csItemRows}</tbody>`,
+      `<tfoot><tr style="font-weight:bold;border-top:2px solid #333;"><td colspan="2" style="padding:4px 6px;">Net Total</td><td style="padding:4px 6px;text-align:right;">${ff(body.totals?.netTotal || 0)}</td></tr></tfoot>`,
+      `</table>`,
+      body.personalMessage ? `<blockquote style="border-left:3px solid #d95e00;padding:8px 12px;margin:12px 0;color:#555;"><strong>Personal message:</strong><br>${esc(body.personalMessage)}</blockquote>` : '',
+      labelPdfBase64 ? '<p>📦 FedEx shipping label PDF attached to email.</p>' : '',
+      sessionLink ? `<p style="margin-top:12px;"><a href="${esc(sessionLink)}">Open session in Trade-In App →</a></p>` : '',
     ].filter(Boolean).join('\n');
 
     let conversationId = null;
@@ -322,9 +350,12 @@ export async function onRequestPost({ request, env }) {
         customer,
         tradeInId: body.tradeInId,
         content: csContent,
+        contentType: 'input_email',
+        assignToEmail: body.issuedBy || body.assoc || '',
         customAttributes: {
           cm_number: cmDisplay,
           doc_type: docLabel,
+          session_link: sessionLink,
           ...(body.tracking ? { tracking_number: body.tracking } : {}),
         },
       });

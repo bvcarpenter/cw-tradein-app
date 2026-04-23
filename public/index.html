@@ -772,6 +772,35 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
   </div>
 </div>
 
+<!-- EMAIL REVIEW MODAL -->
+<div class="mo" id="mo-email-review">
+  <div class="mod" style="max-width:580px;width:100%;">
+    <div class="mod-h"><h3>Review &amp; Send Email</h3><button class="mod-x" onclick="closeEmailReview()">&#215;</button></div>
+    <div class="mod-b" style="padding:22px 26px;">
+      <div style="margin-bottom:16px;">
+        <div style="font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;">Sending To</div>
+        <div id="er-recipient" style="font-size:14px;font-weight:400;color:var(--white);"></div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;">Document</div>
+        <div id="er-doc-info" style="font-size:12px;color:var(--dim);line-height:1.7;"></div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;">Items Summary</div>
+        <div id="er-items" style="font-size:12px;color:var(--dim);line-height:1.7;max-height:120px;overflow-y:auto;"></div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <div style="font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;">Personal Message <span style="font-weight:300;letter-spacing:.04em;text-transform:none;">(optional — included in email)</span></div>
+        <textarea id="er-personal-msg" rows="3" placeholder="Add a note to the customer…" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--white);font-family:var(--font-body);font-size:13px;padding:10px 12px;resize:vertical;line-height:1.6;letter-spacing:.02em;"></textarea>
+      </div>
+    </div>
+    <div class="mod-f">
+      <button class="btn btn-ol" onclick="closeEmailReview()">Cancel</button>
+      <button class="btn" id="er-send-btn" onclick="confirmSendEstimate()" style="background:#1a3a5a;color:#7ab8e0;border:1px solid #2a5a8a;">Send Email</button>
+    </div>
+  </div>
+</div>
+
 <!-- SESSIONS MANAGER MODAL -->
 <div class="mo" id="mo-sessions">
   <div class="mod" style="max-width:860px;width:100%;">
@@ -1032,6 +1061,13 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
   buildGrades();
   autoFillAssociate();
+
+  // Deep-link: auto-load session from ?session= parameter
+  const qsSession = new URLSearchParams(window.location.search).get('session');
+  if (qsSession) {
+    loadSession(qsSession);
+    history.replaceState(null, '', window.location.pathname);
+  }
 
   // ── Marketing consent toggle → update Shopify ──
   document.getElementById('c-marketing').addEventListener('change', async function() {
@@ -2382,16 +2418,39 @@ async function generateSessionPdfBase64() {
 // ════════════════════════════════════════════
 // EMAIL ESTIMATE TO CUSTOMER
 // ════════════════════════════════════════════
-async function emailEstimateToCustomer() {
+function emailEstimateToCustomer() {
   const email = document.getElementById('c-email').value.trim();
   if (!email) { alert('Customer email is required to send the estimate.'); return; }
   if (!sessionItems.length) { alert('No items in the session.'); return; }
-
   const custFirst = document.getElementById('c-first').value.trim();
-  const custLast = document.getElementById('c-last').value.trim();
   if (!custFirst) { alert('Customer first name is required.'); return; }
+  const custLast = document.getElementById('c-last').value.trim();
+  const docLabel = getDocLabel();
+  const totNet = sessionItems.reduce((s, i) => s + i.net, 0);
+  const ff = v => '$' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  if (!confirm(`Send ${getDocLabel()} to ${email}?`)) return;
+  // Populate review modal
+  document.getElementById('er-recipient').textContent = custFirst + (custLast ? ' ' + custLast : '') + ' — ' + email;
+  document.getElementById('er-doc-info').innerHTML =
+    `<strong>${esc(docLabel)}</strong> · ${sessionItems.length} item${sessionItems.length !== 1 ? 's' : ''} · Net: <span style="color:var(--accent);">${ff(totNet)}</span>` +
+    (document.getElementById('cm-num').value.trim() ? '<br>CM# ' + esc(document.getElementById('cm-num').value.trim()) : '');
+  document.getElementById('er-items').innerHTML = sessionItems.map(it =>
+    `<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border);">` +
+    `<span>${esc(it.name)} <span style="color:var(--accent);font-size:10px;">${esc(it.grade)}</span></span>` +
+    `<span style="color:var(--accent);white-space:nowrap;margin-left:12px;">${ff(it.net)}</span></div>`
+  ).join('');
+  document.getElementById('er-personal-msg').value = '';
+
+  document.getElementById('mo-email-review').classList.add('open');
+}
+
+function closeEmailReview() {
+  document.getElementById('mo-email-review').classList.remove('open');
+}
+
+async function confirmSendEstimate() {
+  closeEmailReview();
+  const personalMessage = (document.getElementById('er-personal-msg').value || '').trim();
 
   const btn = document.getElementById('email-cust-btn');
   const origText = btn.textContent;
@@ -2404,7 +2463,6 @@ async function emailEstimateToCustomer() {
       btn.textContent = 'Generating FedEx label…';
       try {
         cachedFedExLabel = await fetchFedExLabel();
-        // Update tracking field
         const trkEl = document.getElementById('tracking-num');
         if (trkEl && cachedFedExLabel.trackingNumber) {
           trkEl.value = cachedFedExLabel.trackingNumber;
@@ -2418,11 +2476,13 @@ async function emailEstimateToCustomer() {
       btn.textContent = 'Generating PDF…';
     }
 
-    // Generate the estimate PDF
     const pdfBase64 = await generateSessionPdfBase64();
 
     btn.textContent = 'Sending…';
 
+    const custFirst = document.getElementById('c-first').value.trim();
+    const custLast = document.getElementById('c-last').value.trim();
+    const email = document.getElementById('c-email').value.trim();
     const totNet = sessionItems.reduce((s, i) => s + i.net, 0);
     const svcGrand = sessionItems.reduce((s, i) => s + (i.svcCharge || 0), 0);
     const taxRate = getTaxRate();
@@ -2454,27 +2514,16 @@ async function emailEstimateToCustomer() {
       txnDate: document.getElementById('txn-date').value || new Date().toISOString().split('T')[0],
       assoc: document.getElementById('assoc').value.trim(),
       issuedBy: _loggedInEmail || '',
+      personalMessage: personalMessage,
       items: sessionItems.map(it => ({
-        name: it.name,
-        systemId: it.systemId,
-        grade: it.grade,
-        serial: it.serial,
-        catalog: it.catalog,
-        accessories: it.accessories,
-        notes: it.notes,
-        tradein: it.tradein,
-        net: it.net,
-        priceType: it.priceType,
-        svcCharge: it.svcCharge || 0,
-        svcReason: it.svcReason || '',
+        name: it.name, systemId: it.systemId, grade: it.grade, serial: it.serial,
+        catalog: it.catalog, accessories: it.accessories, notes: it.notes,
+        tradein: it.tradein, net: it.net, priceType: it.priceType,
+        svcCharge: it.svcCharge || 0, svcReason: it.svcReason || '',
       })),
       totals: {
-        netTotal: totNet,
-        svcTotal: svcGrand,
-        taxRate: taxRate,
-        estTax: estTax,
-        estGrand: estGrand,
-        finalTotal: finalTot,
+        netTotal: totNet, svcTotal: svcGrand, taxRate: taxRate,
+        estTax: estTax, estGrand: estGrand, finalTotal: finalTot,
       },
       docLabel: getDocLabel(),
       pdfBase64: pdfBase64,
