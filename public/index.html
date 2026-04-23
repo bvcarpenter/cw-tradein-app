@@ -3089,7 +3089,7 @@ async function execStoreCredit() {
       if (fa === 0) itemsLine = `<br>&#10003; ${nsItemsResult.created} NS item(s) created`;
       else itemsLine = `<br><span style="color:#d0a070;">&#9888; ${nsItemsResult.created} of ${sessionItems.length} NS items created — ${fa} failed (use Retry button)</span>`;
     } else if (nsItemsError) {
-      itemsLine = `<br><span style="color:#e07070;">&#10005; NS items failed: ${esc(nsItemsError)} (use Retry button)</span>`;
+      itemsLine = `<br><span style="color:#e07070;">&#10005; NS items failed: ${esc(nsItemsError).replace(/\n/g, '<br>')} (use Retry button)</span>`;
     }
     scMsg.innerHTML = `<strong>CM# ${esc(cm)}</strong> created in NetSuite`
       + `<br>Store credit issued — <strong>$${esc(credited)}</strong> (balance: $${esc(balance)})`
@@ -3229,7 +3229,10 @@ async function createNetsuiteItems(cmNum, items, location) {
   let data = {};
   try { data = text ? JSON.parse(text) : {}; } catch(e) {}
   if (!res.ok) {
-    const msg = data.error || text || `HTTP ${res.status}`;
+    let msg = data.error || text || `HTTP ${res.status}`;
+    if (data.errors?.length) {
+      msg += '\n' + data.errors.map(e => `${e.itemId}: ${e.error}`).join('\n');
+    }
     throw new Error(msg);
   }
   return data;
@@ -3274,7 +3277,7 @@ async function createNetsuiteItemsFromCurrent() {
     } catch(e) { /* ignore save failure */ }
   } catch (err) {
     status.style.color = '#e07070';
-    status.innerHTML = '<strong>NetSuite item creation failed:</strong><br>' + esc(err.message) +
+    status.innerHTML = '<strong>NetSuite item creation failed:</strong><br>' + esc(err.message).replace(/\n/g, '<br>') +
       '<br><span style="font-size:10px;color:var(--dim);">Session saved — click button again to retry.</span>';
     btn.disabled = false;
     btn.textContent = 'Retry Create Items';
