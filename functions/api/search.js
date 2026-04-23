@@ -302,6 +302,12 @@ const bySort = (a, b) => {
   return createdMs(b.p) - createdMs(a.p);
 };
 
+const byNewest = (a, b) => {
+  const da = createdMs(a.p), db = createdMs(b.p);
+  if (da !== db) return db - da;
+  return b.sc - a.sc;
+};
+
 // ── Request handler ─────────────────────────────────────────────────
 export async function onRequestGet({ request, env, ctx }) {
   const waitUntil = ctx?.waitUntil?.bind(ctx);
@@ -338,8 +344,8 @@ export async function onRequestGet({ request, env, ctx }) {
     } else if (source === 'shopify') {
       const shopify = await loadShopify(env, waitUntil);
       const scored = score(shopify, terms);
-      const inStock = scored.filter(r => r.p.inStock === true).sort(bySort);
-      const other = scored.filter(r => r.p.inStock !== true).sort(bySort);
+      const inStock = scored.filter(r => r.p.inStock === true).sort(byNewest);
+      const other = scored.filter(r => r.p.inStock !== true).sort(byNewest);
       products = [...inStock, ...other].slice(0, limit).map(r => r.p);
     } else {
       const [brand, shopify] = await Promise.all([
@@ -348,8 +354,8 @@ export async function onRequestGet({ request, env, ctx }) {
       ]);
       const brandResults = score(brand, terms).sort(bySort);
       const scoredShopify = score(shopify, terms);
-      const shopifyInStock = scoredShopify.filter(r => r.p.inStock === true).sort(bySort);
-      const shopifyOther = scoredShopify.filter(r => r.p.inStock !== true).sort(bySort);
+      const shopifyInStock = scoredShopify.filter(r => r.p.inStock === true).sort(byNewest);
+      const shopifyOther = scoredShopify.filter(r => r.p.inStock !== true).sort(byNewest);
       const remaining = Math.max(0, limit - brandResults.length);
       const shopifyResults = remaining > 0
         ? [...shopifyInStock, ...shopifyOther].slice(0, remaining)
