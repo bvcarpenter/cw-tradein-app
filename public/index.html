@@ -1096,6 +1096,7 @@ window.addEventListener('DOMContentLoaded', () => {
   updateUrlWithTradeInId(initId);
   buildGrades();
   autoFillAssociate();
+  startAutoSave();
 
   // Deep-link: auto-load session from ?session= parameter
   const qsSession = new URLSearchParams(window.location.search).get('session');
@@ -2514,17 +2515,16 @@ async function confirmSendEstimate() {
 
     btn.textContent = 'Sending…';
 
-    // Ensure we have a session key to link back to
-    if (!_loadedSessionKey) {
-      const tiId = document.getElementById('tradein-id').textContent || generateTradeInId();
-      _loadedSessionKey = tiId;
-      try {
-        const sd = getSessionData();
-        sd.key = tiId;
-        sd.name = (sd.customer.first + ' ' + sd.customer.last).trim() || 'Session';
-        await kvSaveSession(tiId, sd);
-      } catch(e) { console.warn('Auto-save before email failed:', e); }
-    }
+    // Always save session before sending email
+    const tiId = document.getElementById('tradein-id').textContent || generateTradeInId();
+    _loadedSessionKey = _loadedSessionKey || tiId;
+    try {
+      const sd = getSessionData();
+      sd.key = _loadedSessionKey;
+      sd.name = (sd.customer.first + ' ' + sd.customer.last).trim() || 'Session';
+      await kvSaveSession(_loadedSessionKey, sd);
+      _lastAutoSaveJson = JSON.stringify(sd);
+    } catch(e) { console.warn('Save before email failed:', e); }
 
     const custFirst = document.getElementById('c-first').value.trim();
     const custLast = document.getElementById('c-last').value.trim();
@@ -2778,6 +2778,40 @@ async function kvDeleteSession(key) {
   return await r.json();
 }
 
+let _autoSaveTimer = null;
+let _lastAutoSaveJson = '';
+
+async function autoSave() {
+  const hasData = sessionItems.length || document.getElementById('c-first').value.trim();
+  if (!hasData) return;
+  const tiId = document.getElementById('tradein-id').textContent;
+  if (!tiId) return;
+  const data = getSessionData();
+  const snapshot = JSON.stringify(data);
+  if (snapshot === _lastAutoSaveJson) return;
+  const key = _loadedSessionKey || data.tradeInId || tiId;
+  _loadedSessionKey = key;
+  data.name = (data.customer.first + ' ' + data.customer.last).trim()
+    || 'Session ' + new Date().toLocaleDateString();
+  data.key = key;
+  try {
+    await kvSaveSession(key, data);
+    _lastAutoSaveJson = snapshot;
+    updateUrlWithTradeInId(key);
+  } catch (e) {
+    console.warn('Autosave failed:', e);
+  }
+}
+
+function startAutoSave() {
+  if (_autoSaveTimer) return;
+  _autoSaveTimer = setInterval(autoSave, 30000);
+}
+
+function stopAutoSave() {
+  if (_autoSaveTimer) { clearInterval(_autoSaveTimer); _autoSaveTimer = null; }
+}
+
 async function saveSession() {
   if (!selLoc) { alert('Please select a preferred location.'); return null; }
   const data = getSessionData();
@@ -2791,6 +2825,7 @@ async function saveSession() {
   showToast('Saving…');
   try {
     await kvSaveSession(key, data);
+    _lastAutoSaveJson = JSON.stringify(getSessionData());
     showToast('Session saved ✓');
     return 'kv';
   } catch(e) {
@@ -2807,6 +2842,16 @@ async function saveSession() {
 
 async function loadSession(key) {
   if (!confirm('Load this session? Current session data will be replaced.')) return;
+  // Save current session before switching
+  const hasData = sessionItems.length || document.getElementById('c-first').value.trim();
+  if (hasData && _loadedSessionKey) {
+    try {
+      const sd = getSessionData();
+      sd.key = _loadedSessionKey;
+      sd.name = (sd.customer.first + ' ' + sd.customer.last).trim() || 'Session';
+      await kvSaveSession(_loadedSessionKey, sd);
+    } catch (e) { console.warn('Save before switch failed:', e); }
+  }
   try {
     const r = await fetch('/api/sessions?key=' + encodeURIComponent(key));
     let data = null;
@@ -2818,6 +2863,7 @@ async function loadSession(key) {
     if (!data) { alert('Session not found.'); return; }
     _loadedSessionKey = key;
     restoreSessionData(data);
+    _lastAutoSaveJson = JSON.stringify(getSessionData());
     showToast('Session loaded.');
   } catch(e) { alert('Failed to load session: ' + e.message); }
 }
@@ -3520,6 +3566,7 @@ function resetSessionForm() {
   window._csConversationId = '';
   _loadedSessionKey = null;
   _nsGrandTotal = 0;
+  _lastAutoSaveJson = '';
   renderCart(); clrItem();
   const newId = generateTradeInId();
   document.getElementById('tradein-id').textContent = newId;
