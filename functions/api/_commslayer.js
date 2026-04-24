@@ -32,8 +32,9 @@ export async function findContactByEmail(env, email) {
     { headers: headers(env.COMMSLAYER_API_TOKEN) },
   );
   if (!r.ok) return null;
-  const { data } = await r.json();
-  return data?.length ? data[0] : null;
+  const body = await r.json();
+  const list = body.data || body.payload || body;
+  return Array.isArray(list) && list.length ? list[0] : null;
 }
 
 /**
@@ -51,7 +52,8 @@ export async function createContact(env, { name, email, phone }) {
     const err = await r.text().catch(() => '');
     throw new Error(`CommsLayer create contact failed (${r.status}): ${err}`);
   }
-  return (await r.json()).data;
+  const cbody = await r.json();
+  return cbody.data || cbody;
 }
 
 /**
@@ -87,7 +89,8 @@ export async function createConversation(env, { contactId, tradeInId, customAttr
     const err = await r.text().catch(() => '');
     throw new Error(`CommsLayer create conversation failed (${r.status}): ${err}`);
   }
-  return (await r.json()).data;
+  const body = await r.json();
+  return body.data || body;
 }
 
 /**

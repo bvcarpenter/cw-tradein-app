@@ -46,12 +46,15 @@ export async function onRequestPost({ request, env }) {
       customAttributes: { status: 'new' },
     });
 
-    const displayId = conversation.display_id || conversation.id;
+    console.log('create-ticket conversation response:', JSON.stringify(conversation));
+
+    const displayId = conversation.display_id ?? conversation.id;
     const ticketId = `CWTI-${displayId}`;
     const accountId = conversation.account_id || env.COMMSLAYER_ACCOUNT_ID;
     let conversationUrl = null;
+    const convId = conversation.display_id || conversation.id;
     if (accountId) {
-      conversationUrl = `https://app.commslayer.com/app/accounts/${accountId}/conversations/${displayId}`;
+      conversationUrl = `https://app.commslayer.com/app/accounts/${accountId}/conversations/${convId}`;
     }
 
     return json({
@@ -60,6 +63,7 @@ export async function onRequestPost({ request, env }) {
       conversationId: conversation.id,
       displayId,
       conversationUrl,
+      _debug: { keys: Object.keys(conversation || {}), display_id: conversation.display_id, id: conversation.id },
     });
   } catch (err) {
     console.error('create-ticket error:', err);
