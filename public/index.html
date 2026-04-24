@@ -951,6 +951,26 @@ function generateTradeInId(date) {
   return `CWTI-${yy}${mm}${dd}-${suffix}`;
 }
 
+async function createTicket() {
+  try {
+    const r = await fetch('/api/create-ticket', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    if (!r.ok) throw new Error('create-ticket ' + r.status);
+    const data = await r.json();
+    if (!data.ok || !data.ticketId) throw new Error('No ticket ID returned');
+    window._csConversationId = data.conversationId || '';
+    window._csConversationUrl = data.conversationUrl || '';
+    showCommLink(data.conversationUrl || '');
+    return data.ticketId;
+  } catch (e) {
+    console.warn('createTicket failed, using local ID:', e);
+    return generateTradeInId();
+  }
+}
+
 function updateUrlWithTradeInId(id) {
   if (!id) return;
   const url = new URL(window.location);
@@ -1091,9 +1111,6 @@ const LEN_T = new Set(['Lenses','Close Up','Teleconverters','Filters','UV Filter
 // ════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
-  const initId = generateTradeInId();
-  document.getElementById('tradein-id').textContent = initId;
-  updateUrlWithTradeInId(initId);
   buildGrades();
   autoFillAssociate();
   startAutoSave();
@@ -1102,6 +1119,15 @@ window.addEventListener('DOMContentLoaded', () => {
   const qsSession = new URLSearchParams(window.location.search).get('session');
   if (qsSession) {
     loadSession(qsSession);
+  } else {
+    // New session — create CommsLayer ticket to get the CWTI ID
+    const tempId = generateTradeInId();
+    document.getElementById('tradein-id').textContent = tempId;
+    updateUrlWithTradeInId(tempId);
+    createTicket().then(ticketId => {
+      document.getElementById('tradein-id').textContent = ticketId;
+      updateUrlWithTradeInId(ticketId);
+    });
   }
 
   // ── Marketing consent toggle → update Shopify ──
@@ -2556,6 +2582,7 @@ async function confirmSendEstimate() {
       } : null,
       tracking: tracking,
       tradeInId: document.getElementById('tradein-id').textContent || _loadedSessionKey || '',
+      conversationId: window._csConversationId || '',
       cmNum: document.getElementById('cm-num').value.trim(),
       txnDate: document.getElementById('txn-date').value || new Date().toISOString().split('T')[0],
       assoc: document.getElementById('assoc').value.trim(),
@@ -3568,10 +3595,14 @@ function resetSessionForm() {
   _nsGrandTotal = 0;
   _lastAutoSaveJson = '';
   renderCart(); clrItem();
-  const newId = generateTradeInId();
-  document.getElementById('tradein-id').textContent = newId;
-  updateUrlWithTradeInId(newId);
+  const tempId = generateTradeInId();
+  document.getElementById('tradein-id').textContent = tempId;
+  updateUrlWithTradeInId(tempId);
   showCommLink('');
+  createTicket().then(ticketId => {
+    document.getElementById('tradein-id').textContent = ticketId;
+    updateUrlWithTradeInId(ticketId);
+  });
   ['c-first','c-last','c-email','c-phone','cm-num','assoc','tracking-num','final-total','s-str','s-city','s-st','s-zip']
     .forEach(id => document.getElementById(id).value = '');
   document.getElementById('c-marketing').checked = true;
