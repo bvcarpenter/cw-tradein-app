@@ -58,6 +58,8 @@
   #cw-trade-in .item-ri-mpn { font-size: 11px; color: #555555; margin-top: 2px; letter-spacing: 0.02em; }
   #cw-trade-in .item-ri-p { font-size: 13px; color: #2a7a50; font-weight: 700; flex-shrink: 0; }
   #cw-trade-in .item-no-res { padding: 14px; font-size: 13px; color: #666666; text-align: center; }
+  #cw-trade-in .item-srch-hdr { padding: 6px 14px; font-size: 9px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #999; background: #f4f3f0; border-bottom: 1px solid #e0ddd8; }
+  #cw-trade-in .item-srch-loading { padding: 8px 14px; font-size: 11px; color: #999; letter-spacing: 0.04em; }
   #cw-trade-in .item-picked { display: none; align-items: center; gap: 12px; padding: 10px 14px; background: #f8f7f5; border: 1px solid #e0ddd8; margin-bottom: 20px; }
   #cw-trade-in .item-picked.vis { display: flex; }
   #cw-trade-in .item-picked-info { flex: 1; min-width: 0; }
@@ -404,7 +406,7 @@
     }).join('');
     el.innerHTML = ''
       + '<div class="item-head"><span class="item-tag" id="cwlbl-' + i + '">Item ' + pad(i) + '</span>' + removeBtn + '</div>'
-      + '<div class="item-srch-wrap" id="cwisw-' + i + '"><label>Search Catalog</label>'
+      + '<div class="item-srch-wrap" id="cwisw-' + i + '"><label>Look Up Item</label>'
       +   '<svg class="item-srch-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
       +   '<input type="text" id="cwisrch-' + i + '" placeholder="Search by product name\u2026" oninput="cwItemSearch(' + i + ',this.value)" autocomplete="off" />'
       +   '<div class="item-srch-res" id="cwisres-' + i + '"></div>'
@@ -486,36 +488,79 @@
     itemSearchTimers[i] = setTimeout(function() { runItemSearch(i, v); }, 280);
   };
 
+  function renderItemRow(i, p, idx) {
+    var meta = [p.it, p.m, p.fmt].filter(Boolean).join(' \u00b7 ');
+    var name = (p.n||'').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    var mpn = p.src === 'brand' ? (p.sku||'').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+    var pr = p.p ? '<div class="item-ri-p">$' + Number(p.p).toLocaleString('en-US', {minimumFractionDigits:0}) + '</div>' : '';
+    return '<div class="item-ri" onclick="cwPickItemResult(' + i + ',' + idx + ')">'
+      + '<div style="flex:1;min-width:0;"><div class="item-ri-n">' + name + '</div>'
+      + (mpn ? '<div class="item-ri-mpn">MPN: ' + mpn + '</div>' : '')
+      + '<div class="item-ri-m">' + meta + '</div></div>'
+      + pr + '</div>';
+  }
+
+  function renderItemResults(i, brandProducts, shopifyProducts) {
+    var el = document.getElementById('cwisres-' + i);
+    var all = (brandProducts || []).concat(shopifyProducts || []);
+    itemSearchCache[i] = all;
+
+    if (!all.length && shopifyProducts !== null) {
+      el.innerHTML = '<div class="item-no-res">No results found \u2014 type in Make &amp; Model manually below</div>';
+      el.style.display = 'block';
+      return;
+    }
+
+    var html = '';
+    if (brandProducts && brandProducts.length) {
+      html += '<div class="item-srch-hdr">Trade Matrix</div>';
+      var offset = 0;
+      html += brandProducts.map(function(p, idx) { return renderItemRow(i, p, offset + idx); }).join('');
+    }
+    if (shopifyProducts === null) {
+      html += '<div class="item-srch-loading">Loading pre-owned inventory\u2026</div>';
+    } else if (shopifyProducts.length) {
+      var sOffset = (brandProducts || []).length;
+      html += '<div class="item-srch-hdr">Pre-Owned Inventory</div>';
+      html += shopifyProducts.map(function(p, idx) { return renderItemRow(i, p, sOffset + idx); }).join('');
+    }
+    if (!html) html = '<div class="item-no-res">Searching\u2026</div>';
+    el.innerHTML = html;
+    el.style.display = 'block';
+  }
+
   function runItemSearch(i, q) {
     var el = document.getElementById('cwisres-' + i);
 
-    // Cancel any previous in-flight request for this item
     if (itemSearchAbort[i]) itemSearchAbort[i].abort();
     itemSearchAbort[i] = new AbortController();
+    var signal = itemSearchAbort[i].signal;
+    var qEnc = encodeURIComponent(q);
 
-    fetch(SEARCH_API_URL + '?q=' + encodeURIComponent(q) + '&limit=20', { signal: itemSearchAbort[i].signal })
+    var brandReq = fetch(SEARCH_API_URL + '?q=' + qEnc + '&limit=20&source=brand', { signal: signal });
+    var shopifyReq = fetch(SEARCH_API_URL + '?q=' + qEnc + '&limit=20&source=shopify', { signal: signal });
+
+    brandReq
       .then(function(res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
-      .then(function(data) {
-        var products = data.products || [];
-        itemSearchCache[i] = products;
-        if (!products.length) {
-          el.innerHTML = '<div class="item-no-res">No results \u2014 type in Make &amp; Model manually below</div>';
-        } else {
-          el.innerHTML = products.map(function(p, idx) {
-            var meta = [p.si, p.it, p.m].filter(Boolean).join(' \u00b7 ');
-            var name = p.n.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            var mpn = (p.sku||'').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            return '<div class="item-ri" onclick="cwPickItemResult(' + i + ',' + idx + ')">'
-              + '<div><div class="item-ri-n">' + name + '</div>' + (mpn ? '<div class="item-ri-mpn">MPN: ' + mpn + '</div>' : '') + '<div class="item-ri-m">' + meta + '</div></div>'
-              + '</div>';
-          }).join('');
-        }
-        el.style.display = 'block';
+      .then(function(brandData) {
+        var bp = brandData.products || [];
+        renderItemResults(i, bp, null);
+        return shopifyReq;
+      })
+      .then(function(res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+      .then(function(shopifyData) {
+        var brandAll = (itemSearchCache[i] || []).filter(function(p) { return p.src === 'brand'; });
+        renderItemResults(i, brandAll, shopifyData.products || []);
       })
       .catch(function(e) {
         if (e.name === 'AbortError') return;
-        el.innerHTML = '<div class="item-no-res">Search unavailable \u2014 enter details manually below</div>';
-        el.style.display = 'block';
+        var brandAll = (itemSearchCache[i] || []).filter(function(p) { return p.src === 'brand'; });
+        if (brandAll.length) {
+          renderItemResults(i, brandAll, []);
+        } else {
+          el.innerHTML = '<div class="item-no-res">Search unavailable \u2014 enter details manually below</div>';
+          el.style.display = 'block';
+        }
       });
   }
 
