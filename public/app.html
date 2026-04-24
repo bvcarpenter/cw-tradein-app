@@ -257,7 +257,6 @@ body {
 .ri-stock { font-size: 9px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 2px 6px; background: rgba(52,168,83,.12); border: 1px solid rgba(52,168,83,.45); color: #57b46a; border-radius: 2px; white-space: nowrap; flex-shrink: 0; }
 .ri-mpn { font-size: 10px; color: var(--dim); margin-top: 1px; letter-spacing: 0.04em; font-style: italic; }
 .ri-r { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
-.ri-g { font-size: 10px; font-weight: 500; letter-spacing: .06em; padding: 3px 7px; background: var(--acc-dim); border: 1px solid var(--acc-mid); color: var(--accent); border-radius: 2px; }
 .ri-m { font-size: 10px; color: var(--dim); margin-top: 2px; letter-spacing: 0.04em; }
 .ri-p { font-size: 12px; color: var(--accent); flex-shrink: 0; }
 .no-res { padding: 16px; font-size: 12px; color: var(--dim); text-align: center; letter-spacing: 0.05em; }
@@ -1439,25 +1438,18 @@ const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g
 function renderResultRow(p, i) {
   const pr = p.p ? '$'+p.p.toLocaleString('en-US',{minimumFractionDigits:0}) : '';
   const meta = [p.it, p.m, p.fmt].filter(Boolean).join(' · ');
-  let badge = '';
-  if (p.src === 'brand') {
-    badge = `<div class="ri-g" style="color:#1a6fc4;background:rgba(26,111,196,.10);border-color:rgba(26,111,196,.40)">MATRIX</div>`;
-  } else if (p.grade) {
-    badge = `<div class="ri-g" style="color:${gradeColor(p.grade).c};background:${gradeColor(p.grade).bg};border-color:${gradeColor(p.grade).bd}">${esc(p.grade)}</div>`;
-  }
   const mpn = p.src === 'brand' ? (p.sku || '') : '';
   const dateTag = (p.src !== 'brand' && p.created) ? fmtCreatedDate(p.created) : '';
   const stockTag = p.inStock === true
-    ? `<div class="ri-stock" title="Currently in stock in Shopify">In Stock</div>` : '';
+    ? `<div class="ri-stock" title="Currently in stock">In Stock</div>` : '';
   return `<div class="ri" onclick="pickResult(${i})">
     <div style="flex:1;min-width:0;">
-      <div class="ri-n">${esc(p.n)}${dateTag ? ` <span class="ri-date" title="Date added to inventory">${esc(dateTag)}</span>` : ''}</div>${mpn ? `<div class="ri-mpn">MPN: ${esc(mpn)}</div>` : ''}
+      <div class="ri-n">${esc(p.n)}${dateTag ? ` <span class="ri-date">${esc(dateTag)}</span>` : ''}</div>${mpn ? `<div class="ri-mpn">MPN: ${esc(mpn)}</div>` : ''}
       <div class="ri-m">${esc(meta)}</div>
     </div>
     <div class="ri-r">
       ${pr ? `<div class="ri-p">${pr}</div>` : ''}
       ${stockTag}
-      ${badge}
     </div>
   </div>`;
 }
