@@ -344,6 +344,7 @@ export async function onRequestPost({ request, env, ctx }) {
     const csPromise = logTradeInEvent(env, {
       customer,
       tradeInId: body.tradeInId,
+      conversationId: body.conversationId || null,
       content: csContent,
       assignToEmail: body.issuedBy || body.assoc || '',
       customAttributes: {

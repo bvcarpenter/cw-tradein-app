@@ -224,7 +224,7 @@ export async function findAgentByEmail(env, email) {
  * @param {string} content         — message body (plain text / markdown)
  * @param {object} [opts]          — { isPrivate, customAttributes, assignToEmail }
  */
-export async function logTradeInEvent(env, { customer, tradeInId, content, isPrivate = false, customAttributes = {}, assignToEmail }) {
+export async function logTradeInEvent(env, { customer, tradeInId, content, isPrivate = false, customAttributes = {}, assignToEmail, conversationId }) {
   if (!env.COMMSLAYER_API_TOKEN || !env.COMMSLAYER_INBOX_ID) {
     console.warn('CommsLayer not configured — skipping event log');
     return null;
@@ -240,8 +240,25 @@ export async function logTradeInEvent(env, { customer, tradeInId, content, isPri
       phone: customer.phone,
     });
 
-    // 2. Find existing conversation for this trade-in, or create one
-    let conversation = tradeInId ? await findConversationByTradeInId(env, tradeInId) : null;
+    // 2. Use existing conversation (by ID), find by trade-in ID, or create new
+    let conversation = null;
+    if (conversationId) {
+      // Conversation was pre-created at session start — update its contact & attributes
+      try {
+        await updateConversation(env, conversationId, {
+          trade_in_id: tradeInId,
+          contact_id: contact.id,
+          ...customAttributes,
+        });
+        const r = await fetch(`${BASE}/conversations/${conversationId}`, {
+          headers: headers(env.COMMSLAYER_API_TOKEN),
+        });
+        if (r.ok) conversation = (await r.json()).data || await r.json();
+      } catch (_) {}
+    }
+    if (!conversation) {
+      conversation = tradeInId ? await findConversationByTradeInId(env, tradeInId) : null;
+    }
     if (!conversation) {
       conversation = await createConversation(env, {
         contactId: contact.id,
@@ -249,7 +266,7 @@ export async function logTradeInEvent(env, { customer, tradeInId, content, isPri
         customAttributes,
       });
     } else if (Object.keys(customAttributes).length) {
-      await updateConversation(env, conversation.id, {
+      await updateConversation(env, conversation.id || conversationId, {
         ...conversation.custom_attributes,
         ...customAttributes,
       });
