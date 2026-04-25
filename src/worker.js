@@ -12,13 +12,10 @@ import { onRequestPost as customerMarketingPost, onRequestOptions as customerMar
 import { onRequestPost as tradeEmailPost, onRequestOptions as tradeEmailOptions } from '../functions/api/trade-email.js';
 import { onRequestPost as storeCreditPost, onRequestOptions as storeCreditOptions } from '../functions/api/store-credit.js';
 import { onRequestPost as creditMemoPost, onRequestOptions as creditMemoOptions } from '../functions/api/netsuite-credit-memo.js';
-import { onRequestPost as nsItemsPost, onRequestOptions as nsItemsOptions } from '../functions/api/netsuite-items.js';
-import { onRequestPost as estimateEmailPost, onRequestOptions as estimateEmailOptions } from '../functions/api/estimate-email.js';
 import { onRequestPost as fedexLabelPost, onRequestOptions as fedexLabelOptions } from '../functions/api/fedex-label.js';
 import { onRequestPost as fedexTrackPost, onRequestOptions as fedexTrackOptions } from '../functions/api/fedex-track.js';
 import { onRequestPost as approveOtpPost, onRequestOptions as approveOtpOptions } from '../functions/api/approve-otp.js';
 import { onRequestGet as productLookupGet, onRequestOptions as productLookupOptions } from '../functions/api/product-lookup.js';
-import { onRequestPost as gdriveUploadPost, onRequestOptions as gdriveUploadOptions } from '../functions/api/gdrive-upload.js';
 import { onRequestPost as authRequestPost, onRequestOptions as authRequestOptions } from '../functions/api/auth/request.js';
 import { onRequestGet as authSessionGet, onRequestPost as authSessionPost } from '../functions/api/auth/session.js';
 import { onRequestGet as authVerifyGet } from '../functions/api/auth/verify.js';
@@ -51,10 +48,19 @@ function isPublicPath(path) {
 
 export default {
   async fetch(request, env, ctx) {
+   try {
     const url = new URL(request.url);
     const path = url.pathname;
     const method = request.method;
     const c = { request, env, ctx };
+
+    if (path === '/api/health') {
+      return new Response(JSON.stringify({
+        ok: true,
+        ts: new Date().toISOString(),
+        v: '2026-04-25a',
+      }), { headers: { 'Content-Type': 'application/json' } });
+    }
 
     // ── Auth gate — redirect unauthenticated page requests to /login ──
     const isPage = path === '/' || path === '/app' || path === '/index.html' || path === '/app.html';
@@ -101,8 +107,9 @@ export default {
     }
 
     if (path === '/api/estimate-email') {
-      if (method === 'OPTIONS') return estimateEmailOptions(c);
-      if (method === 'POST')    return estimateEmailPost(c);
+      const mod = await import('../functions/api/estimate-email.js');
+      if (method === 'OPTIONS') return mod.onRequestOptions(c);
+      if (method === 'POST')    return mod.onRequestPost(c);
     }
 
     if (path === '/api/customer-marketing') {
@@ -121,8 +128,9 @@ export default {
     }
 
     if (path === '/api/netsuite-items') {
-      if (method === 'OPTIONS') return nsItemsOptions(c);
-      if (method === 'POST')    return nsItemsPost(c);
+      const mod = await import('../functions/api/netsuite-items.js');
+      if (method === 'OPTIONS') return mod.onRequestOptions(c);
+      if (method === 'POST')    return mod.onRequestPost(c);
     }
 
     if (path === '/api/fedex-label') {
@@ -146,8 +154,9 @@ export default {
     }
 
     if (path === '/api/gdrive-upload') {
-      if (method === 'OPTIONS') return gdriveUploadOptions(c);
-      if (method === 'POST')    return gdriveUploadPost(c);
+      const mod = await import('../functions/api/gdrive-upload.js');
+      if (method === 'OPTIONS') return mod.onRequestOptions(c);
+      if (method === 'POST')    return mod.onRequestPost(c);
     }
 
     if (path === '/api/create-ticket') {
@@ -181,5 +190,16 @@ export default {
     }
 
     return res;
+
+   } catch (err) {
+    console.error('Worker top-level error:', err, err?.stack);
+    return new Response(JSON.stringify({
+      error: 'Worker error: ' + (err?.message || String(err)),
+      stack: err?.stack?.split('\n').slice(0, 5),
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    });
+   }
   }
 };
