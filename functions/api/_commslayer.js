@@ -256,7 +256,10 @@ export async function logTradeInEvent(env, { customer, tradeInId, content, isPri
         const r = await fetch(`${BASE}/conversations/${conversationId}`, {
           headers: headers(env.COMMSLAYER_API_TOKEN),
         });
-        if (r.ok) conversation = (await r.json()).data || await r.json();
+        if (r.ok) {
+          const body = await r.json();
+          conversation = body.data || body;
+        }
       } catch (_) {}
     }
     if (!conversation) {
