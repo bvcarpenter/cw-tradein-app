@@ -19,7 +19,6 @@ import { onRequestPost as fedexTrackPost, onRequestOptions as fedexTrackOptions 
 import { onRequestPost as approveOtpPost, onRequestOptions as approveOtpOptions } from '../functions/api/approve-otp.js';
 import { onRequestGet as productLookupGet, onRequestOptions as productLookupOptions } from '../functions/api/product-lookup.js';
 import { onRequestPost as gdriveUploadPost, onRequestOptions as gdriveUploadOptions } from '../functions/api/gdrive-upload.js';
-import { onRequestPost as createTicketPost, onRequestOptions as createTicketOptions } from '../functions/api/create-ticket.js';
 import { onRequestPost as authRequestPost, onRequestOptions as authRequestOptions } from '../functions/api/auth/request.js';
 import { onRequestGet as authSessionGet, onRequestPost as authSessionPost } from '../functions/api/auth/session.js';
 import { onRequestGet as authVerifyGet } from '../functions/api/auth/verify.js';
@@ -152,8 +151,9 @@ export default {
     }
 
     if (path === '/api/create-ticket') {
-      if (method === 'OPTIONS') return createTicketOptions(c);
-      if (method === 'POST')    return createTicketPost(c);
+      const mod = await import('../functions/api/create-ticket.js');
+      if (method === 'OPTIONS') return mod.onRequestOptions(c);
+      if (method === 'POST')    return mod.onRequestPost(c);
     }
 
     if (path === '/api/auth/request') {
