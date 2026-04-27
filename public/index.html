@@ -813,7 +813,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
         <button class="tnav" id="sm-tab-complete" onclick="smTab('complete',this)">Complete</button>
       </div>
       <div style="padding:12px 20px 0;">
-        <input id="sm-search" type="text" placeholder="Search by name, email, item, serial…" oninput="renderSessionsMgr()" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--white);font-family:var(--font-body);font-size:12px;padding:9px 12px;outline:none;box-sizing:border-box;margin-bottom:8px;">
+        <input id="sm-search" type="text" placeholder="Search by name, email, session ID, item, serial…" oninput="renderSessionsMgr()" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--white);font-family:var(--font-body);font-size:12px;padding:9px 12px;outline:none;box-sizing:border-box;margin-bottom:8px;">
         <div style="display:flex;gap:8px;">
           <select id="sm-filter-loc" onchange="renderSessionsMgr()" style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--dim);font-family:var(--font-body);font-size:11px;padding:7px 10px;outline:none;appearance:none;-webkit-appearance:none;cursor:pointer;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(245,245,240,0.35)'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 10px center;padding-right:26px;">
             <option value="">All Locations</option>
@@ -825,6 +825,12 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
           </select>
           <select id="sm-filter-assoc" onchange="renderSessionsMgr()" style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--dim);font-family:var(--font-body);font-size:11px;padding:7px 10px;outline:none;appearance:none;-webkit-appearance:none;cursor:pointer;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(245,245,240,0.35)'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 10px center;padding-right:26px;">
             <option value="">All Associates</option>
+          </select>
+          <select id="sm-sort" onchange="renderSessionsMgr()" style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--dim);font-family:var(--font-body);font-size:11px;padding:7px 10px;outline:none;appearance:none;-webkit-appearance:none;cursor:pointer;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(245,245,240,0.35)'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 10px center;padding-right:26px;">
+            <option value="updated-desc">Updated: Newest</option>
+            <option value="updated-asc">Updated: Oldest</option>
+            <option value="created-desc">Created: Newest</option>
+            <option value="created-asc">Created: Oldest</option>
           </select>
         </div>
       </div>
@@ -2998,7 +3004,20 @@ async function renderSessionsMgr() {
     const inames = items.map(i => (i.name || '').toLowerCase()).join(' ');
     const sers   = items.map(i => (i.serial || '').toLowerCase()).join(' ');
     const tid = (d.tradeInId || '').toLowerCase();
-    return cust.includes(q) || email.includes(q) || inames.includes(q) || sers.includes(q) || assoc.includes(q) || tid.includes(q);
+    const skey = (s.key || '').toLowerCase();
+    return cust.includes(q) || email.includes(q) || inames.includes(q) || sers.includes(q) || assoc.includes(q) || tid.includes(q) || skey.includes(q);
+  });
+
+  const sortVal = document.getElementById('sm-sort')?.value || 'updated-desc';
+  rows.sort((a, b) => {
+    if (sortVal === 'updated-desc' || sortVal === 'updated-asc') {
+      const ta = new Date(a.data?.savedAt || 0).getTime();
+      const tb = new Date(b.data?.savedAt || 0).getTime();
+      return sortVal === 'updated-desc' ? tb - ta : ta - tb;
+    }
+    const ca = parseInt(a.key.replace('cwti_', ''), 10) || 0;
+    const cb = parseInt(b.key.replace('cwti_', ''), 10) || 0;
+    return sortVal === 'created-desc' ? cb - ca : ca - cb;
   });
 
   if (!rows.length) {
