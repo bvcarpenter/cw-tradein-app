@@ -18,7 +18,7 @@
  */
 
 import { generateTradeInId } from './_tradein-id.js';
-import { logTradeInEvent, addMessage } from './_commslayer.js';
+import { logTradeInEvent } from './_commslayer.js';
 
 const CORS = {
   'Content-Type': 'application/json',
@@ -131,8 +131,8 @@ export async function onRequestPost({ request, env }) {
     await kv.put(INDEX_KEY, JSON.stringify(index));
 
     // Log to CommsLayer (non-blocking)
-    const appUrl = env.APP_URL || 'https://cw-tradein-app.pages.dev';
-    const sessionLink = `${appUrl}/app?session=${encodeURIComponent(key)}`;
+    const appOrigin = new URL(request.url).origin;
+    const sessionLink = `${appOrigin}/?session=${encodeURIComponent(key)}`;
     const itemList = items.map((it, i) => `  ${i + 1}. ${it.description || 'Unknown'} (${it.condition || 'N/A'})`).join('\n');
     const csContent = [
       `🆕 Trade-in request submitted via web form`,
@@ -143,6 +143,7 @@ export async function onRequestPost({ request, env }) {
       `\nItems:\n${itemList}`,
       notes ? `\nCustomer Notes: ${notes}` : '',
       `\nStatus: Pending review`,
+      `\n[Open in Trade-In App →](${sessionLink})`,
     ].filter(Boolean).join('\n');
 
     logTradeInEvent(env, {
@@ -159,13 +160,28 @@ export async function onRequestPost({ request, env }) {
         location: location || '',
         status: 'pending_review',
         source: 'web-form',
+        session_link: sessionLink,
       },
-    }).then(result => {
-      if (result?.conversation) {
-        return addMessage(env, result.conversation.id, {
-          content: `🔗 Open in Trade-In App: ${sessionLink}`,
-          isPrivate: true,
-        });
+    }).then(async (result) => {
+      if (!result?.conversation) return;
+      const convId = result.conversation.id;
+      const displayId = result.conversation.display_id || convId;
+      const accountId = result.conversation.account_id || env.COMMSLAYER_ACCOUNT_ID;
+      const convUrl = accountId
+        ? `https://app.commslayer.com/app/accounts/${accountId}/conversations/${displayId}`
+        : '';
+
+      // Save conversation link back to the session so staff sees it when they load
+      try {
+        const raw = await kv.get(key);
+        if (raw) {
+          const sess = JSON.parse(raw);
+          sess.commslayerId = String(convId);
+          sess.commslayerUrl = convUrl;
+          await kv.put(key, JSON.stringify(sess));
+        }
+      } catch (e) {
+        console.error('Failed to update session with conversation ID:', e);
       }
     }).catch(err => console.error('CommsLayer trade-form log error:', err));
 
