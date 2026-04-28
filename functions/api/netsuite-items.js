@@ -151,7 +151,7 @@ const LOCATION_MAP = {
 // Find them in: Customization > Lists, Records & Fields > Item Fields
 const CF = {
   brand:                'class',
-  systemIdentifier:     'custitem_system_identifier',
+  systemIdentifier:     'custitem5',
   softVouch:            'custitem_soft_vouch',
   mainDepartment:       'custitem_maindepartment',
   subDepartment:        'custitem_subdepartment',
@@ -228,8 +228,9 @@ function buildItemRecord(item, idx, cmNum, locationRef, refs) {
   record[CF.newUsed] = { id: '2' };
 
   if (refs?.systemId) record[CF.systemIdentifier] = refs.systemId;
+  else if (item.systemId) record[CF.systemIdentifier] = { name: item.systemId };
   if (refs?.department) record[CF.subletDepartment] = refs.department;
-  // custitem_subdepartment skipped — needs format investigation
+  if (item.format) record[CF.subDepartment] = { name: item.format };
 
   const gradeId = COSMETIC_GRADE[item.grade];
   if (gradeId) record[CF.cosmeticCondition] = { id: gradeId };
