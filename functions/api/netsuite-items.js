@@ -61,7 +61,7 @@ async function lookupSubDepartmentId(env, name) {
   const sqlUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql`;
   try {
     const data = await netsuiteRequest(env, 'POST', sqlUrl, {
-      q: `SELECT DISTINCT custitem_subdepartment AS id, BUILTIN.DF(custitem_subdepartment) AS name FROM inventoryItem WHERE custitem_subdepartment IS NOT NULL`,
+      q: `SELECT DISTINCT custitem_subdepartment AS id, BUILTIN.DF(custitem_subdepartment) AS name FROM inventoryItem WHERE custitem_subdepartment IS NOT NULL FETCH FIRST 200 ROWS ONLY`,
     }, { 'Prefer': 'transient' });
     const items = data?.items || [];
     if (items.length) {
@@ -117,7 +117,7 @@ async function lookupCustomListValue(env, fieldId, valueName) {
   // Query actual values from existing inventory items using BUILTIN.DF
   try {
     const data = await netsuiteRequest(env, 'POST', sqlUrl, {
-      q: `SELECT DISTINCT ${fieldId} AS id, BUILTIN.DF(${fieldId}) AS name FROM inventoryItem WHERE ${fieldId} IS NOT NULL`,
+      q: `SELECT DISTINCT ${fieldId} AS id, BUILTIN.DF(${fieldId}) AS name FROM inventoryItem WHERE ${fieldId} IS NOT NULL FETCH FIRST 200 ROWS ONLY`,
     }, { 'Prefer': 'transient' });
     const items = data?.items || [];
     if (items.length) {
@@ -228,9 +228,8 @@ function buildItemRecord(item, idx, cmNum, locationRef, refs) {
   record[CF.newUsed] = { id: '2' };
 
   if (refs?.systemId) record[CF.systemIdentifier] = refs.systemId;
-  else if (item.systemId) record[CF.systemIdentifier] = { name: item.systemId };
   if (refs?.department) record[CF.subletDepartment] = refs.department;
-  if (item.format) record[CF.subDepartment] = { name: item.format };
+  if (refs?.subDepartment) record[CF.subDepartment] = refs.subDepartment;
 
   const gradeId = COSMETIC_GRADE[item.grade];
   if (gradeId) record[CF.cosmeticCondition] = { id: gradeId };
@@ -286,6 +285,12 @@ export async function onRequestPost({ request, env }) {
     deptRefs[it] = await lookupDepartmentId(env, it);
   }
 
+  const formatNames = [...new Set(body.items.map(it => it.format).filter(Boolean))];
+  const subDeptRefs = {};
+  for (const fn of formatNames) {
+    subDeptRefs[fn] = await lookupSubDepartmentId(env, fn);
+  }
+
   const results = [];
   const errors = [];
 
@@ -296,8 +301,9 @@ export async function onRequestPost({ request, env }) {
       brand: brandRefs[item.brand] || null,
       systemId: sysIdRefs[item.systemId] || null,
       department: deptRefs[item.itemType] || null,
+      subDepartment: subDeptRefs[item.format] || null,
     };
-    console.log(`NS item[${i}]: brand="${item.brand}" sysId="${item.systemId}" type="${item.itemType}" format="${item.format}" grade="${item.grade}" → refs: brand=${JSON.stringify(refs.brand)} sysId=${JSON.stringify(refs.systemId)} dept=${JSON.stringify(refs.department)}`);
+    console.log(`NS item[${i}]: brand="${item.brand}" sysId="${item.systemId}" type="${item.itemType}" format="${item.format}" grade="${item.grade}" → refs: brand=${JSON.stringify(refs.brand)} sysId=${JSON.stringify(refs.systemId)} dept=${JSON.stringify(refs.department)} subDept=${JSON.stringify(refs.subDepartment)}`);
     const record = buildItemRecord(item, i, body.cmNum, locationRef, refs);
 
     try {

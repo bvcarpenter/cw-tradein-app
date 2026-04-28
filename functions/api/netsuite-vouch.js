@@ -11,7 +11,7 @@
  */
 
 import { netsuiteRequest } from './_netsuite.js';
-import { buildItemRecord, LOCATION_MAP, CF, lookupLocationId, lookupTaxScheduleId, lookupClassId, lookupCustomListValue, lookupDepartmentId } from './netsuite-items.js';
+import { buildItemRecord, LOCATION_MAP, CF, lookupLocationId, lookupTaxScheduleId, lookupClassId, lookupCustomListValue, lookupDepartmentId, lookupSubDepartmentId } from './netsuite-items.js';
 
 const cors = {
   'Content-Type': 'application/json',
@@ -66,7 +66,13 @@ export async function onRequestPost({ request, env }) {
     deptRefs[it] = await lookupDepartmentId(env, it);
   }
 
-  console.log(`Vouch: location="${locationName}", brands=${JSON.stringify(brandRefs)}, sysIds=${JSON.stringify(sysIdRefs)}, depts=${JSON.stringify(deptRefs)}`);
+  const formatNames = [...new Set(items.map(it => it.format).filter(Boolean))];
+  const subDeptRefs = {};
+  for (const fn of formatNames) {
+    subDeptRefs[fn] = await lookupSubDepartmentId(env, fn);
+  }
+
+  console.log(`Vouch: location="${locationName}", brands=${JSON.stringify(brandRefs)}, sysIds=${JSON.stringify(sysIdRefs)}, depts=${JSON.stringify(deptRefs)}, subDepts=${JSON.stringify(subDeptRefs)}`);
 
   const result = {
     success: false,
@@ -94,6 +100,7 @@ export async function onRequestPost({ request, env }) {
         brand: brandRefs[item.brand] || null,
         systemId: sysIdRefs[item.systemId] || null,
         department: deptRefs[item.itemType] || null,
+        subDepartment: subDeptRefs[item.format] || null,
       };
       console.log(`Vouch item[${i}]: brand="${item.brand}" sysId="${item.systemId}" type="${item.itemType}" format="${item.format}" grade="${item.grade}" → refs: brand=${JSON.stringify(refs.brand)} sysId=${JSON.stringify(refs.systemId)} dept=${JSON.stringify(refs.department)}`);
       const record = buildItemRecord(item, i, cmNum, locationRef, refs);
