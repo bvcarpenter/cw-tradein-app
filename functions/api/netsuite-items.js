@@ -323,9 +323,14 @@ export async function onRequestPost({ request, env }) {
     }
   }
 
+  const _diag = {
+    inputItems: body.items.map(it => ({ brand: it.brand, systemId: it.systemId, itemType: it.itemType, format: it.format, grade: it.grade })),
+    resolvedRefs: { brandRefs, sysIdRefs, deptRefs, subDeptRefs },
+  };
+
   if (errors.length && !results.length) {
     return Response.json(
-      { error: `All ${errors.length} item(s) failed`, errors },
+      { error: `All ${errors.length} item(s) failed`, errors, _diag },
       { status: 422, headers: cors }
     );
   }
@@ -336,6 +341,7 @@ export async function onRequestPost({ request, env }) {
     failed: errors.length,
     items: results,
     errors: errors.length ? errors : undefined,
+    _diag,
   }, { headers: cors });
 }
 
