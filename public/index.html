@@ -836,7 +836,37 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
       </div>
       <div style="padding:12px 20px;overflow-y:auto;max-height:55vh;" id="sm-list"></div>
     </div>
-    <div class="mod-f"><button class="btn btn-ol" onclick="closeSessionsMgr()">Close</button></div>
+    <div class="mod-f">
+      <button class="btn btn-ol" onclick="openCustomProcessingModal()" style="color:#b090d0;border-color:#5a3a7a;margin-right:auto;">+ Custom Processing</button>
+      <button class="btn btn-ol" onclick="closeSessionsMgr()">Close</button>
+    </div>
+  </div>
+</div>
+<!-- CUSTOM PROCESSING SESSION MODAL -->
+<div class="mo" id="mo-custom-proc" style="display:none;">
+  <div class="mod" style="max-width:700px;width:100%;">
+    <div class="mod-h"><h3>Custom Processing Session</h3><button class="mod-x" onclick="closeCustomProc()">&#215;</button></div>
+    <div class="mod-b">
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;">Session Name</label>
+        <input type="text" id="cp-name" placeholder="e.g., Returns Batch — April 2026" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--white);font-family:var(--font-body);font-size:13px;padding:10px 12px;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+      </div>
+      <div style="margin-bottom:16px;position:relative;">
+        <label style="display:block;font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;">Search Shopify Products</label>
+        <input type="text" id="cp-search" placeholder="Search by product name or SKU…" oninput="cpDebouncedSearch(this.value)" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--white);font-family:var(--font-body);font-size:13px;padding:10px 12px;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='var(--accent)'" onblur="setTimeout(()=>this.style.borderColor='var(--border)',200)">
+        <div id="cp-results" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:10;max-height:240px;overflow-y:auto;background:var(--bg2);border:1px solid var(--border);border-top:none;"></div>
+      </div>
+      <div>
+        <label style="display:block;font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;">Items to Process (<span id="cp-count">0</span>)</label>
+        <div id="cp-items" style="min-height:40px;">
+          <div style="font-size:11px;color:var(--dim);padding:16px 0;text-align:center;">Search and add products above.</div>
+        </div>
+      </div>
+    </div>
+    <div class="mod-f">
+      <button class="btn btn-ol" onclick="closeCustomProc()">Cancel</button>
+      <button class="btn" id="cp-start-btn" onclick="startCustomProcessing()" disabled style="background:#5a3a7a;color:#d0b0f0;border:1px solid #7a5a9a;">Start Processing</button>
+    </div>
   </div>
 </div>
 <!-- PROCESSING MODULE -->
@@ -3030,12 +3060,14 @@ async function renderSessionsMgr() {
       : procStatus === 'partial'
       ? '<span style="font-size:7px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;padding:3px 7px;color:#d0a070;border:1px solid rgba(208,160,112,.4);border-radius:2px;white-space:nowrap;">Processing…</span>'
       : '';
+    const isCustom = d.source === 'custom-processing';
+    const customBadge = isCustom ? '<span style="font-size:7px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;padding:3px 7px;color:#b090d0;border:1px solid rgba(176,144,208,.4);border-radius:2px;white-space:nowrap;">Custom</span>' : '';
     const procBtn = d.finalized
-      ? `<button class="btn-sm" onclick="event.stopPropagation();openProcessingFromSession('${s.key}')" style="color:#b090d0;border-color:#5a3a7a;text-align:center;">Process Trade-In</button>`
+      ? `<button class="btn-sm" onclick="event.stopPropagation();openProcessingFromSession('${s.key}')" style="color:#b090d0;border-color:#5a3a7a;text-align:center;">${isCustom ? 'Process Items' : 'Process Trade-In'}</button>`
       : '';
     return `<div style="padding:14px 0;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr auto;gap:14px;align-items:start;">
       <div>
-        <div style="font-size:13px;font-weight:500;margin-bottom:3px;">${tiId ? `<span style="color:#d95e00;font-weight:600;font-size:11px;letter-spacing:.5px;margin-right:6px;">${esc(tiId)}</span>` : ''}${esc(cust)}${email ? ` <span style="font-size:10px;color:var(--dim);font-weight:300;">&lt;${esc(email)}&gt;</span>` : ''}${procBadge ? ' ' + procBadge : ''}</div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:3px;">${tiId ? `<span style="color:#d95e00;font-weight:600;font-size:11px;letter-spacing:.5px;margin-right:6px;">${esc(tiId)}</span>` : ''}${isCustom ? esc(d.name || 'Custom Processing') : esc(cust)}${email ? ` <span style="font-size:10px;color:var(--dim);font-weight:300;">&lt;${esc(email)}&gt;</span>` : ''}${customBadge ? ' ' + customBadge : ''}${procBadge ? ' ' + procBadge : ''}</div>
         <div style="font-size:10px;color:var(--dim);margin-bottom:7px;line-height:1.9;">
           ${esc(loc)}${assoc ? ` &nbsp;&middot;&nbsp; ${esc(assoc)}` : ''} &nbsp;&middot;&nbsp; ${items.length} item${items.length !== 1 ? 's' : ''}
           &nbsp;&middot;&nbsp; Net: <strong style="color:var(--accent);">${ff(net)}</strong>
@@ -3865,6 +3897,161 @@ function printLabelOnly() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// ─── CUSTOM PROCESSING SESSION ───────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+let _cpItems = [];
+let _cpSearchTimer = null;
+let _cpSearchResults = [];
+
+function openCustomProcessingModal() {
+  closeSessionsMgr();
+  _cpItems = [];
+  _cpSearchResults = [];
+  document.getElementById('cp-name').value = '';
+  document.getElementById('cp-search').value = '';
+  document.getElementById('cp-results').style.display = 'none';
+  document.getElementById('cp-count').textContent = '0';
+  document.getElementById('cp-start-btn').disabled = true;
+  document.getElementById('cp-items').innerHTML = '<div style="font-size:11px;color:var(--dim);padding:16px 0;text-align:center;">Search and add products above.</div>';
+  document.getElementById('mo-custom-proc').style.display = 'flex';
+}
+
+function closeCustomProc() {
+  document.getElementById('mo-custom-proc').style.display = 'none';
+}
+
+function cpDebouncedSearch(q) {
+  clearTimeout(_cpSearchTimer);
+  _cpSearchTimer = setTimeout(() => cpSearch(q), 250);
+}
+
+async function cpSearch(q) {
+  q = q.trim();
+  const el = document.getElementById('cp-results');
+  if (q.length < 2) { el.style.display = 'none'; return; }
+  el.innerHTML = '<div style="padding:12px;font-size:11px;color:var(--dim);text-align:center;">Searching…</div>';
+  el.style.display = 'block';
+  try {
+    const r = await fetch('/api/search?q=' + encodeURIComponent(q) + '&source=shopify&limit=20');
+    const data = await r.json();
+    const products = data.products || [];
+    if (!products.length) {
+      el.innerHTML = '<div style="padding:12px;font-size:11px;color:var(--dim);text-align:center;">No products found.</div>';
+      return;
+    }
+    _cpSearchResults = products;
+    el.innerHTML = products.map((p, i) =>
+      `<div onclick="cpAddItem(${i})" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s;" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">`
+      + `<div style="font-size:12px;font-weight:500;color:var(--fg);">${esc(p.n)}</div>`
+      + `<div style="font-size:10px;color:var(--dim);margin-top:2px;">SKU: ${esc(p.sku || '—')}${p.it ? ' · ' + esc(p.it) : ''}${p.p ? ' · $' + Number(p.p).toFixed(2) : ''}${p.grade ? ' · ' + esc(p.grade) : ''}${p.inStock ? ' · In Stock' : ''}</div>`
+      + `</div>`
+    ).join('');
+  } catch (e) {
+    el.innerHTML = '<div style="padding:12px;font-size:11px;color:#e07070;text-align:center;">Search failed: ' + esc(e.message) + '</div>';
+  }
+}
+
+function cpAddItem(i) {
+  const p = _cpSearchResults[i];
+  if (!p) return;
+  _cpItems.push({
+    id: Date.now() + _cpItems.length,
+    name: p.n || 'Unknown',
+    sku: p.sku || '',
+    catalog: p.sku || '',
+    vendor: p.v || '',
+    systemId: p.si || '',
+    itemType: p.it || '',
+    medium: p.m || '',
+    format: p.fmt || '',
+    grade: p.grade || '',
+    serial: '',
+    retail: p.p || 0,
+    tradein: 0, outright: 0, net: 0,
+    accessories: [],
+    notes: '',
+    priceType: '',
+    svcCharge: 0, svcReason: '',
+  });
+  renderCpItems();
+  document.getElementById('cp-search').value = '';
+  document.getElementById('cp-results').style.display = 'none';
+}
+
+function cpRemoveItem(idx) {
+  _cpItems.splice(idx, 1);
+  renderCpItems();
+}
+
+function renderCpItems() {
+  document.getElementById('cp-count').textContent = _cpItems.length;
+  document.getElementById('cp-start-btn').disabled = !_cpItems.length;
+  const el = document.getElementById('cp-items');
+  if (!_cpItems.length) {
+    el.innerHTML = '<div style="font-size:11px;color:var(--dim);padding:16px 0;text-align:center;">Search and add products above.</div>';
+    return;
+  }
+  el.innerHTML = _cpItems.map((it, i) =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">`
+    + `<div>`
+    + `<div style="font-size:12px;font-weight:500;">${esc(it.name)}</div>`
+    + `<div style="font-size:10px;color:var(--dim);">SKU: ${esc(it.sku || '—')}${it.grade ? ' · ' + esc(it.grade) : ''}</div>`
+    + `</div>`
+    + `<button onclick="cpRemoveItem(${i})" style="background:none;border:1px solid #5a2a2a;color:#e07070;font-size:14px;width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">&#215;</button>`
+    + `</div>`
+  ).join('');
+}
+
+async function startCustomProcessing() {
+  if (!_cpItems.length) return;
+  const btn = document.getElementById('cp-start-btn');
+  btn.disabled = true;
+  btn.textContent = 'Creating…';
+
+  const name = document.getElementById('cp-name').value.trim() || 'Custom Processing ' + new Date().toLocaleDateString();
+  const key = 'cwti_' + Date.now();
+  const tradeInId = generateTradeInId();
+
+  const sessionData = {
+    savedAt: new Date().toISOString(),
+    key,
+    tradeInId,
+    name,
+    source: 'custom-processing',
+    customer: { id: '', first: '', last: '', email: '', phone: '' },
+    items: _cpItems,
+    loc: '',
+    shipping: { str: '', city: '', st: '', zip: '' },
+    cmNum: '',
+    tracking: '',
+    finalTot: '',
+    assoc: '',
+    txnDate: new Date().toISOString().split('T')[0],
+    finalized: true,
+    finalizedAt: new Date().toISOString(),
+    processingComplete: false,
+  };
+
+  try {
+    await fetch('/api/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, data: sessionData }),
+    });
+  } catch (e) {
+    console.error('Failed to save custom processing session:', e);
+  }
+
+  closeCustomProc();
+  btn.disabled = false;
+  btn.textContent = 'Start Processing';
+
+  procSession = { key, data: sessionData };
+  procData = {};
+  launchProcessingPanel();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // ─── PROCESSING MODULE ────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -3902,9 +4089,11 @@ async function openProcessingFromSession(sessionKey) {
 
 function launchProcessingPanel() {
   const sess = procSession;
+  const isCustom = sess.data.source === 'custom-processing';
   // Populate header
-  document.getElementById('proc-ti-id').textContent = sess.data.tradeInId || sess.data.cmNum || sess.key;
-  const custName = sess.data.name || [sess.data.customer?.first, sess.data.customer?.last].filter(Boolean).join(' ') || '—';
+  document.querySelector('#proc-panel .proc-hd h2').textContent = isCustom ? 'Process Items' : 'Process Trade-In';
+  document.getElementById('proc-ti-id').textContent = isCustom ? (sess.data.name || sess.data.tradeInId || sess.key) : (sess.data.tradeInId || sess.data.cmNum || sess.key);
+  const custName = isCustom ? '' : (sess.data.name || [sess.data.customer?.first, sess.data.customer?.last].filter(Boolean).join(' ') || '—');
   document.getElementById('proc-cust-name').textContent = custName;
   document.getElementById('proc-total-count').textContent = (sess.data.items || []).length;
 
