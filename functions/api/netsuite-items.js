@@ -49,19 +49,52 @@ async function lookupCustomListValue(env, fieldId, valueName) {
   if (!valueName) return null;
   const accountId = env.NS_ACCOUNT_ID;
   const sqlUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql`;
+
+  // Strategy 1: Look up the custom field's list reference, then query that list
   try {
-    const data = await netsuiteRequest(env, 'POST', sqlUrl, {
-      q: `SELECT DISTINCT ${fieldId} AS id, BUILTIN.DF(${fieldId}) AS name FROM inventoryItem WHERE ${fieldId} IS NOT NULL`,
+    const fieldMeta = await netsuiteRequest(env, 'POST', sqlUrl, {
+      q: `SELECT fieldtype, fieldvaluetype FROM customfield WHERE scriptid = '${fieldId}'`,
     }, { 'Prefer': 'transient' });
-    const items = data?.items || [];
-    console.log(`${fieldId} lookup: ${items.length} distinct values found`);
-    const match = items.find(v => v.name === valueName)
-      || items.find(v => v.name?.toLowerCase() === valueName?.toLowerCase());
-    if (match) return { id: String(match.id) };
-    console.log(`No ${fieldId} match for "${valueName}", available:`, JSON.stringify(items.slice(0, 15)));
+    const listId = fieldMeta?.items?.[0]?.fieldvaluetype;
+    if (listId) {
+      const listData = await netsuiteRequest(env, 'POST', sqlUrl, {
+        q: `SELECT id, name FROM customlist${listId}`,
+      }, { 'Prefer': 'transient' });
+      const items = listData?.items || [];
+      const match = items.find(v => v.name === valueName)
+        || items.find(v => v.name?.toLowerCase() === valueName?.toLowerCase());
+      if (match) {
+        console.log(`${fieldId} resolved "${valueName}" → id ${match.id} via customlist${listId}`);
+        return { id: String(match.id) };
+      }
+    }
   } catch (e) {
-    console.log(`${fieldId} lookup failed:`, e.message);
+    console.log(`${fieldId} strategy 1 (customfield meta) failed:`, e.message);
   }
+
+  // Strategy 2: Try common custom list table name patterns
+  const listSuffix = fieldId.replace(/^custitem_/, '');
+  const tableGuesses = [`customlist_${listSuffix}`, `customlist_cw_${listSuffix}`];
+  for (const table of tableGuesses) {
+    try {
+      const data = await netsuiteRequest(env, 'POST', sqlUrl, {
+        q: `SELECT id, name FROM ${table} ORDER BY name`,
+      }, { 'Prefer': 'transient' });
+      const items = data?.items || [];
+      if (!items.length) continue;
+      const match = items.find(v => v.name === valueName)
+        || items.find(v => v.name?.toLowerCase() === valueName?.toLowerCase());
+      if (match) {
+        console.log(`${fieldId} resolved "${valueName}" → id ${match.id} via ${table}`);
+        return { id: String(match.id) };
+      }
+      console.log(`${fieldId}: table ${table} has ${items.length} values but no match for "${valueName}"`);
+    } catch (e) {
+      console.log(`${fieldId} table ${table} query failed:`, e.message);
+    }
+  }
+
+  console.log(`${fieldId} lookup exhausted all strategies for "${valueName}"`);
   return null;
 }
 
@@ -149,8 +182,8 @@ function buildItemRecord(item, idx, cmNum, locationRef, refs) {
     [CF.shopifyVisibility]: 'Point of sale',
   };
 
-  record[CF.brand] = refs?.brand || (item.brand ? { name: item.brand } : '');
-  record[CF.newUsed] = refs?.newUsed || { id: '2' };
+  record[CF.brand] = refs?.brand || '';
+  record[CF.newUsed] = { id: '2' };
 
   if (pipe17Tag) {
     record[CF.pipe17Tags] = pipe17Tag;
@@ -184,9 +217,7 @@ export async function onRequestPost({ request, env }) {
   const apiUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/record/v1/inventoryItem`;
   const locationRef = await lookupLocationId(env, locationName);
   const taxRef = await lookupTaxScheduleId(env, 'Taxable');
-  const newUsedRef = await lookupCustomListValue(env, CF.newUsed, 'Used');
 
-  // Collect unique brand names and look them up once
   const brandNames = [...new Set(body.items.map(it => it.brand).filter(Boolean))];
   const brandRefs = {};
   for (const bn of brandNames) {
@@ -198,7 +229,7 @@ export async function onRequestPost({ request, env }) {
 
   for (let i = 0; i < body.items.length; i++) {
     const item = body.items[i];
-    const refs = { taxSchedule: taxRef, newUsed: newUsedRef, brand: brandRefs[item.brand] || null };
+    const refs = { taxSchedule: taxRef, brand: brandRefs[item.brand] || null };
     const record = buildItemRecord(item, i, body.cmNum, locationRef, refs);
 
     try {
