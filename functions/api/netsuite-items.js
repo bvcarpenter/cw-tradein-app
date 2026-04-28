@@ -229,7 +229,7 @@ function buildItemRecord(item, idx, cmNum, locationRef, refs) {
 
   if (refs?.systemId) record[CF.systemIdentifier] = refs.systemId;
   if (refs?.department) record[CF.subletDepartment] = refs.department;
-  if (refs?.subDepartment) record[CF.subDepartment] = refs.subDepartment;
+  // custitem_subdepartment skipped — needs format investigation
 
   const gradeId = COSMETIC_GRADE[item.grade];
   if (gradeId) record[CF.cosmeticCondition] = { id: gradeId };
@@ -285,12 +285,6 @@ export async function onRequestPost({ request, env }) {
     deptRefs[it] = await lookupDepartmentId(env, it);
   }
 
-  const formatNames = [...new Set(body.items.map(it => it.format).filter(Boolean))];
-  const subDeptRefs = {};
-  for (const fn of formatNames) {
-    subDeptRefs[fn] = await lookupSubDepartmentId(env, fn);
-  }
-
   const results = [];
   const errors = [];
 
@@ -301,7 +295,6 @@ export async function onRequestPost({ request, env }) {
       brand: brandRefs[item.brand] || null,
       systemId: sysIdRefs[item.systemId] || null,
       department: deptRefs[item.itemType] || null,
-      subDepartment: subDeptRefs[item.format] || null,
     };
     console.log(`NS item[${i}]: brand="${item.brand}" sysId="${item.systemId}" type="${item.itemType}" format="${item.format}" grade="${item.grade}" → refs: brand=${JSON.stringify(refs.brand)} sysId=${JSON.stringify(refs.systemId)} dept=${JSON.stringify(refs.department)}`);
     const record = buildItemRecord(item, i, body.cmNum, locationRef, refs);
@@ -323,14 +316,9 @@ export async function onRequestPost({ request, env }) {
     }
   }
 
-  const _diag = {
-    inputItems: body.items.map(it => ({ brand: it.brand, systemId: it.systemId, itemType: it.itemType, format: it.format, grade: it.grade })),
-    resolvedRefs: { brandRefs, sysIdRefs, deptRefs, subDeptRefs },
-  };
-
   if (errors.length && !results.length) {
     return Response.json(
-      { error: `All ${errors.length} item(s) failed`, errors, _diag },
+      { error: `All ${errors.length} item(s) failed`, errors },
       { status: 422, headers: cors }
     );
   }
@@ -341,7 +329,6 @@ export async function onRequestPost({ request, env }) {
     failed: errors.length,
     items: results,
     errors: errors.length ? errors : undefined,
-    _diag,
   }, { headers: cors });
 }
 
