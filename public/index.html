@@ -92,8 +92,8 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 /* SIDEBAR CUSTOMER CARD */
 .sb-cust{padding:14px 18px;border-bottom:1px solid var(--border)}
 .sb-cust-search{position:relative;margin-bottom:0}
-.sb-cust-search .srch-input{width:100%;font-size:11px;padding:8px 10px 8px 28px}
-.sb-cust-search .srch-icon{font-size:12px;left:8px;top:8px}
+.sb-cust-search .srch-input{width:100%;font-size:11px;padding:8px 10px 8px 30px}
+.sb-cust-search .srch-icon{left:10px}
 .sb-cust-search .srch-res{max-height:240px}
 .sb-cust-card{display:none}
 .sb-cust-card.vis{display:block}
@@ -106,17 +106,12 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 .sb-cust-detail a:hover{color:var(--accent)}
 .sb-cust-loc{display:inline-block;font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;margin-top:6px;border:1px solid var(--border-l);color:var(--accent)}
 .sb-cust-empty{font-size:11px;color:var(--dim);text-align:center;padding:6px 0;letter-spacing:.04em}
-/* Sidebar customer edit overlay */
-.sb-cust-overlay{display:none;position:absolute;top:0;left:0;right:0;bottom:0;z-index:20;background:var(--bg2);flex-direction:column;overflow:hidden}
-.sb-cust-overlay.vis{display:flex}
-.sb-cust-overlay-head{padding:16px 18px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
-.sb-cust-overlay-head h3{font-family:var(--font-serif);font-size:16px;font-weight:300}
-.sb-cust-overlay-body{flex:1;overflow-y:auto;padding:16px 18px}
-.sb-cust-overlay-body .fld{margin-bottom:12px}
-.sb-cust-overlay-body .fld label{font-size:10px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px}
-.sb-cust-overlay-body .fld input,.sb-cust-overlay-body .fld select{width:100%;font-size:12px;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg);font-family:var(--font-body)}
-.sb-cust-overlay-body .fld input:focus{border-color:var(--acc-mid);outline:none}
-.sb-cust-overlay-foot{padding:12px 18px;border-top:1px solid var(--border)}
+/* Customer edit modal */
+.cust-edit-body{padding:24px}
+.cust-edit-body .fld{margin-bottom:14px}
+.cust-edit-body .fld label{font-size:10px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px}
+.cust-edit-body .fld input{width:100%;font-size:12px;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg);font-family:var(--font-body)}
+.cust-edit-body .fld input:focus{border-color:var(--acc-mid);outline:none}
 .sb-loc-btn{display:block;width:100%;text-align:left;padding:8px 10px;font-size:11px;background:var(--bg3);border:1px solid var(--border);color:var(--fg);cursor:pointer;font-family:var(--font-body);transition:all .15s;margin-bottom:4px}
 .sb-loc-btn:hover{border-color:var(--border-l)}
 .sb-loc-btn.on{border-color:var(--accent);color:var(--accent)}
@@ -451,7 +446,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 
 <div class="wrap">
   <!-- SIDEBAR -->
-  <aside class="sb" style="position:relative;">
+  <aside class="sb">
     <div class="sb-head">
       <div class="lbl">Session</div>
       <h2>Trade-In Items</h2>
@@ -477,65 +472,6 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
       </div>
     </div>
 
-    <!-- Customer edit overlay (slides over sidebar) -->
-    <div class="sb-cust-overlay" id="sb-cust-overlay">
-      <div class="sb-cust-overlay-head">
-        <h3>Customer</h3>
-        <button class="sb-cust-edit" onclick="closeCustEdit()">Done</button>
-      </div>
-      <div class="sb-cust-overlay-body">
-        <div style="position:relative;margin-bottom:14px;">
-          <span class="srch-icon" style="font-size:12px;left:8px;top:8px;">&#x1F50D;</span>
-          <input type="text" class="srch-input" id="cust-search-edit" placeholder="Search Shopify customers…" oninput="dCustSearch(this.value, 'edit')" autocomplete="off" style="font-size:11px;padding:8px 10px 8px 28px;">
-          <div class="srch-res" id="cust-res-edit" style="max-height:180px;"></div>
-        </div>
-        <div class="fld"><label>First Name <span style="color:var(--accent)">*</span></label><input type="text" id="c-first" placeholder="Jane" required></div>
-        <div class="fld"><label>Last Name <span style="color:var(--accent)">*</span></label><input type="text" id="c-last" placeholder="Smith" required></div>
-        <div class="fld"><label>Email <span style="color:var(--accent)">*</span></label><input type="email" id="c-email" placeholder="jane@email.com" required></div>
-        <div class="fld"><label>Phone</label><input type="tel" id="c-phone" placeholder="(760) 555-0100"></div>
-        <div style="margin-bottom:14px;">
-          <button class="btn btn-ol" id="shopify-cust-btn" onclick="saveCustomerToShopify()" style="font-size:9px;padding:6px 12px;">Save New Customer to Shopify</button>
-          <span id="shopify-cust-msg" style="font-size:9px;color:var(--dim);margin-left:6px;"></span>
-        </div>
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:11px;color:var(--dim);cursor:pointer;">
-          <input type="checkbox" id="c-marketing" checked style="accent-color:var(--accent);width:14px;height:14px;cursor:pointer;">
-          Accepts marketing
-        </label>
-        <div class="fld" style="margin-bottom:8px;"><label>Preferred Location *</label></div>
-        <div id="sb-loc-btns" style="margin-bottom:14px;">
-          <button class="sb-loc-btn" onclick="setLoc(this,'Leica SF')">Leica SF</button>
-          <button class="sb-loc-btn" onclick="setLoc(this,'Palm Springs')">Palm Springs</button>
-          <button class="sb-loc-btn" onclick="setLoc(this,'San Francisco')">San Francisco</button>
-          <button class="sb-loc-btn" onclick="setLoc(this,'SoHo — New York')">SoHo — New York</button>
-          <button class="sb-loc-btn" onclick="setLoc(this,'shipping')">Requires Shipping</button>
-        </div>
-        <div id="ship-box" class="ship-box">
-          <div class="ship-lbl">Shipping Address</div>
-          <div id="addr-pick" style="display:none;margin-bottom:12px;">
-            <div style="font-size:10px;color:var(--dim);margin-bottom:6px;">Select from customer addresses:</div>
-            <div id="addr-list" style="display:flex;flex-direction:column;gap:4px;"></div>
-          </div>
-          <div class="fld"><label>Street Address</label><input type="text" id="s-str" placeholder="123 Main Street"></div>
-          <div class="fld"><label>City</label><input type="text" id="s-city" placeholder="Palm Springs"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <div class="fld"><label>State</label><input type="text" id="s-st" placeholder="CA" maxlength="2" oninput="updTax()"></div>
-            <div class="fld"><label>ZIP</label><input type="text" id="s-zip" placeholder="92262" maxlength="10"></div>
-          </div>
-          <div class="ship-lbl" style="margin-top:10px;">Destination Store</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px;">
-            <button class="sb-loc-btn" id="dst-leica" onclick="setDestStore('Leica SF',this)" style="font-size:9px;padding:6px 8px;">Leica SF</button>
-            <button class="sb-loc-btn" id="dst-sf" onclick="setDestStore('San Francisco',this)" style="font-size:9px;padding:6px 8px;">San Francisco</button>
-            <button class="sb-loc-btn" id="dst-soho" onclick="setDestStore('SoHo — New York',this)" style="font-size:9px;padding:6px 8px;">SoHo — NYC</button>
-            <button class="sb-loc-btn" id="dst-ps" onclick="setDestStore('Palm Springs',this)" style="font-size:9px;padding:6px 8px;">Palm Springs</button>
-          </div>
-          <div id="dst-addr" style="font-size:9px;color:var(--dim);margin-top:6px;padding:5px 8px;background:var(--bg);border-left:2px solid var(--border);display:none;"></div>
-        </div>
-      </div>
-      <div class="sb-cust-overlay-foot">
-        <button class="btn" onclick="closeCustEdit()" style="width:100%;font-size:10px;padding:8px 0;">Done</button>
-      </div>
-    </div>
-
     <div class="cart" id="cart">
       <div class="cart-empty">No items added yet.<br>Search to add items.</div>
     </div>
@@ -549,6 +485,72 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
       <div class="tr main" id="t-grand-row" style="display:none;"><span>Est. Grand Total</span><span id="t-grand">—</span></div>
     </div>
   </aside>
+
+  <!-- Customer Edit Modal -->
+  <div class="mo" id="mo-cust-edit" onclick="if(event.target===this)closeCustEdit()">
+    <div class="mod" style="max-width:480px;">
+      <div class="mod-h">
+        <h3>Customer Details</h3>
+        <button class="mod-x" onclick="closeCustEdit()">&times;</button>
+      </div>
+      <div class="mod-b cust-edit-body">
+        <div style="position:relative;margin-bottom:16px;">
+          <span class="srch-icon">&#x1F50D;</span>
+          <input type="text" class="srch-input" id="cust-search-edit" placeholder="Search Shopify customers…" oninput="dCustSearch(this.value, 'edit')" autocomplete="off">
+          <div class="srch-res" id="cust-res-edit" style="max-height:200px;"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="fld"><label>First Name <span style="color:var(--accent)">*</span></label><input type="text" id="c-first" placeholder="Jane" required></div>
+          <div class="fld"><label>Last Name <span style="color:var(--accent)">*</span></label><input type="text" id="c-last" placeholder="Smith" required></div>
+        </div>
+        <div class="fld"><label>Email <span style="color:var(--accent)">*</span></label><input type="email" id="c-email" placeholder="jane@email.com" required></div>
+        <div class="fld"><label>Phone</label><input type="tel" id="c-phone" placeholder="(760) 555-0100"></div>
+        <div style="margin-bottom:14px;">
+          <button class="btn btn-ol" id="shopify-cust-btn" onclick="saveCustomerToShopify()" style="font-size:9px;padding:6px 12px;">Save New Customer to Shopify</button>
+          <span id="shopify-cust-msg" style="font-size:9px;color:var(--dim);margin-left:6px;"></span>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:18px;font-size:11px;color:var(--dim);cursor:pointer;">
+          <input type="checkbox" id="c-marketing" checked style="accent-color:var(--accent);width:14px;height:14px;cursor:pointer;">
+          Accepts marketing communications
+        </label>
+
+        <div style="border-top:1px solid var(--border);padding-top:16px;">
+          <div class="fld" style="margin-bottom:10px;"><label>Preferred Location <span style="color:var(--accent)">*</span></label></div>
+          <div id="sb-loc-btns" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;">
+            <button class="sb-loc-btn" onclick="setLoc(this,'Leica SF')">Leica SF</button>
+            <button class="sb-loc-btn" onclick="setLoc(this,'Palm Springs')">Palm Springs</button>
+            <button class="sb-loc-btn" onclick="setLoc(this,'San Francisco')">San Francisco</button>
+            <button class="sb-loc-btn" onclick="setLoc(this,'SoHo — New York')">SoHo — New York</button>
+            <button class="sb-loc-btn" onclick="setLoc(this,'shipping')" style="grid-column:1/-1;">Requires Shipping</button>
+          </div>
+          <div id="ship-box" class="ship-box">
+            <div class="ship-lbl">Shipping Address</div>
+            <div id="addr-pick" style="display:none;margin-bottom:12px;">
+              <div style="font-size:10px;color:var(--dim);margin-bottom:6px;">Select from customer addresses:</div>
+              <div id="addr-list" style="display:flex;flex-direction:column;gap:4px;"></div>
+            </div>
+            <div class="fld"><label>Street Address</label><input type="text" id="s-str" placeholder="123 Main Street"></div>
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;">
+              <div class="fld"><label>City</label><input type="text" id="s-city" placeholder="Palm Springs"></div>
+              <div class="fld"><label>State</label><input type="text" id="s-st" placeholder="CA" maxlength="2" oninput="updTax()"></div>
+              <div class="fld"><label>ZIP</label><input type="text" id="s-zip" placeholder="92262" maxlength="10"></div>
+            </div>
+            <div class="ship-lbl" style="margin-top:12px;">Destination Store</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px;">
+              <button class="sb-loc-btn" id="dst-leica" onclick="setDestStore('Leica SF',this)" style="font-size:9px;padding:6px 8px;">Leica SF</button>
+              <button class="sb-loc-btn" id="dst-sf" onclick="setDestStore('San Francisco',this)" style="font-size:9px;padding:6px 8px;">San Francisco</button>
+              <button class="sb-loc-btn" id="dst-soho" onclick="setDestStore('SoHo — New York',this)" style="font-size:9px;padding:6px 8px;">SoHo — NYC</button>
+              <button class="sb-loc-btn" id="dst-ps" onclick="setDestStore('Palm Springs',this)" style="font-size:9px;padding:6px 8px;">Palm Springs</button>
+            </div>
+            <div id="dst-addr" style="font-size:9px;color:var(--dim);margin-top:6px;padding:5px 8px;background:var(--bg);border-left:2px solid var(--border);display:none;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="mod-f">
+        <button class="btn" onclick="closeCustEdit()" style="font-size:10px;padding:8px 24px;">Done</button>
+      </div>
+    </div>
+  </div>
 
   <!-- MAIN -->
   <main class="main">
@@ -1675,6 +1677,9 @@ function pickCustomer(i) {
   closeCustRes();
   showAddrPicker(c.addresses || []);
   updateSbCustCard();
+  if (!selLoc) {
+    openCustEdit();
+  }
 }
 
 function updateSbCustCard() {
@@ -1704,7 +1709,7 @@ function updateSbCustCard() {
 }
 
 function openCustEdit() {
-  document.getElementById('sb-cust-overlay').classList.add('vis');
+  document.getElementById('mo-cust-edit').classList.add('open');
   document.querySelectorAll('#sb-loc-btns .sb-loc-btn').forEach(b => {
     const label = b.textContent.trim();
     b.classList.toggle('on', label === selLoc || (selLoc === 'shipping' && label === 'Requires Shipping'));
@@ -1713,7 +1718,15 @@ function openCustEdit() {
 }
 
 function closeCustEdit() {
-  document.getElementById('sb-cust-overlay').classList.remove('vis');
+  const hasCustomer = (document.getElementById('c-first').value || '').trim() || (document.getElementById('c-email').value || '').trim();
+  if (hasCustomer && !selLoc) {
+    const locLabel = document.querySelector('#sb-loc-btns');
+    if (locLabel) locLabel.style.outline = '2px solid var(--accent)';
+    setTimeout(() => { if (locLabel) locLabel.style.outline = ''; }, 2000);
+    showToast('Please select a preferred location');
+    return;
+  }
+  document.getElementById('mo-cust-edit').classList.remove('open');
   updateSbCustCard();
 }
 
@@ -3817,7 +3830,7 @@ function resetSessionForm() {
   document.querySelectorAll('.sb-loc-btn, .loc').forEach(b => b.classList.remove('on'));
   selLoc = '';
   document.getElementById('ship-box').classList.remove('vis');
-  document.getElementById('sb-cust-overlay').classList.remove('vis');
+  document.getElementById('mo-cust-edit').classList.remove('open');
   updateSbCustCard();
   document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
   document.getElementById('sc-msg').textContent = '';
