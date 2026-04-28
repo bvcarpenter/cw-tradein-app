@@ -263,7 +263,7 @@ async function updateNetSuiteItem(env, internalId, item) {
     try {
       const sqlUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql`;
       const listData = await netsuiteRequest(env, 'POST', sqlUrl, {
-        q: `SELECT id, name FROM customlist_preowned_grade`,
+        q: `SELECT DISTINCT custitem2 AS id, BUILTIN.DF(custitem2) AS name FROM inventoryItem WHERE custitem2 IS NOT NULL`,
       }, { 'Prefer': 'transient' });
       const listItems = listData?.items || [];
       console.log('NS custitem2 list values:', JSON.stringify(listItems));
