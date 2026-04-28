@@ -78,14 +78,6 @@ function buildItemRecord(item, idx, cmNum, locationName) {
     location: { name: locationName },
     preferredLocation: { name: locationName },
 
-    // Standard sublists
-    itemVendor: {
-      items: [{
-        vendor: { name: locationName },
-        purchasePrice: item.net || 0,
-      }],
-    },
-
     // Custom fields — mapped values
     [CF.brand]:             item.brand || '',
     [CF.systemIdentifier]:  item.systemId || '',
