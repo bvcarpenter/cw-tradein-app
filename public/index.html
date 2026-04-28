@@ -92,8 +92,8 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 /* SIDEBAR CUSTOMER CARD */
 .sb-cust{padding:14px 18px;border-bottom:1px solid var(--border)}
 .sb-cust-search{position:relative;margin-bottom:0}
-.sb-cust-search .srch-input{width:100%;font-size:11px;padding:8px 10px 8px 30px}
-.sb-cust-search .srch-icon{left:10px}
+.sb-cust-search .srch-input{width:100%;font-size:12px;padding:10px 12px 10px 32px}
+.sb-cust-search .srch-icon{left:10px;font-size:13px}
 .sb-cust-search .srch-res{max-height:240px}
 .sb-cust-card{display:none}
 .sb-cust-card.vis{display:block}
@@ -107,12 +107,12 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 .sb-cust-loc{display:inline-block;font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;margin-top:6px;border:1px solid var(--border-l);color:var(--accent)}
 .sb-cust-empty{font-size:11px;color:var(--dim);text-align:center;padding:6px 0;letter-spacing:.04em}
 /* Customer edit modal */
-.cust-edit-body{padding:24px}
-.cust-edit-body .fld{margin-bottom:14px}
-.cust-edit-body .fld label{font-size:10px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px}
-.cust-edit-body .fld input{width:100%;font-size:12px;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg);font-family:var(--font-body)}
+.cust-edit-body{padding:28px 32px}
+.cust-edit-body .fld{margin-bottom:16px}
+.cust-edit-body .fld label{font-size:10px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:5px}
+.cust-edit-body .fld input{width:100%;font-size:13px;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);color:var(--fg);font-family:var(--font-body)}
 .cust-edit-body .fld input:focus{border-color:var(--acc-mid);outline:none}
-.sb-loc-btn{display:block;width:100%;text-align:left;padding:8px 10px;font-size:11px;background:var(--bg3);border:1px solid var(--border);color:var(--fg);cursor:pointer;font-family:var(--font-body);transition:all .15s;margin-bottom:4px}
+.sb-loc-btn{display:block;width:100%;text-align:left;padding:10px 12px;font-size:12px;background:var(--bg3);border:1px solid var(--border);color:var(--fg);cursor:pointer;font-family:var(--font-body);transition:all .15s}
 .sb-loc-btn:hover{border-color:var(--border-l)}
 .sb-loc-btn.on{border-color:var(--accent);color:var(--accent)}
 .tr{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:5px;letter-spacing:.03em}
@@ -455,7 +455,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
     <!-- Customer section in sidebar -->
     <div class="sb-cust" id="sb-cust">
       <div class="sb-cust-search" id="sb-cust-search">
-        <span class="srch-icon">&#x1F50D;</span>
+        <span class="srch-icon">&#x2315;</span>
         <input type="text" class="srch-input" id="cust-search" placeholder="Search customers…" oninput="dCustSearch(this.value)" autocomplete="off">
         <div class="srch-res" id="cust-res"></div>
         <div class="sb-cust-empty" id="sb-cust-empty">No customer selected</div>
@@ -488,35 +488,35 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 
   <!-- Customer Edit Modal -->
   <div class="mo" id="mo-cust-edit" onclick="if(event.target===this)closeCustEdit()">
-    <div class="mod" style="max-width:480px;">
+    <div class="mod" style="max-width:520px;">
       <div class="mod-h">
         <h3>Customer Details</h3>
         <button class="mod-x" onclick="closeCustEdit()">&times;</button>
       </div>
       <div class="mod-b cust-edit-body">
-        <div style="position:relative;margin-bottom:16px;">
-          <span class="srch-icon">&#x1F50D;</span>
+        <div style="position:relative;margin-bottom:18px;">
+          <span class="srch-icon">&#x2315;</span>
           <input type="text" class="srch-input" id="cust-search-edit" placeholder="Search Shopify customers…" oninput="dCustSearch(this.value, 'edit')" autocomplete="off">
           <div class="srch-res" id="cust-res-edit" style="max-height:200px;"></div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
           <div class="fld"><label>First Name <span style="color:var(--accent)">*</span></label><input type="text" id="c-first" placeholder="Jane" required></div>
           <div class="fld"><label>Last Name <span style="color:var(--accent)">*</span></label><input type="text" id="c-last" placeholder="Smith" required></div>
         </div>
         <div class="fld"><label>Email <span style="color:var(--accent)">*</span></label><input type="email" id="c-email" placeholder="jane@email.com" required></div>
         <div class="fld"><label>Phone</label><input type="tel" id="c-phone" placeholder="(760) 555-0100"></div>
-        <div style="margin-bottom:14px;">
-          <button class="btn btn-ol" id="shopify-cust-btn" onclick="saveCustomerToShopify()" style="font-size:9px;padding:6px 12px;">Save New Customer to Shopify</button>
-          <span id="shopify-cust-msg" style="font-size:9px;color:var(--dim);margin-left:6px;"></span>
+        <div style="margin-bottom:16px;">
+          <button class="btn btn-ol" id="shopify-cust-btn" onclick="saveCustomerToShopify()" style="font-size:9px;padding:7px 14px;">Save New Customer to Shopify</button>
+          <span id="shopify-cust-msg" style="font-size:9px;color:var(--dim);margin-left:8px;"></span>
         </div>
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:18px;font-size:11px;color:var(--dim);cursor:pointer;">
-          <input type="checkbox" id="c-marketing" checked style="accent-color:var(--accent);width:14px;height:14px;cursor:pointer;">
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:11px;color:var(--dim);cursor:pointer;">
+          <input type="checkbox" id="c-marketing" checked style="accent-color:var(--accent);width:15px;height:15px;cursor:pointer;">
           Accepts marketing communications
         </label>
 
-        <div style="border-top:1px solid var(--border);padding-top:16px;">
-          <div class="fld" style="margin-bottom:10px;"><label>Preferred Location <span style="color:var(--accent)">*</span></label></div>
-          <div id="sb-loc-btns" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;">
+        <div style="border-top:1px solid var(--border);padding-top:20px;">
+          <div class="fld" style="margin-bottom:12px;"><label>Preferred Location <span style="color:var(--accent)">*</span></label></div>
+          <div id="sb-loc-btns" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
             <button class="sb-loc-btn" onclick="setLoc(this,'Leica SF')">Leica SF</button>
             <button class="sb-loc-btn" onclick="setLoc(this,'Palm Springs')">Palm Springs</button>
             <button class="sb-loc-btn" onclick="setLoc(this,'San Francisco')">San Francisco</button>
