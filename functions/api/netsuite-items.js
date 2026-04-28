@@ -227,9 +227,10 @@ function buildItemRecord(item, idx, cmNum, locationRef, refs) {
   record[CF.brand] = refs?.brand || '';
   record[CF.newUsed] = { id: '2' };
 
-  if (refs?.systemId) record[CF.systemIdentifier] = refs.systemId;
+  // custitem5 (System ID) and custitem_subdepartment (Sub Department) skipped —
+  // BUILTIN.DF lookup returns values but NetSuite rejects all formats tried.
+  // These need manual investigation of the correct value format.
   if (refs?.department) record[CF.subletDepartment] = refs.department;
-  if (refs?.subDepartment) record[CF.subDepartment] = refs.subDepartment;
 
   const gradeId = COSMETIC_GRADE[item.grade];
   if (gradeId) record[CF.cosmeticCondition] = { id: gradeId };
@@ -273,22 +274,10 @@ export async function onRequestPost({ request, env }) {
     brandRefs[bn] = await lookupClassId(env, bn);
   }
 
-  const sysIdNames = [...new Set(body.items.map(it => it.systemId).filter(Boolean))];
-  const sysIdRefs = {};
-  for (const si of sysIdNames) {
-    sysIdRefs[si] = await lookupCustomListValue(env, CF.systemIdentifier, si);
-  }
-
   const itemTypeNames = [...new Set(body.items.map(it => it.itemType).filter(Boolean))];
   const deptRefs = {};
   for (const it of itemTypeNames) {
     deptRefs[it] = await lookupDepartmentId(env, it);
-  }
-
-  const formatNames = [...new Set(body.items.map(it => it.format).filter(Boolean))];
-  const subDeptRefs = {};
-  for (const fn of formatNames) {
-    subDeptRefs[fn] = await lookupSubDepartmentId(env, fn);
   }
 
   const results = [];
@@ -299,11 +288,9 @@ export async function onRequestPost({ request, env }) {
     const refs = {
       taxSchedule: taxRef,
       brand: brandRefs[item.brand] || null,
-      systemId: sysIdRefs[item.systemId] || null,
       department: deptRefs[item.itemType] || null,
-      subDepartment: subDeptRefs[item.format] || null,
     };
-    console.log(`NS item[${i}]: brand="${item.brand}" sysId="${item.systemId}" type="${item.itemType}" format="${item.format}" grade="${item.grade}" → refs: brand=${JSON.stringify(refs.brand)} sysId=${JSON.stringify(refs.systemId)} dept=${JSON.stringify(refs.department)} subDept=${JSON.stringify(refs.subDepartment)}`);
+    console.log(`NS item[${i}]: brand="${item.brand}" type="${item.itemType}" format="${item.format}" grade="${item.grade}" → brand=${JSON.stringify(refs.brand)} dept=${JSON.stringify(refs.department)}`);
     const record = buildItemRecord(item, i, body.cmNum, locationRef, refs);
 
     try {
