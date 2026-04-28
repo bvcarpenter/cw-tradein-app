@@ -41,10 +41,14 @@ async function lookupDepartmentId(env, name) {
   const sqlUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql`;
   try {
     const data = await netsuiteRequest(env, 'POST', sqlUrl, {
-      q: `SELECT id FROM department WHERE name = '${name.replace(/'/g, "''")}'`,
+      q: `SELECT id, name FROM department WHERE LOWER(name) = LOWER('${name.replace(/'/g, "''")}')`,
     }, { 'Prefer': 'transient' });
     const id = data?.items?.[0]?.id;
-    if (id) return { id: String(id) };
+    if (id) {
+      console.log(`Department "${name}" → id ${id} (matched: "${data.items[0].name}")`);
+      return { id: String(id) };
+    }
+    console.log(`Department "${name}" not found`);
   } catch (e) {
     console.log('Department lookup failed:', e.message);
   }
@@ -86,51 +90,26 @@ async function lookupCustomListValue(env, fieldId, valueName) {
   const accountId = env.NS_ACCOUNT_ID;
   const sqlUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql`;
 
-  // Strategy 1: Look up the custom field's list reference, then query that list
+  // Query actual values from existing inventory items using BUILTIN.DF
   try {
-    const fieldMeta = await netsuiteRequest(env, 'POST', sqlUrl, {
-      q: `SELECT fieldtype, fieldvaluetype FROM customfield WHERE scriptid = '${fieldId}'`,
+    const data = await netsuiteRequest(env, 'POST', sqlUrl, {
+      q: `SELECT DISTINCT ${fieldId} AS id, BUILTIN.DF(${fieldId}) AS name FROM inventoryItem WHERE ${fieldId} IS NOT NULL`,
     }, { 'Prefer': 'transient' });
-    const listId = fieldMeta?.items?.[0]?.fieldvaluetype;
-    if (listId) {
-      const listData = await netsuiteRequest(env, 'POST', sqlUrl, {
-        q: `SELECT id, name FROM customlist${listId}`,
-      }, { 'Prefer': 'transient' });
-      const items = listData?.items || [];
+    const items = data?.items || [];
+    if (items.length) {
       const match = items.find(v => v.name === valueName)
         || items.find(v => v.name?.toLowerCase() === valueName?.toLowerCase());
       if (match) {
-        console.log(`${fieldId} resolved "${valueName}" → id ${match.id} via customlist${listId}`);
+        console.log(`${fieldId} resolved "${valueName}" → id ${match.id} via BUILTIN.DF`);
         return { id: String(match.id) };
       }
+      console.log(`${fieldId}: ${items.length} values found but no match for "${valueName}". Sample: ${items.slice(0, 5).map(v => v.name).join(', ')}`);
     }
   } catch (e) {
-    console.log(`${fieldId} strategy 1 (customfield meta) failed:`, e.message);
+    console.log(`${fieldId} BUILTIN.DF lookup failed:`, e.message);
   }
 
-  // Strategy 2: Try common custom list table name patterns
-  const listSuffix = fieldId.replace(/^custitem_/, '');
-  const tableGuesses = [`customlist_${listSuffix}`, `customlist_cw_${listSuffix}`];
-  for (const table of tableGuesses) {
-    try {
-      const data = await netsuiteRequest(env, 'POST', sqlUrl, {
-        q: `SELECT id, name FROM ${table} ORDER BY name`,
-      }, { 'Prefer': 'transient' });
-      const items = data?.items || [];
-      if (!items.length) continue;
-      const match = items.find(v => v.name === valueName)
-        || items.find(v => v.name?.toLowerCase() === valueName?.toLowerCase());
-      if (match) {
-        console.log(`${fieldId} resolved "${valueName}" → id ${match.id} via ${table}`);
-        return { id: String(match.id) };
-      }
-      console.log(`${fieldId}: table ${table} has ${items.length} values but no match for "${valueName}"`);
-    } catch (e) {
-      console.log(`${fieldId} table ${table} query failed:`, e.message);
-    }
-  }
-
-  console.log(`${fieldId} lookup exhausted all strategies for "${valueName}"`);
+  console.log(`${fieldId} lookup failed for "${valueName}"`);
   return null;
 }
 
@@ -238,7 +217,9 @@ function buildItemRecord(item, idx, cmNum, locationRef, refs) {
   if (refs?.systemId) record[CF.systemIdentifier] = refs.systemId;
   if (refs?.department) record[CF.subletDepartment] = refs.department;
 
-  const subDeptId = SUB_DEPT[item.format];
+  const subDeptId = SUB_DEPT[item.format]
+    || (item.format && Object.entries(SUB_DEPT).find(([k]) => k.toLowerCase() === item.format.toLowerCase())?.[1])
+    || null;
   if (subDeptId) record[CF.subDepartment] = { id: subDeptId };
 
   const gradeId = COSMETIC_GRADE[item.grade];
@@ -306,6 +287,7 @@ export async function onRequestPost({ request, env }) {
       systemId: sysIdRefs[item.systemId] || null,
       department: deptRefs[item.itemType] || null,
     };
+    console.log(`NS item[${i}]: brand="${item.brand}" sysId="${item.systemId}" type="${item.itemType}" format="${item.format}" grade="${item.grade}" → refs: brand=${JSON.stringify(refs.brand)} sysId=${JSON.stringify(refs.systemId)} dept=${JSON.stringify(refs.department)}`);
     const record = buildItemRecord(item, i, body.cmNum, locationRef, refs);
 
     try {
