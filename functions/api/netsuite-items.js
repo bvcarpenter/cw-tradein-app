@@ -55,6 +55,30 @@ async function lookupDepartmentId(env, name) {
   return null;
 }
 
+async function lookupSubDepartmentId(env, name) {
+  if (!name) return null;
+  const accountId = env.NS_ACCOUNT_ID;
+  const sqlUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql`;
+  try {
+    const data = await netsuiteRequest(env, 'POST', sqlUrl, {
+      q: `SELECT DISTINCT custitem_subdepartment AS id, BUILTIN.DF(custitem_subdepartment) AS name FROM inventoryItem WHERE custitem_subdepartment IS NOT NULL`,
+    }, { 'Prefer': 'transient' });
+    const items = data?.items || [];
+    if (items.length) {
+      const match = items.find(v => v.name === name)
+        || items.find(v => v.name?.toLowerCase() === name?.toLowerCase());
+      if (match) {
+        console.log(`SubDepartment "${name}" → id ${match.id} via BUILTIN.DF`);
+        return { id: String(match.id) };
+      }
+      console.log(`SubDepartment "${name}" not found. Available: ${items.slice(0, 10).map(v => v.name).join(', ')}`);
+    }
+  } catch (e) {
+    console.log('SubDepartment BUILTIN.DF lookup failed:', e.message);
+  }
+  return null;
+}
+
 async function lookupLocationId(env, locationName) {
   const accountId = env.NS_ACCOUNT_ID;
   const sqlUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql`;
@@ -149,17 +173,6 @@ const CF = {
 
 const MAIN_DEPT = { 'Digital': '1', 'Film': '2', 'Sport Optics': '4', 'Watches': '5' };
 
-const SUB_DEPT = {
-  '35mm': '1', 'Action Cam': '2', 'Audio': '30', 'Backdrops': '5', 'Bags': '6',
-  'Binoculars': '9', 'Cine': '32', 'Compact': '3', 'Darkroom': '7', 'Film': '8',
-  'Filters': '25', 'Fixed Lens': '4', 'Gallery': '10', 'Large Format': '11',
-  'Lighting': '12', 'Medium Format': '13', 'Memory': '14', 'Mirrorless': '15',
-  'Monocular': '16', 'Podcasting': '31', 'Printing': '17', 'Rangefinder': '18',
-  'Rifle Scopes': '19', 'SLR': '20', 'Software': '29', 'Spotting': '21',
-  'Straps': '27', 'Subminiature': '28', 'Tripod': '22', 'Video': '26',
-  'Wearables': '23', 'Writing Instruments': '33',
-};
-
 const COSMETIC_GRADE = {
   '10-': '1', '9+': '2', '9': '3', '8+': '4', '8': '5',
   '7+': '6', '7': '7', '6+': '8',
@@ -216,11 +229,7 @@ function buildItemRecord(item, idx, cmNum, locationRef, refs) {
 
   if (refs?.systemId) record[CF.systemIdentifier] = refs.systemId;
   if (refs?.department) record[CF.subletDepartment] = refs.department;
-
-  const subDeptId = SUB_DEPT[item.format]
-    || (item.format && Object.entries(SUB_DEPT).find(([k]) => k.toLowerCase() === item.format.toLowerCase())?.[1])
-    || null;
-  if (subDeptId) record[CF.subDepartment] = { id: subDeptId };
+  if (refs?.subDepartment) record[CF.subDepartment] = refs.subDepartment;
 
   const gradeId = COSMETIC_GRADE[item.grade];
   if (gradeId) record[CF.cosmeticCondition] = { id: gradeId };
@@ -276,6 +285,12 @@ export async function onRequestPost({ request, env }) {
     deptRefs[it] = await lookupDepartmentId(env, it);
   }
 
+  const formatNames = [...new Set(body.items.map(it => it.format).filter(Boolean))];
+  const subDeptRefs = {};
+  for (const fn of formatNames) {
+    subDeptRefs[fn] = await lookupSubDepartmentId(env, fn);
+  }
+
   const results = [];
   const errors = [];
 
@@ -286,6 +301,7 @@ export async function onRequestPost({ request, env }) {
       brand: brandRefs[item.brand] || null,
       systemId: sysIdRefs[item.systemId] || null,
       department: deptRefs[item.itemType] || null,
+      subDepartment: subDeptRefs[item.format] || null,
     };
     console.log(`NS item[${i}]: brand="${item.brand}" sysId="${item.systemId}" type="${item.itemType}" format="${item.format}" grade="${item.grade}" → refs: brand=${JSON.stringify(refs.brand)} sysId=${JSON.stringify(refs.systemId)} dept=${JSON.stringify(refs.department)}`);
     const record = buildItemRecord(item, i, body.cmNum, locationRef, refs);
@@ -333,4 +349,4 @@ export function onRequestOptions() {
   });
 }
 
-export { buildItemRecord, LOCATION_MAP, CF, isLeicaSystemId, isWatch, lookupLocationId, lookupTaxScheduleId, lookupCustomListValue, lookupClassId, lookupDepartmentId };
+export { buildItemRecord, LOCATION_MAP, CF, isLeicaSystemId, isWatch, lookupLocationId, lookupTaxScheduleId, lookupCustomListValue, lookupClassId, lookupDepartmentId, lookupSubDepartmentId };
