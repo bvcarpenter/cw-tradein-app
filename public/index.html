@@ -367,6 +367,12 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 .proc-img-thumb img{width:100%;height:100%;object-fit:cover;pointer-events:none}
 .proc-img-num{position:absolute;top:2px;left:2px;background:rgba(0,0,0,.75);color:#fff;font-size:9px;font-weight:600;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 4px;letter-spacing:.05em}
 .proc-img-rm{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.7);border:none;color:#e07070;font-size:14px;width:20px;height:20px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.proc-img-move{position:absolute;bottom:2px;background:rgba(0,0,0,.7);border:none;color:#fff;font-size:12px;width:24px;height:24px;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:2;border-radius:3px}
+.proc-img-move:active{background:rgba(80,80,80,.9)}
+.proc-img-move-l{left:2px}
+.proc-img-move-r{right:2px}
+@media (pointer:coarse){.proc-img-move{display:flex}}
+.proc-img-thumb.touch-drag{opacity:.5;border-color:var(--accent);z-index:10}
 .proc-footer{padding:14px 24px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;background:var(--bg2)}
 .proc-save-btn{font-family:var(--font-body);font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;padding:13px 24px;border:none;cursor:pointer;transition:all .2s;background:linear-gradient(135deg,#2a5a3a,#1a4a2a);border:1px solid #3a7a4a;color:#70d090}
 .proc-save-btn:hover{background:linear-gradient(135deg,#3a7a4a,#2a5a3a)}
@@ -4361,16 +4367,20 @@ function renderProcessingItems() {
           <div class="proc-img-zone-text">Click to upload images &nbsp;·&nbsp; or drag and drop</div>
         </div>
         <div class="proc-img-grid" id="proc-imgs-${idx}">
-          ${(pd.images || []).map((img, imgIdx) =>
-            `<div class="proc-img-thumb" draggable="true" data-item="${idx}" data-img="${imgIdx}"
+          ${(pd.images || []).map((img, imgIdx) => {
+            const lastI = (pd.images || []).length - 1;
+            return `<div class="proc-img-thumb" draggable="true" data-item="${idx}" data-img="${imgIdx}"
                   ondragstart="_imgDragStart(event)" ondragover="_imgDragOver(event)"
                   ondragenter="_imgDragEnter(event)" ondragleave="_imgDragLeave(event)"
-                  ondrop="_imgDrop(event)" ondragend="_imgDragEnd(event)">
+                  ondrop="_imgDrop(event)" ondragend="_imgDragEnd(event)"
+                  ontouchstart="_imgTouchStart(event)" ontouchmove="_imgTouchMove(event)" ontouchend="_imgTouchEnd(event)">
               <span class="proc-img-num">${String(imgIdx).padStart(3,'0')}</span>
               <img src="${img.dataUrl}" alt="Image ${imgIdx + 1}">
               <button class="proc-img-rm" onclick="event.stopPropagation();removeProcImage(${idx}, ${imgIdx})">&times;</button>
-            </div>`
-          ).join('')}
+              ${imgIdx > 0 ? `<button class="proc-img-move proc-img-move-l" onclick="event.stopPropagation();moveImage(${idx},${imgIdx},-1)">◀</button>` : ''}
+              ${imgIdx < lastI ? `<button class="proc-img-move proc-img-move-r" onclick="event.stopPropagation();moveImage(${idx},${imgIdx},1)">▶</button>` : ''}
+            </div>`;
+          }).join('')}
         </div>
 
         <div class="proc-divider"></div>
@@ -4587,14 +4597,18 @@ function handleProcImages(idx, files) {
 function renderProcImages(idx) {
   const container = document.getElementById('proc-imgs-' + idx);
   const images = procData[idx]?.images || [];
+  const lastIdx = images.length - 1;
   container.innerHTML = images.map((img, imgIdx) =>
     `<div class="proc-img-thumb" draggable="true" data-item="${idx}" data-img="${imgIdx}"
           ondragstart="_imgDragStart(event)" ondragover="_imgDragOver(event)"
           ondragenter="_imgDragEnter(event)" ondragleave="_imgDragLeave(event)"
-          ondrop="_imgDrop(event)" ondragend="_imgDragEnd(event)">
+          ondrop="_imgDrop(event)" ondragend="_imgDragEnd(event)"
+          ontouchstart="_imgTouchStart(event)" ontouchmove="_imgTouchMove(event)" ontouchend="_imgTouchEnd(event)">
       <span class="proc-img-num">${String(imgIdx).padStart(3,'0')}</span>
       <img src="${img.dataUrl}" alt="${esc(img.name)}">
       <button class="proc-img-rm" onclick="event.stopPropagation();removeProcImage(${idx}, ${imgIdx})">&times;</button>
+      ${imgIdx > 0 ? `<button class="proc-img-move proc-img-move-l" onclick="event.stopPropagation();moveImage(${idx},${imgIdx},-1)">◀</button>` : ''}
+      ${imgIdx < lastIdx ? `<button class="proc-img-move proc-img-move-r" onclick="event.stopPropagation();moveImage(${idx},${imgIdx},1)">▶</button>` : ''}
     </div>`
   ).join('');
 }
@@ -4631,6 +4645,66 @@ function _imgDragEnd(e) {
   _dragImgItem = null; _dragImgIdx = null;
   document.querySelectorAll('.proc-img-thumb.dragging,.proc-img-thumb.drag-over')
     .forEach(el => el.classList.remove('dragging','drag-over'));
+}
+
+function moveImage(idx, imgIdx, dir) {
+  const imgs = procData[idx]?.images;
+  if (!imgs) return;
+  const to = imgIdx + dir;
+  if (to < 0 || to >= imgs.length) return;
+  [imgs[imgIdx], imgs[to]] = [imgs[to], imgs[imgIdx]];
+  renderProcImages(idx);
+}
+
+let _touchImg = null, _touchStartX = 0, _touchStartY = 0, _touchMoved = false;
+function _imgTouchStart(e) {
+  const el = e.target.closest('.proc-img-thumb');
+  if (!el || e.target.closest('.proc-img-rm') || e.target.closest('.proc-img-move')) return;
+  _touchImg = el;
+  _touchMoved = false;
+  const t = e.touches[0];
+  _touchStartX = t.clientX; _touchStartY = t.clientY;
+  _touchImg._longPress = setTimeout(() => {
+    _touchMoved = true;
+    el.classList.add('touch-drag');
+  }, 300);
+}
+function _imgTouchMove(e) {
+  if (!_touchImg) return;
+  const t = e.touches[0];
+  const dx = Math.abs(t.clientX - _touchStartX);
+  const dy = Math.abs(t.clientY - _touchStartY);
+  if (!_touchMoved && (dx > 10 || dy > 10)) {
+    clearTimeout(_touchImg._longPress);
+    _touchImg = null;
+    return;
+  }
+  if (!_touchMoved) return;
+  e.preventDefault();
+  const target = document.elementFromPoint(t.clientX, t.clientY)?.closest('.proc-img-thumb');
+  document.querySelectorAll('.proc-img-thumb.drag-over').forEach(el => el.classList.remove('drag-over'));
+  if (target && target !== _touchImg && target.dataset.item === _touchImg.dataset.item) {
+    target.classList.add('drag-over');
+  }
+}
+function _imgTouchEnd(e) {
+  if (!_touchImg) return;
+  clearTimeout(_touchImg._longPress);
+  _touchImg.classList.remove('touch-drag');
+  if (!_touchMoved) { _touchImg = null; return; }
+  const t = e.changedTouches[0];
+  const target = document.elementFromPoint(t.clientX, t.clientY)?.closest('.proc-img-thumb');
+  document.querySelectorAll('.proc-img-thumb.drag-over').forEach(el => el.classList.remove('drag-over'));
+  if (target && target !== _touchImg && target.dataset.item === _touchImg.dataset.item) {
+    const itemIdx = +_touchImg.dataset.item;
+    const fromIdx = +_touchImg.dataset.img;
+    const toIdx = +target.dataset.img;
+    const imgs = procData[itemIdx].images;
+    const [moved] = imgs.splice(fromIdx, 1);
+    imgs.splice(toIdx, 0, moved);
+    renderProcImages(itemIdx);
+  }
+  _touchImg = null;
 }
 
 function removeProcImage(idx, imgIdx) {
