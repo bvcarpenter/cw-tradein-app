@@ -15,6 +15,21 @@
 
 import { netsuiteRequest } from './_netsuite.js';
 
+async function lookupLocationId(env, locationName) {
+  const accountId = env.NS_ACCOUNT_ID;
+  const sqlUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql`;
+  try {
+    const data = await netsuiteRequest(env, 'POST', sqlUrl, {
+      q: `SELECT id FROM location WHERE name = '${locationName.replace(/'/g, "''")}'`,
+    }, { 'Prefer': 'transient' });
+    const id = data?.items?.[0]?.id;
+    if (id) return { id: String(id) };
+  } catch (e) {
+    console.log('Location lookup failed:', e.message);
+  }
+  return { name: locationName };
+}
+
 // ── Location / Vendor name mapping ───────────────────────────
 // App destination → NetSuite location name
 const LOCATION_MAP = {
@@ -57,7 +72,7 @@ function isWatch(itemType) {
   return /watch/i.test(itemType || '');
 }
 
-function buildItemRecord(item, idx, cmNum, locationName) {
+function buildItemRecord(item, idx, cmNum, locationRef) {
   const itemNum = `${cmNum}-${String(idx + 1).padStart(3, '0')}`;
   const displayName = item.serial
     ? `${item.name} / ${item.serial}`
@@ -75,8 +90,8 @@ function buildItemRecord(item, idx, cmNum, locationName) {
     basePrice: item.retail || 0,
     onlinePrice: item.retail || 0,
     taxSchedule: { name: 'Taxable' },
-    location: { name: locationName },
-    preferredLocation: { name: locationName },
+    location: locationRef,
+    preferredLocation: locationRef,
 
     // Custom fields — mapped values
     [CF.brand]:             item.brand || '',
@@ -131,13 +146,14 @@ export async function onRequestPost({ request, env }) {
   const locationName = LOCATION_MAP[body.location] || body.location || 'Camera West SF';
   const accountId = env.NS_ACCOUNT_ID;
   const apiUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/record/v1/inventoryItem`;
+  const locationRef = await lookupLocationId(env, locationName);
 
   const results = [];
   const errors = [];
 
   for (let i = 0; i < body.items.length; i++) {
     const item = body.items[i];
-    const record = buildItemRecord(item, i, body.cmNum, locationName);
+    const record = buildItemRecord(item, i, body.cmNum, locationRef);
 
     try {
       const data = await netsuiteRequest(env, 'POST', apiUrl, record);
@@ -182,4 +198,4 @@ export function onRequestOptions() {
   });
 }
 
-export { buildItemRecord, LOCATION_MAP, CF, isLeicaSystemId, isWatch };
+export { buildItemRecord, LOCATION_MAP, CF, isLeicaSystemId, isWatch, lookupLocationId };

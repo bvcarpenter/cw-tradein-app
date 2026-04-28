@@ -11,7 +11,7 @@
  */
 
 import { netsuiteRequest } from './_netsuite.js';
-import { buildItemRecord, LOCATION_MAP } from './netsuite-items.js';
+import { buildItemRecord, LOCATION_MAP, lookupLocationId } from './netsuite-items.js';
 
 const cors = {
   'Content-Type': 'application/json',
@@ -45,6 +45,9 @@ export async function onRequestPost({ request, env }) {
   const baseUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/record/v1`;
   const sqlUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql`;
 
+  const locationRef = await lookupLocationId(env, locationName);
+  console.log(`Vouch location: "${locationName}" → ref:`, JSON.stringify(locationRef));
+
   const result = {
     success: false,
     steps: { itemsCreated: false, poCreated: false, poReceived: false },
@@ -66,7 +69,7 @@ export async function onRequestPost({ request, env }) {
   try {
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      const record = buildItemRecord(item, i, cmNum, locationName);
+      const record = buildItemRecord(item, i, cmNum, locationRef);
       const expectedItemId = record.itemId;
 
       if (existingMap[expectedItemId]) {
@@ -105,7 +108,7 @@ export async function onRequestPost({ request, env }) {
   // Map item internalIds to their net prices
   const itemPriceMap = {};
   for (let i = 0; i < items.length; i++) {
-    const record = buildItemRecord(items[i], i, cmNum, locationName);
+    const record = buildItemRecord(items[i], i, cmNum, locationRef);
     itemPriceMap[record.itemId] = items[i].net || 0;
   }
 
@@ -124,20 +127,21 @@ export async function onRequestPost({ request, env }) {
         }, { 'Prefer': 'transient' });
         vendorId = vendorData2?.items?.[0]?.id;
       }
+      console.log(`Vouch vendor lookup "${locationName}": id=${vendorId}`);
     } catch (e) {
       console.log('Vendor lookup failed, will try name reference:', e.message);
     }
 
     const poBody = {
       entity: vendorId ? { id: String(vendorId) } : { name: locationName },
-      location: { name: locationName },
+      location: locationRef,
       memo: `${cmNum} ${customerName || ''}`.trim(),
       item: {
         items: successItems.map(si => ({
           item: { id: String(si.internalId) },
           quantity: 1,
           rate: itemPriceMap[si.itemId] || 0,
-          location: { name: locationName },
+          location: locationRef,
         })),
       },
     };
