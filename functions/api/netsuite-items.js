@@ -35,6 +35,22 @@ async function lookupClassId(env, name) {
   return null;
 }
 
+async function lookupDepartmentId(env, name) {
+  if (!name) return null;
+  const accountId = env.NS_ACCOUNT_ID;
+  const sqlUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql`;
+  try {
+    const data = await netsuiteRequest(env, 'POST', sqlUrl, {
+      q: `SELECT id FROM department WHERE name = '${name.replace(/'/g, "''")}'`,
+    }, { 'Prefer': 'transient' });
+    const id = data?.items?.[0]?.id;
+    if (id) return { id: String(id) };
+  } catch (e) {
+    console.log('Department lookup failed:', e.message);
+  }
+  return null;
+}
+
 async function lookupLocationId(env, locationName) {
   const accountId = env.NS_ACCOUNT_ID;
   const sqlUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql`;
@@ -154,6 +170,22 @@ const CF = {
 
 const MAIN_DEPT = { 'Digital': '1', 'Film': '2', 'Sport Optics': '4', 'Watches': '5' };
 
+const SUB_DEPT = {
+  '35mm': '1', 'Action Cam': '2', 'Audio': '30', 'Backdrops': '5', 'Bags': '6',
+  'Binoculars': '9', 'Cine': '32', 'Compact': '3', 'Darkroom': '7', 'Film': '8',
+  'Filters': '25', 'Fixed Lens': '4', 'Gallery': '10', 'Large Format': '11',
+  'Lighting': '12', 'Medium Format': '13', 'Memory': '14', 'Mirrorless': '15',
+  'Monocular': '16', 'Podcasting': '31', 'Printing': '17', 'Rangefinder': '18',
+  'Rifle Scopes': '19', 'SLR': '20', 'Software': '29', 'Spotting': '21',
+  'Straps': '27', 'Subminiature': '28', 'Tripod': '22', 'Video': '26',
+  'Wearables': '23', 'Writing Instruments': '33',
+};
+
+const COSMETIC_GRADE = {
+  '10-': '1', '9+': '2', '9': '3', '8+': '4', '8': '5',
+  '7+': '6', '7': '7', '6+': '8',
+};
+
 function isLeicaSystemId(systemId) {
   return /^LS/i.test(systemId || '');
 }
@@ -184,9 +216,8 @@ function buildItemRecord(item, idx, cmNum, locationRef, refs) {
     preferredLocation: locationRef,
 
     // Custom fields — mapped values
-    [CF.systemIdentifier]:  item.systemId || '',
     [CF.softVouch]:         true,
-    [CF.mainDepartment]:    { id: MAIN_DEPT[item.medium] || '3' },
+    [CF.mainDepartment]:    { id: '1' },
     [CF.vendorNameCode]:    item.serial || '',
 
     // Custom fields — defaults
@@ -203,6 +234,15 @@ function buildItemRecord(item, idx, cmNum, locationRef, refs) {
 
   record[CF.brand] = refs?.brand || '';
   record[CF.newUsed] = { id: '2' };
+
+  if (refs?.systemId) record[CF.systemIdentifier] = refs.systemId;
+  if (refs?.department) record[CF.subletDepartment] = refs.department;
+
+  const subDeptId = SUB_DEPT[item.format];
+  if (subDeptId) record[CF.subDepartment] = { id: subDeptId };
+
+  const gradeId = COSMETIC_GRADE[item.grade];
+  if (gradeId) record[CF.cosmeticCondition] = { id: gradeId };
 
   if (pipe17Tag) {
     record[CF.pipe17Tags] = pipe17Tag;
@@ -243,12 +283,29 @@ export async function onRequestPost({ request, env }) {
     brandRefs[bn] = await lookupClassId(env, bn);
   }
 
+  const sysIdNames = [...new Set(body.items.map(it => it.systemId).filter(Boolean))];
+  const sysIdRefs = {};
+  for (const si of sysIdNames) {
+    sysIdRefs[si] = await lookupCustomListValue(env, CF.systemIdentifier, si);
+  }
+
+  const itemTypeNames = [...new Set(body.items.map(it => it.itemType).filter(Boolean))];
+  const deptRefs = {};
+  for (const it of itemTypeNames) {
+    deptRefs[it] = await lookupDepartmentId(env, it);
+  }
+
   const results = [];
   const errors = [];
 
   for (let i = 0; i < body.items.length; i++) {
     const item = body.items[i];
-    const refs = { taxSchedule: taxRef, brand: brandRefs[item.brand] || null };
+    const refs = {
+      taxSchedule: taxRef,
+      brand: brandRefs[item.brand] || null,
+      systemId: sysIdRefs[item.systemId] || null,
+      department: deptRefs[item.itemType] || null,
+    };
     const record = buildItemRecord(item, i, body.cmNum, locationRef, refs);
 
     try {
@@ -294,4 +351,4 @@ export function onRequestOptions() {
   });
 }
 
-export { buildItemRecord, LOCATION_MAP, CF, isLeicaSystemId, isWatch, lookupLocationId, lookupTaxScheduleId, lookupCustomListValue, lookupClassId };
+export { buildItemRecord, LOCATION_MAP, CF, isLeicaSystemId, isWatch, lookupLocationId, lookupTaxScheduleId, lookupCustomListValue, lookupClassId, lookupDepartmentId };

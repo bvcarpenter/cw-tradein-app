@@ -3471,7 +3471,7 @@ async function execStoreCredit() {
     // ── Step 1: Create Credit Memo in NetSuite ──
     scBtn.textContent = 'Creating CM in NetSuite…';
     scMsg.style.color = 'var(--dim)';
-    scMsg.textContent = 'Step 1/3 — Creating Credit Memo in NetSuite…';
+    scMsg.textContent = 'Step 1/5 — Creating Credit Memo in NetSuite…';
     scMsg.style.display = 'block';
 
     const nsBody = {
@@ -3520,7 +3520,7 @@ async function execStoreCredit() {
 
     // ── Step 2: Issue Store Credit in Shopify ──
     scBtn.textContent = 'Issuing Shopify credit…';
-    scMsg.textContent = 'Step 2/3 — Issuing store credit in Shopify (CM# ' + cm + ' — $' + creditAmount.toFixed(2) + ')…';
+    scMsg.textContent = 'Step 2/5 — Issuing store credit in Shopify (CM# ' + cm + ' — $' + creditAmount.toFixed(2) + ')…';
     scMsg.style.color = 'var(--dim)';
     scMsg.style.display = 'block';
 
@@ -3554,7 +3554,7 @@ async function execStoreCredit() {
 
     // ── Step 3: Create inventory items in NetSuite (non-blocking) ──
     scBtn.textContent = 'Creating NS items…';
-    scMsg.textContent = 'Step 3/4 — Creating inventory items in NetSuite…';
+    scMsg.textContent = 'Step 3/5 — Creating inventory items in NetSuite…';
 
     let nsItemsResult = null, nsItemsError = null;
     try {
@@ -3564,9 +3564,41 @@ async function execStoreCredit() {
       console.warn('NS item creation failed:', itemErr);
     }
 
-    // ── Step 4: Save and finalize session ──
+    // ── Step 4: Vouch Items (PO + Receive) ──
+    scBtn.textContent = 'Vouching items…';
+    scMsg.textContent = 'Step 4/5 — Creating PO and receiving items…';
+
+    let vouchResult = null, vouchError = null;
+    try {
+      const existingItemIds = nsItemsResult?.items?.filter(i => i.internalId) || [];
+      const vouchPayload = {
+        cmNum: cm,
+        customerName: custName,
+        location: selLoc,
+        items: sessionItems.map(it => ({
+          name: it.name, brand: it.vendor || it.brand || '',
+          serial: it.serial || '', catalog: it.catalog || '',
+          systemId: it.systemId || '', format: it.format || '',
+          itemType: it.itemType || '', net: it.net || 0,
+          retail: it.retail || it.tradein || 0, grade: it.grade || '',
+        })),
+        existingItemIds,
+      };
+      const vRes = await fetch('/api/netsuite-vouch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(vouchPayload),
+      });
+      vouchResult = await vRes.json();
+      if (!vRes.ok && !vouchResult.steps) throw new Error(vouchResult.error || `HTTP ${vRes.status}`);
+    } catch (vErr) {
+      vouchError = vErr.message;
+      console.warn('Vouch failed:', vErr);
+    }
+
+    // ── Step 5: Save and finalize session ──
     scBtn.textContent = 'Finalizing session…';
-    scMsg.textContent = 'Step 4/4 — Saving and finalizing session…';
+    scMsg.textContent = 'Step 5/5 — Saving and finalizing session…';
 
     try {
       _sessionMeta.finalized = true;
@@ -3577,6 +3609,19 @@ async function execStoreCredit() {
         _sessionMeta.nsItems = { cm, createdAt: new Date().toISOString(), items: nsItemsResult.items || [], errors: nsItemsResult.errors || [] };
       } else if (nsItemsError) {
         _sessionMeta.nsItems = { cm, failedAt: new Date().toISOString(), lastError: nsItemsError };
+      }
+      if (vouchResult) {
+        _sessionMeta.vouch = {
+          vouchedAt: new Date().toISOString(),
+          steps: vouchResult.steps,
+          purchaseOrder: vouchResult.purchaseOrder,
+          itemReceipt: vouchResult.itemReceipt,
+        };
+        if (vouchResult.items?.length) {
+          _sessionMeta.nsItems = { cm, createdAt: new Date().toISOString(), items: vouchResult.items, errors: vouchResult.errors || [] };
+        }
+      } else if (vouchError) {
+        _sessionMeta.vouch = { failedAt: new Date().toISOString(), lastError: vouchError };
       }
       const sessionData = getSessionData();
       sessionData.cmNum = cm;
@@ -3598,23 +3643,38 @@ async function execStoreCredit() {
     if (nsItemsResult) {
       const fa = nsItemsResult.failed || 0;
       if (fa === 0) itemsLine = `<br>&#10003; ${nsItemsResult.created} NS item(s) created`;
-      else itemsLine = `<br><span style="color:#d0a070;">&#9888; ${nsItemsResult.created} of ${sessionItems.length} NS items created — ${fa} failed (use Retry button)</span>`;
+      else itemsLine = `<br><span style="color:#d0a070;">&#9888; ${nsItemsResult.created} of ${sessionItems.length} NS items created — ${fa} failed</span>`;
     } else if (nsItemsError) {
-      itemsLine = `<br><span style="color:#e07070;">&#10005; NS items failed: ${esc(nsItemsError).replace(/\n/g, '<br>')} (use Retry button)</span>`;
+      itemsLine = `<br><span style="color:#e07070;">&#10005; NS items failed: ${esc(nsItemsError).replace(/\n/g, '<br>')}</span>`;
+    }
+    let vouchLine = '';
+    if (vouchResult?.success) {
+      const po = vouchResult.purchaseOrder;
+      const ir = vouchResult.itemReceipt;
+      vouchLine = `<br>&#10003; Vouched — PO: ${esc(po?.tranId || po?.id || '?')}, Receipt: ${esc(ir?.tranId || ir?.id || '?')}`;
+    } else if (vouchError) {
+      vouchLine = `<br><span style="color:#e07070;">&#10005; Vouch failed: ${esc(vouchError)}</span>`;
+    } else if (vouchResult && !vouchResult.success) {
+      vouchLine = `<br><span style="color:#d0a070;">&#9888; Vouch partial — use Retry button</span>`;
     }
     scMsg.innerHTML = `<strong>CM# ${esc(cm)}</strong> created in NetSuite`
       + `<br>Store credit issued — <strong>$${esc(credited)}</strong> (balance: $${esc(balance)})`
       + itemsLine
+      + vouchLine
       + `<br><span style="font-size:10px;color:var(--dim);">Customer Refund will be created automatically in NetSuite.</span>`
       + (scData.noteAppended ? '<br><span style="font-size:10px;">Customer note updated.</span>' : '');
     scMsg.style.display = 'block';
     scBtn.textContent = 'Issued ✓';
 
-    // Show "Process Trade-In" and "Vouch Items" buttons
+    // Show "Process Trade-In" section and update vouch button state
     const procSec = document.getElementById('process-tradein-section');
     if (procSec) procSec.style.display = '';
     const vouchBtn = document.getElementById('vouch-btn');
-    if (vouchBtn) { vouchBtn.textContent = 'Vouch Items'; vouchBtn.disabled = false; }
+    if (vouchResult?.success) {
+      if (vouchBtn) { vouchBtn.textContent = 'Vouched ✓'; vouchBtn.disabled = true; }
+    } else {
+      if (vouchBtn) { vouchBtn.textContent = 'Retry Vouch'; vouchBtn.disabled = false; }
+    }
 
   } catch (err) {
     scMsg.style.color = '#e07070';
