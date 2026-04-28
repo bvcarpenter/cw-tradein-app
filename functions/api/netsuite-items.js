@@ -54,10 +54,11 @@ async function lookupCustomListValue(env, fieldId, valueName) {
       q: `SELECT DISTINCT ${fieldId} AS id, BUILTIN.DF(${fieldId}) AS name FROM inventoryItem WHERE ${fieldId} IS NOT NULL`,
     }, { 'Prefer': 'transient' });
     const items = data?.items || [];
+    console.log(`${fieldId} lookup: ${items.length} distinct values found`);
     const match = items.find(v => v.name === valueName)
       || items.find(v => v.name?.toLowerCase() === valueName?.toLowerCase());
     if (match) return { id: String(match.id) };
-    console.log(`No ${fieldId} match for "${valueName}", available:`, JSON.stringify(items.slice(0, 10)));
+    console.log(`No ${fieldId} match for "${valueName}", available:`, JSON.stringify(items.slice(0, 15)));
   } catch (e) {
     console.log(`${fieldId} lookup failed:`, e.message);
   }
@@ -148,8 +149,8 @@ function buildItemRecord(item, idx, cmNum, locationRef, refs) {
     [CF.shopifyVisibility]: 'Point of sale',
   };
 
-  record[CF.brand] = refs?.brand || item.brand || '';
-  record[CF.newUsed] = refs?.newUsed || 'Used';
+  record[CF.brand] = refs?.brand || (item.brand ? { name: item.brand } : '');
+  record[CF.newUsed] = refs?.newUsed || { id: '2' };
 
   if (pipe17Tag) {
     record[CF.pipe17Tags] = pipe17Tag;
