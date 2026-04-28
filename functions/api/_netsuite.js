@@ -105,7 +105,11 @@ export async function netsuiteRequest(env, method, url, body, extraHeaders) {
 
   const res = await fetch(url, fetchOpts);
 
-  if (res.status === 204) return { success: true };
+  if (res.status === 204) {
+    const loc = res.headers.get('Location') || '';
+    const idMatch = loc.match(/\/(\d+)$/);
+    return { success: true, id: idMatch ? idMatch[1] : undefined };
+  }
 
   const text = await res.text();
 

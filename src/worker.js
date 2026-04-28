@@ -133,6 +133,12 @@ export default {
       if (method === 'POST')    return mod.onRequestPost(c);
     }
 
+    if (path === '/api/netsuite-vouch') {
+      const mod = await import('../functions/api/netsuite-vouch.js');
+      if (method === 'OPTIONS') return mod.onRequestOptions(c);
+      if (method === 'POST')    return mod.onRequestPost(c);
+    }
+
     if (path === '/api/fedex-label') {
       if (method === 'OPTIONS') return fedexLabelOptions(c);
       if (method === 'POST')    return fedexLabelPost(c);
