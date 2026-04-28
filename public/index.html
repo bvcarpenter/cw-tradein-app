@@ -1812,6 +1812,9 @@ function selProduct(p) {
   selItem = { name: p.n, vendor: p.v||'', systemId: p.si||'', itemType: p.it||'',
               medium: p.m||'', price: p.p||0, sku: p.sku||'', format: fmt, category: cat,
               catalog: p.sku||'', asin: p.asin||'' };
+  const ve = document.getElementById('m-vendor');
+  if (ve) { ve.value = selItem.vendor; ve.dataset.userEdited = 'false'; }
+  if (!selItem.vendor) autoBrand(p.n);
   setSelectVal('m-sys', p.si||'');
   setSelectVal('m-type', p.it||'');
   setSelectVal('m-med', p.m||'');
@@ -2159,7 +2162,7 @@ function addItem() {
     const svcReason=(document.getElementById('svc-reason')?.value||'').trim();
     const net=Math.max(0,(selPT==='tradein'?ti:or)-svcCharge);
     const accs=[...document.querySelectorAll('.achip.on')].map(c=>c.querySelector('span').textContent);
-    const upd={id:_editingId,name:selItem.name,vendor:selItem.vendor,systemId:selItem.systemId,
+    const upd={id:_editingId,name:selItem.name,vendor:selItem.vendor||document.getElementById('m-vendor')?.value?.trim()||'',systemId:selItem.systemId,
       itemType:selItem.itemType,medium:selItem.medium,format:selItem.format||'',category:selItem.category,sku:selItem.sku,
       asin:(selItem.asin||'').trim(),
       serial:document.getElementById('serial').value.trim(),catalog:(selItem.catalog||selItem.sku||'').trim(),
@@ -2184,7 +2187,7 @@ function addItem() {
   const accs = [...document.querySelectorAll('.achip.on')].map(c => c.querySelector('span').textContent);
   sessionItems.push({
     id: Date.now(),
-    name: selItem.name, vendor: selItem.vendor, systemId: selItem.systemId,
+    name: selItem.name, vendor: selItem.vendor || document.getElementById('m-vendor')?.value?.trim() || '', systemId: selItem.systemId,
     itemType: selItem.itemType, medium: selItem.medium, format: selItem.format||'',
     category: selItem.category, sku: selItem.sku, asin: (selItem.asin||'').trim(),
     serial:  document.getElementById('serial').value.trim(),

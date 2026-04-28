@@ -115,7 +115,7 @@ function parseShopifyRow(row) {
   return {
     n:     stripToModel(rawTitle),
     rawTitle,
-    v:     '',
+    v:     row['Vendor'] || '',
     si:    row['System ID'] || '',
     it:    type,
     m:     row['Medium'] || '',
