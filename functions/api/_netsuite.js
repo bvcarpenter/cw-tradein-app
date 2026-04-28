@@ -42,7 +42,7 @@ async function hmacSha256(key, message) {
  * @param {object} [body]     — JSON body for POST/PUT
  * @returns {Promise<object>} — Parsed JSON response
  */
-export async function netsuiteRequest(env, method, url, body) {
+export async function netsuiteRequest(env, method, url, body, extraHeaders) {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const nonce = generateNonce();
 
@@ -95,6 +95,7 @@ export async function netsuiteRequest(env, method, url, body) {
   const headers = {
     'Authorization': authHeader,
     'Content-Type': 'application/json',
+    ...extraHeaders,
   };
 
   const fetchOpts = { method, headers };

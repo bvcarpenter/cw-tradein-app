@@ -22,6 +22,15 @@ const CORS = {
   'Access-Control-Allow-Origin': '*',
 };
 
+function toRichText(plain) {
+  const lines = (plain || '').split('\n').filter(l => l.trim());
+  const children = lines.map(line => ({
+    type: 'paragraph',
+    children: [{ type: 'text', value: line }],
+  }));
+  return JSON.stringify({ type: 'root', children });
+}
+
 export function onRequestOptions() {
   return new Response(null, {
     headers: {
@@ -135,9 +144,9 @@ async function setShopifyMetafields(env, productId, item) {
   const metafields = [
     { key: 'pre_owned_grade', value: item.grade || '', type: 'single_line_text_field' },
     { key: 'used_serial', value: item.serial || '', type: 'single_line_text_field' },
-    { key: 'used_cosmetic_condition_notes', value: item.cosmeticNotes || '', type: 'multi_line_text_field' },
-    { key: 'used_mechanical_notes', value: item.mechOpticalNotes || '', type: 'multi_line_text_field' },
-    { key: 'used_general_notes', value: item.generalNotes || '', type: 'multi_line_text_field' },
+    { key: 'used_cosmetic_condition_notes', value: item.cosmeticNotes || '', type: 'rich_text_field' },
+    { key: 'used_mechanical_notes', value: item.mechOpticalNotes || '', type: 'rich_text_field' },
+    { key: 'used_general_notes', value: item.generalNotes || '', type: 'rich_text_field' },
     { key: 'used_tested_by', value: item.testedBy || '', type: 'single_line_text_field' },
   ];
 
@@ -145,7 +154,7 @@ async function setShopifyMetafields(env, productId, item) {
     metafields.push({
       key: 'what_s_included',
       value: item.comesWith.map(a => '• ' + a).join('\n'),
-      type: 'multi_line_text_field',
+      type: 'rich_text_field',
     });
   }
 
@@ -157,7 +166,7 @@ async function setShopifyMetafields(env, productId, item) {
       namespace: 'custom',
       key: m.key,
       type: m.type,
-      value: m.value,
+      value: m.type === 'rich_text_field' ? toRichText(m.value) : m.value,
     }));
 
   if (!toSet.length) return;
@@ -236,7 +245,7 @@ async function lookupNetSuiteItem(env, sku) {
   const sqlUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql`;
   const data = await netsuiteRequest(env, 'POST', sqlUrl, {
     q: `SELECT id FROM inventoryItem WHERE itemId = '${sku.replace(/'/g, "''")}'`,
-  });
+  }, { 'Prefer': 'transient' });
   const items = data?.items || [];
   return items.length ? items[0].id : null;
 }
