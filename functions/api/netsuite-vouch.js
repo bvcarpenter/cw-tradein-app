@@ -11,7 +11,7 @@
  */
 
 import { netsuiteRequest } from './_netsuite.js';
-import { buildItemRecord, LOCATION_MAP, CF, lookupLocationId, lookupTaxScheduleId, lookupCustomListValue } from './netsuite-items.js';
+import { buildItemRecord, LOCATION_MAP, CF, lookupLocationId, lookupTaxScheduleId, lookupClassId } from './netsuite-items.js';
 
 const cors = {
   'Content-Type': 'application/json',
@@ -51,7 +51,7 @@ export async function onRequestPost({ request, env }) {
   const brandNames = [...new Set(items.map(it => it.brand).filter(Boolean))];
   const brandRefs = {};
   for (const bn of brandNames) {
-    brandRefs[bn] = await lookupCustomListValue(env, CF.brand, bn);
+    brandRefs[bn] = await lookupClassId(env, bn);
   }
   console.log(`Vouch: location="${locationName}", brands=${JSON.stringify(brandRefs)}`);
 

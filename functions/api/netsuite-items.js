@@ -15,6 +15,26 @@
 
 import { netsuiteRequest } from './_netsuite.js';
 
+async function lookupClassId(env, name) {
+  if (!name) return null;
+  const accountId = env.NS_ACCOUNT_ID;
+  const sqlUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql`;
+  try {
+    const data = await netsuiteRequest(env, 'POST', sqlUrl, {
+      q: `SELECT id FROM classification WHERE name = '${name.replace(/'/g, "''")}'`,
+    }, { 'Prefer': 'transient' });
+    const id = data?.items?.[0]?.id;
+    if (id) {
+      console.log(`Classification "${name}" → id ${id}`);
+      return { id: String(id) };
+    }
+    console.log(`Classification "${name}" not found`);
+  } catch (e) {
+    console.log('Classification lookup failed:', e.message);
+  }
+  return null;
+}
+
 async function lookupLocationId(env, locationName) {
   const accountId = env.NS_ACCOUNT_ID;
   const sqlUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql`;
@@ -111,13 +131,13 @@ const LOCATION_MAP = {
 // Update these to match your NetSuite instance's internal IDs.
 // Find them in: Customization > Lists, Records & Fields > Item Fields
 const CF = {
-  brand:                'custitem_brand',
+  brand:                'class',
   systemIdentifier:     'custitem_system_identifier',
   softVouch:            'custitem_soft_vouch',
-  mainDepartment:       'custitem_main_department',
-  subDepartment:        'custitem_sub_department',
-  subletDepartment:     'custitem_sublet_department',
-  cosmeticCondition:    'custitem_cosmetic_condition',
+  mainDepartment:       'custitem_maindepartment',
+  subDepartment:        'custitem_subdepartment',
+  subletDepartment:     'department',
+  cosmeticCondition:    'custitem2',
   cwWebsite:            'custitem_cw_website',
   pipe17Tags:           'custitem_pipe17_tags',
   amazonCategory:       'custitem_amazon_category',
@@ -128,7 +148,7 @@ const CF = {
   etailChannel2:        'custitem_etail_channel_2',
   shopifyStores:        'custitem_shopify_stores',
   shopifyVisibility:    'custitem_shopify_product_visibility',
-  newUsed:              'custitem_new_used',
+  newUsed:              'custitem_item_condition',
   vendorNameCode:       'custitem_vendor_name_code',
 };
 
@@ -221,7 +241,7 @@ export async function onRequestPost({ request, env }) {
   const brandNames = [...new Set(body.items.map(it => it.brand).filter(Boolean))];
   const brandRefs = {};
   for (const bn of brandNames) {
-    brandRefs[bn] = await lookupCustomListValue(env, CF.brand, bn);
+    brandRefs[bn] = await lookupClassId(env, bn);
   }
 
   const results = [];
@@ -275,4 +295,4 @@ export function onRequestOptions() {
   });
 }
 
-export { buildItemRecord, LOCATION_MAP, CF, isLeicaSystemId, isWatch, lookupLocationId, lookupTaxScheduleId, lookupCustomListValue };
+export { buildItemRecord, LOCATION_MAP, CF, isLeicaSystemId, isWatch, lookupLocationId, lookupTaxScheduleId, lookupCustomListValue, lookupClassId };
