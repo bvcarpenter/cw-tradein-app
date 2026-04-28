@@ -74,6 +74,35 @@ export async function onRequestPost({ request, env }) {
 
   console.log(`Vouch: location="${locationName}", brands=${JSON.stringify(brandRefs)}, sysIds=${JSON.stringify(sysIdRefs)}, depts=${JSON.stringify(deptRefs)}, subDepts=${JSON.stringify(subDeptRefs)}`);
 
+  // Diagnostic: probe what custitem_subdepartment looks like
+  let _diag = {};
+  try {
+    const probeData = await netsuiteRequest(env, 'POST', sqlUrl, {
+      q: `SELECT DISTINCT custitem_subdepartment AS id, BUILTIN.DF(custitem_subdepartment) AS name FROM inventoryItem WHERE custitem_subdepartment IS NOT NULL FETCH FIRST 10 ROWS ONLY`,
+    }, { 'Prefer': 'transient' });
+    _diag.subDeptProbe = probeData?.items || [];
+  } catch (e) {
+    _diag.subDeptProbeError = e.message;
+  }
+  try {
+    const probeData2 = await netsuiteRequest(env, 'POST', sqlUrl, {
+      q: `SELECT DISTINCT custitem_system_identifier AS id, BUILTIN.DF(custitem_system_identifier) AS name FROM inventoryItem WHERE custitem_system_identifier IS NOT NULL FETCH FIRST 10 ROWS ONLY`,
+    }, { 'Prefer': 'transient' });
+    _diag.sysIdProbe = probeData2?.items || [];
+  } catch (e) {
+    _diag.sysIdProbeError = e.message;
+  }
+  try {
+    const probeData3 = await netsuiteRequest(env, 'POST', sqlUrl, {
+      q: `SELECT DISTINCT department AS id, BUILTIN.DF(department) AS name FROM inventoryItem WHERE department IS NOT NULL FETCH FIRST 10 ROWS ONLY`,
+    }, { 'Prefer': 'transient' });
+    _diag.deptProbe = probeData3?.items || [];
+  } catch (e) {
+    _diag.deptProbeError = e.message;
+  }
+  _diag.inputItems = items.map(it => ({ brand: it.brand, systemId: it.systemId, itemType: it.itemType, format: it.format, grade: it.grade }));
+  _diag.resolvedRefs = { brandRefs, sysIdRefs, deptRefs, subDeptRefs };
+
   const result = {
     success: false,
     steps: { itemsCreated: false, poCreated: false, poReceived: false },
@@ -81,6 +110,7 @@ export async function onRequestPost({ request, env }) {
     purchaseOrder: null,
     itemReceipt: null,
     errors: [],
+    _diag,
   };
 
   // Build lookup of already-created items by itemId

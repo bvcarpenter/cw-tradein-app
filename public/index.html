@@ -3646,6 +3646,9 @@ async function execStoreCredit() {
       else itemsLine = `<br><span style="color:#d0a070;">&#9888; ${nsItemsResult.created} of ${sessionItems.length} NS items created — ${fa} failed</span>`;
     } else if (nsItemsError) {
       itemsLine = `<br><span style="color:#e07070;">&#10005; NS items failed: ${esc(nsItemsError).replace(/\n/g, '<br>')}</span>`;
+      if (nsItemsResult?._diag) {
+        itemsLine += `<br><details style="font-size:10px;color:var(--dim);margin-top:4px;"><summary>diag</summary><pre style="white-space:pre-wrap;max-height:200px;overflow:auto;">${esc(JSON.stringify(nsItemsResult._diag, null, 2))}</pre></details>`;
+      }
     }
     let vouchLine = '';
     if (vouchResult?.success) {
@@ -3799,6 +3802,7 @@ async function createNetsuiteItems(cmNum, items, location) {
     if (data.errors?.length) {
       msg += '\n' + data.errors.map(e => `${e.itemId}: ${e.error}`).join('\n');
     }
+    if (data._diag) msg += '\n_diag:' + JSON.stringify(data._diag);
     throw new Error(msg);
   }
   return data;
