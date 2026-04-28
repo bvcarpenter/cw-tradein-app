@@ -3712,7 +3712,7 @@ async function createNetsuiteItems(cmNum, items, location) {
     location: location || selLoc,
     items: items.map(it => ({
       name:     it.name,
-      brand:    it.brand || '',
+      brand:    it.brand || it.vendor || '',
       serial:   it.serial || '',
       catalog:  it.catalog || '',
       systemId: it.systemId || '',
@@ -3775,7 +3775,7 @@ async function vouchItems() {
     customerName: custName,
     location: selLoc,
     items: sessionItems.map(it => ({
-      name: it.name, brand: it.brand || '', serial: it.serial || '',
+      name: it.name, brand: it.brand || it.vendor || '', serial: it.serial || '',
       catalog: it.catalog || '', systemId: it.systemId || '',
       format: it.format || '', itemType: it.itemType || '',
       net: it.net || 0, retail: it.retail || it.tradein || 0, grade: it.grade || '',

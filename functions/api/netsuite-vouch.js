@@ -11,7 +11,7 @@
  */
 
 import { netsuiteRequest } from './_netsuite.js';
-import { buildItemRecord, LOCATION_MAP, lookupLocationId, lookupTaxScheduleId } from './netsuite-items.js';
+import { buildItemRecord, LOCATION_MAP, CF, lookupLocationId, lookupTaxScheduleId, lookupCustomListValue } from './netsuite-items.js';
 
 const cors = {
   'Content-Type': 'application/json',
@@ -47,6 +47,13 @@ export async function onRequestPost({ request, env }) {
 
   const locationRef = await lookupLocationId(env, locationName);
   const taxRef = await lookupTaxScheduleId(env, 'Taxable');
+  const newUsedRef = await lookupCustomListValue(env, CF.newUsed, 'Used');
+
+  const brandNames = [...new Set(items.map(it => it.brand).filter(Boolean))];
+  const brandRefs = {};
+  for (const bn of brandNames) {
+    brandRefs[bn] = await lookupCustomListValue(env, CF.brand, bn);
+  }
   console.log(`Vouch location: "${locationName}" → ref:`, JSON.stringify(locationRef));
 
   const result = {
@@ -70,7 +77,8 @@ export async function onRequestPost({ request, env }) {
   try {
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      const record = buildItemRecord(item, i, cmNum, locationRef, taxRef);
+      const refs = { taxSchedule: taxRef, newUsed: newUsedRef, brand: brandRefs[item.brand] || null };
+      const record = buildItemRecord(item, i, cmNum, locationRef, refs);
       const expectedItemId = record.itemId;
 
       if (existingMap[expectedItemId]) {
@@ -109,7 +117,8 @@ export async function onRequestPost({ request, env }) {
   // Map item internalIds to their net prices
   const itemPriceMap = {};
   for (let i = 0; i < items.length; i++) {
-    const record = buildItemRecord(items[i], i, cmNum, locationRef, taxRef);
+    const refs = { taxSchedule: taxRef, newUsed: newUsedRef, brand: brandRefs[items[i].brand] || null };
+    const record = buildItemRecord(items[i], i, cmNum, locationRef, refs);
     itemPriceMap[record.itemId] = items[i].net || 0;
   }
 

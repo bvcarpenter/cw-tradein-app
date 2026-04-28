@@ -45,6 +45,23 @@ async function lookupTaxScheduleId(env, name) {
   return { name };
 }
 
+async function lookupCustomListValue(env, fieldId, valueName) {
+  if (!valueName) return null;
+  const accountId = env.NS_ACCOUNT_ID;
+  const sqlUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql`;
+  try {
+    const data = await netsuiteRequest(env, 'POST', sqlUrl, {
+      q: `SELECT DISTINCT ${fieldId} AS id, BUILTIN.DF(${fieldId}) AS name FROM inventoryItem WHERE ${fieldId} IS NOT NULL`,
+    }, { 'Prefer': 'transient' });
+    const match = (data?.items || []).find(v => v.name === valueName);
+    if (match) return { id: String(match.id) };
+    console.log(`No ${fieldId} match for "${valueName}", available:`, JSON.stringify(data?.items?.slice(0, 10)));
+  } catch (e) {
+    console.log(`${fieldId} lookup failed:`, e.message);
+  }
+  return null;
+}
+
 // ── Location / Vendor name mapping ───────────────────────────
 // App destination → NetSuite location name
 const LOCATION_MAP = {
@@ -87,10 +104,10 @@ function isWatch(itemType) {
   return /watch/i.test(itemType || '');
 }
 
-function buildItemRecord(item, idx, cmNum, locationRef, taxScheduleRef) {
+function buildItemRecord(item, idx, cmNum, locationRef, refs) {
   const itemNum = `${cmNum}-${String(idx + 1).padStart(3, '0')}`;
   const displayName = item.serial
-    ? `${item.name} / ${item.serial}`
+    ? `${item.name} ${item.serial}`
     : item.name;
 
   const pipe17Tag = isLeicaSystemId(item.systemId) ? 'LSSF'
@@ -104,12 +121,11 @@ function buildItemRecord(item, idx, cmNum, locationRef, taxScheduleRef) {
     purchasePrice: item.net || 0,
     basePrice: item.retail || 0,
     onlinePrice: item.retail || 0,
-    taxSchedule: taxScheduleRef || { name: 'Taxable' },
+    taxSchedule: refs?.taxSchedule || { name: 'Taxable' },
     location: locationRef,
     preferredLocation: locationRef,
 
     // Custom fields — mapped values
-    [CF.brand]:             item.brand || '',
     [CF.systemIdentifier]:  item.systemId || '',
     [CF.softVouch]:         true,
     [CF.mainDepartment]:    'Medium',
@@ -128,8 +144,10 @@ function buildItemRecord(item, idx, cmNum, locationRef, taxScheduleRef) {
     [CF.etailChannel2]:     'Shopify',
     [CF.shopifyStores]:     'Camera West',
     [CF.shopifyVisibility]: 'Point of sale',
-    [CF.newUsed]:           'Used',
   };
+
+  if (refs?.brand) record[CF.brand] = refs.brand;
+  if (refs?.newUsed) record[CF.newUsed] = refs.newUsed;
 
   if (pipe17Tag) {
     record[CF.pipe17Tags] = pipe17Tag;
@@ -163,13 +181,22 @@ export async function onRequestPost({ request, env }) {
   const apiUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/record/v1/inventoryItem`;
   const locationRef = await lookupLocationId(env, locationName);
   const taxRef = await lookupTaxScheduleId(env, 'Taxable');
+  const newUsedRef = await lookupCustomListValue(env, CF.newUsed, 'Used');
+
+  // Collect unique brand names and look them up once
+  const brandNames = [...new Set(body.items.map(it => it.brand).filter(Boolean))];
+  const brandRefs = {};
+  for (const bn of brandNames) {
+    brandRefs[bn] = await lookupCustomListValue(env, CF.brand, bn);
+  }
 
   const results = [];
   const errors = [];
 
   for (let i = 0; i < body.items.length; i++) {
     const item = body.items[i];
-    const record = buildItemRecord(item, i, body.cmNum, locationRef, taxRef);
+    const refs = { taxSchedule: taxRef, newUsed: newUsedRef, brand: brandRefs[item.brand] || null };
+    const record = buildItemRecord(item, i, body.cmNum, locationRef, refs);
 
     try {
       const data = await netsuiteRequest(env, 'POST', apiUrl, record);
@@ -214,4 +241,4 @@ export function onRequestOptions() {
   });
 }
 
-export { buildItemRecord, LOCATION_MAP, CF, isLeicaSystemId, isWatch, lookupLocationId, lookupTaxScheduleId };
+export { buildItemRecord, LOCATION_MAP, CF, isLeicaSystemId, isWatch, lookupLocationId, lookupTaxScheduleId, lookupCustomListValue };
