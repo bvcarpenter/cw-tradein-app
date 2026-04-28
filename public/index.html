@@ -1783,12 +1783,14 @@ function setLoc(btn, loc) {
   btn.classList.add('on'); selLoc = loc;
   updTax();
   const sb = document.getElementById('ship-box');
-  if (loc === 'shipping') sb.classList.add('vis');
-  else {
+  if (loc === 'shipping') {
+    sb.classList.add('vis');
+    if (window._custAddrs && window._custAddrs.length) {
+      showAddrPicker(window._custAddrs);
+    }
+  } else {
     sb.classList.remove('vis');
-    ['s-str','s-city','s-st','s-zip'].forEach(id => document.getElementById(id).value = '');
     setDestStore('',null);
-    document.getElementById('addr-pick').style.display = 'none';
   }
 }
 let _destStore='';
