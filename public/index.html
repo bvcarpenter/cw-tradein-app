@@ -93,7 +93,8 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 .sb-cust{padding:14px 18px;border-bottom:1px solid var(--border)}
 .sb-cust-search{position:relative;margin-bottom:0}
 .sb-cust-search .srch-input{font-size:12px!important;padding:10px 12px 10px 32px!important}
-.sb-cust-search .srch-icon{left:0;top:0;bottom:0;width:32px;transform:none;display:flex;align-items:center;justify-content:center;font-size:13px}
+.sb-cust-search .sb-srch-ico{position:absolute;left:10px;top:0;bottom:0;display:flex;align-items:center;pointer-events:none}
+.sb-cust-search .sb-srch-ico svg{width:14px;height:14px;stroke:var(--dim);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .sb-cust-search .srch-res{max-height:240px}
 .sb-cust-card{display:none}
 .sb-cust-card.vis{display:block}
@@ -455,7 +456,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
     <!-- Customer section in sidebar -->
     <div class="sb-cust" id="sb-cust">
       <div class="sb-cust-search" id="sb-cust-search">
-        <span class="srch-icon">&#x2315;</span>
+        <span class="sb-srch-ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg></span>
         <input type="text" class="srch-input" id="cust-search" placeholder="Search customers…" oninput="dCustSearch(this.value)" autocomplete="off">
         <div class="srch-res" id="cust-res"></div>
         <div class="sb-cust-empty" id="sb-cust-empty">No customer selected</div>
