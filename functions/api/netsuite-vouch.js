@@ -11,7 +11,7 @@
  */
 
 import { netsuiteRequest } from './_netsuite.js';
-import { buildItemRecord, LOCATION_MAP, lookupLocationId } from './netsuite-items.js';
+import { buildItemRecord, LOCATION_MAP, lookupLocationId, lookupTaxScheduleId } from './netsuite-items.js';
 
 const cors = {
   'Content-Type': 'application/json',
@@ -46,6 +46,7 @@ export async function onRequestPost({ request, env }) {
   const sqlUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql`;
 
   const locationRef = await lookupLocationId(env, locationName);
+  const taxRef = await lookupTaxScheduleId(env, 'Taxable');
   console.log(`Vouch location: "${locationName}" → ref:`, JSON.stringify(locationRef));
 
   const result = {
@@ -69,7 +70,7 @@ export async function onRequestPost({ request, env }) {
   try {
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      const record = buildItemRecord(item, i, cmNum, locationRef);
+      const record = buildItemRecord(item, i, cmNum, locationRef, taxRef);
       const expectedItemId = record.itemId;
 
       if (existingMap[expectedItemId]) {
@@ -108,7 +109,7 @@ export async function onRequestPost({ request, env }) {
   // Map item internalIds to their net prices
   const itemPriceMap = {};
   for (let i = 0; i < items.length; i++) {
-    const record = buildItemRecord(items[i], i, cmNum, locationRef);
+    const record = buildItemRecord(items[i], i, cmNum, locationRef, taxRef);
     itemPriceMap[record.itemId] = items[i].net || 0;
   }
 
