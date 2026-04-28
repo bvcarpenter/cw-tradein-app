@@ -152,6 +152,8 @@ const CF = {
   vendorNameCode:       'custitem_vendor_name_code',
 };
 
+const MAIN_DEPT = { 'Digital': '1', 'Film': '2', 'Sport Optics': '4', 'Watches': '5' };
+
 function isLeicaSystemId(systemId) {
   return /^LS/i.test(systemId || '');
 }
@@ -184,13 +186,10 @@ function buildItemRecord(item, idx, cmNum, locationRef, refs) {
     // Custom fields — mapped values
     [CF.systemIdentifier]:  item.systemId || '',
     [CF.softVouch]:         true,
-    [CF.mainDepartment]:    'Medium',
-    [CF.subDepartment]:     item.format || '',
-    [CF.subletDepartment]:  item.itemType || '',
+    [CF.mainDepartment]:    { id: MAIN_DEPT[item.medium] || '3' },
     [CF.vendorNameCode]:    item.serial || '',
 
     // Custom fields — defaults
-    [CF.cosmeticCondition]: 'Used',
     [CF.cwWebsite]:         true,
     [CF.amazonCategory]:    'Camera and Photo > ImagingAccessory [Deprecated]',
     [CF.ebayItemCondition]: 'Used',
