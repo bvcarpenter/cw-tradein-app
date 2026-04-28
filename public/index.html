@@ -3807,6 +3807,9 @@ async function vouchItems() {
     if (data.errors?.length) {
       data.errors.forEach(e => lines.push(`<span style="color:#e07070;">&nbsp;&nbsp;· ${esc(e.itemId || '')}: ${esc(e.error)}</span>`));
     }
+    if (data._diag) {
+      lines.push(`<br><span style="color:#888;font-size:10px;">diag: ${esc(JSON.stringify(data._diag))}</span>`);
+    }
     status.innerHTML = lines.join('<br>');
     status.style.color = data.success ? '#6fbf73' : '#d0a070';
     btn.textContent = data.success ? 'Vouched ✓' : 'Retry Vouch';

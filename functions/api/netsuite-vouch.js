@@ -54,7 +54,19 @@ export async function onRequestPost({ request, env }) {
   for (const bn of brandNames) {
     brandRefs[bn] = await lookupCustomListValue(env, CF.brand, bn);
   }
-  console.log(`Vouch location: "${locationName}" → ref:`, JSON.stringify(locationRef));
+
+  // Diagnostic: probe what the raw SuiteQL query returns for brand
+  let _diag = { newUsedRef, brandRefs, brandNames };
+  try {
+    const probe = await netsuiteRequest(env, 'POST', sqlUrl, {
+      q: `SELECT DISTINCT ${CF.brand} AS id, BUILTIN.DF(${CF.brand}) AS name FROM inventoryItem WHERE ${CF.brand} IS NOT NULL FETCH FIRST 5 ROWS ONLY`,
+    }, { 'Prefer': 'transient' });
+    _diag.brandProbe = probe?.items?.slice(0, 5);
+    _diag.brandProbeKeys = probe?.items?.[0] ? Object.keys(probe.items[0]) : [];
+  } catch (e) {
+    _diag.brandProbeError = e.message;
+  }
+  console.log('Vouch diagnostics:', JSON.stringify(_diag));
 
   const result = {
     success: false,
@@ -83,16 +95,18 @@ export async function onRequestPost({ request, env }) {
 
       if (existingMap[expectedItemId]) {
         const existingId = existingMap[expectedItemId];
-        try {
-          const patch = {};
-          if (record[CF.brand]) patch[CF.brand] = record[CF.brand];
-          if (record[CF.newUsed]) patch[CF.newUsed] = record[CF.newUsed];
-          if (Object.keys(patch).length) {
+        const patch = {};
+        if (record[CF.brand]) patch[CF.brand] = record[CF.brand];
+        if (record[CF.newUsed]) patch[CF.newUsed] = record[CF.newUsed];
+        if (Object.keys(patch).length) {
+          try {
             await netsuiteRequest(env, 'PATCH', `${baseUrl}/inventoryItem/${existingId}`, patch);
             console.log(`Patched existing item ${expectedItemId} (${existingId}) with Brand/NewUsed`);
+          } catch (e) {
+            _diag.patchError = e.message;
+            _diag.patchBody = patch;
+            console.error(`Patch of ${expectedItemId} FAILED:`, e.message, 'body:', JSON.stringify(patch));
           }
-        } catch (e) {
-          console.log(`Patch of ${expectedItemId} failed (non-fatal):`, e.message);
         }
         result.items.push({ itemId: expectedItemId, internalId: existingId, success: true, skipped: true });
         continue;
@@ -111,7 +125,7 @@ export async function onRequestPost({ request, env }) {
     const successItems = result.items.filter(i => i.success && i.internalId);
     if (!successItems.length) {
       return Response.json(
-        { ...result, error: 'All item creations failed' },
+        { ...result, _diag, error: 'All item creations failed' },
         { status: 422, headers: cors }
       );
     }
@@ -176,6 +190,7 @@ export async function onRequestPost({ request, env }) {
   } catch (err) {
     console.error('Vouch PO creation failed:', err.message);
     result.error = 'PO creation failed: ' + err.message;
+    result._diag = _diag;
     return Response.json(result, { status: 422, headers: cors });
   }
 
