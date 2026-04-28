@@ -95,6 +95,7 @@ export async function onRequestPost({ request, env }) {
         systemId: sysIdRefs[item.systemId] || null,
         department: deptRefs[item.itemType] || null,
       };
+      console.log(`Vouch item[${i}]: brand="${item.brand}" sysId="${item.systemId}" type="${item.itemType}" format="${item.format}" grade="${item.grade}" → refs: brand=${JSON.stringify(refs.brand)} sysId=${JSON.stringify(refs.systemId)} dept=${JSON.stringify(refs.department)}`);
       const record = buildItemRecord(item, i, cmNum, locationRef, refs);
       const expectedItemId = record.itemId;
 
