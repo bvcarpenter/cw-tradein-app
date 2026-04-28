@@ -159,12 +159,6 @@ export default {
       if (method === 'POST')    return mod.onRequestPost(c);
     }
 
-    if (path === '/api/create-ticket') {
-      const mod = await import('../functions/api/create-ticket.js');
-      if (method === 'OPTIONS') return mod.onRequestOptions(c);
-      if (method === 'POST')    return mod.onRequestPost(c);
-    }
-
     if (path === '/api/auth/request') {
       if (method === 'OPTIONS') return authRequestOptions(c);
       if (method === 'POST')    return authRequestPost(c);

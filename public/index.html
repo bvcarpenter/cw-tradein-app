@@ -957,28 +957,6 @@ function generateTradeInId(date) {
   return `CWTI-${yy}${mm}${dd}-${suffix}`;
 }
 
-async function createTicket() {
-  try {
-    const r = await fetch('/api/create-ticket', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    });
-    const text = await r.text();
-    console.log('create-ticket response:', r.status, text);
-    if (!r.ok) throw new Error('create-ticket ' + r.status + ': ' + text.slice(0, 200));
-    const data = JSON.parse(text);
-    if (!data.ok || !data.ticketId) throw new Error('No ticket ID: ' + text.slice(0, 200));
-    window._csConversationId = data.conversationId || '';
-    window._csConversationUrl = data.conversationUrl || '';
-    showCommLink(data.conversationUrl || '');
-    return data.ticketId;
-  } catch (e) {
-    console.warn('createTicket failed, using local ID:', e);
-    return generateTradeInId();
-  }
-}
-
 function updateUrlWithTradeInId(id) {
   if (!id) return;
   const url = new URL(window.location);
@@ -1129,13 +1107,9 @@ window.addEventListener('DOMContentLoaded', () => {
     loadSession(qsSession);
   } else {
     // New session — create CommsLayer ticket to get the CWTI ID
-    const tempId = generateTradeInId();
-    document.getElementById('tradein-id').textContent = tempId;
-    updateUrlWithTradeInId(tempId);
-    createTicket().then(ticketId => {
-      document.getElementById('tradein-id').textContent = ticketId;
-      updateUrlWithTradeInId(ticketId);
-    });
+    const newId = generateTradeInId();
+    document.getElementById('tradein-id').textContent = newId;
+    updateUrlWithTradeInId(newId);
   }
 
   // ── Marketing consent toggle → update Shopify ──
@@ -3618,14 +3592,10 @@ function resetSessionForm() {
   _nsGrandTotal = 0;
   _lastAutoSaveJson = '';
   renderCart(); clrItem();
-  const tempId = generateTradeInId();
-  document.getElementById('tradein-id').textContent = tempId;
-  updateUrlWithTradeInId(tempId);
+  const newId = generateTradeInId();
+  document.getElementById('tradein-id').textContent = newId;
+  updateUrlWithTradeInId(newId);
   showCommLink('');
-  createTicket().then(ticketId => {
-    document.getElementById('tradein-id').textContent = ticketId;
-    updateUrlWithTradeInId(ticketId);
-  });
   ['c-first','c-last','c-email','c-phone','cm-num','assoc','tracking-num','final-total','s-str','s-city','s-st','s-zip']
     .forEach(id => document.getElementById(id).value = '');
   document.getElementById('c-marketing').checked = true;
