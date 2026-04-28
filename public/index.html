@@ -88,6 +88,38 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 .ci-rm{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--border-l);cursor:pointer;font-size:14px;transition:color .15s}
 .ci-rm:hover{color:var(--white)}
 .sb-tot{border-top:1px solid var(--border);padding:16px 22px}
+
+/* SIDEBAR CUSTOMER CARD */
+.sb-cust{padding:14px 18px;border-bottom:1px solid var(--border)}
+.sb-cust-search{position:relative;margin-bottom:0}
+.sb-cust-search .srch-input{width:100%;font-size:11px;padding:8px 10px 8px 28px}
+.sb-cust-search .srch-icon{font-size:12px;left:8px;top:8px}
+.sb-cust-search .srch-res{max-height:240px}
+.sb-cust-card{display:none}
+.sb-cust-card.vis{display:block}
+.sb-cust-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.sb-cust-name{font-size:13px;font-weight:500;color:var(--white);line-height:1.3}
+.sb-cust-edit{background:none;border:none;color:var(--dim);font-size:9px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;padding:2px 6px;font-family:var(--font-body);transition:color .15s}
+.sb-cust-edit:hover{color:var(--accent)}
+.sb-cust-detail{font-size:10px;color:var(--dim);line-height:1.6;letter-spacing:.03em}
+.sb-cust-detail a{color:var(--dim);text-decoration:none}
+.sb-cust-detail a:hover{color:var(--accent)}
+.sb-cust-loc{display:inline-block;font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;margin-top:6px;border:1px solid var(--border-l);color:var(--accent)}
+.sb-cust-empty{font-size:11px;color:var(--dim);text-align:center;padding:6px 0;letter-spacing:.04em}
+/* Sidebar customer edit overlay */
+.sb-cust-overlay{display:none;position:absolute;top:0;left:0;right:0;bottom:0;z-index:20;background:var(--bg2);flex-direction:column;overflow:hidden}
+.sb-cust-overlay.vis{display:flex}
+.sb-cust-overlay-head{padding:16px 18px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.sb-cust-overlay-head h3{font-family:var(--font-serif);font-size:16px;font-weight:300}
+.sb-cust-overlay-body{flex:1;overflow-y:auto;padding:16px 18px}
+.sb-cust-overlay-body .fld{margin-bottom:12px}
+.sb-cust-overlay-body .fld label{font-size:10px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px}
+.sb-cust-overlay-body .fld input,.sb-cust-overlay-body .fld select{width:100%;font-size:12px;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg);font-family:var(--font-body)}
+.sb-cust-overlay-body .fld input:focus{border-color:var(--acc-mid);outline:none}
+.sb-cust-overlay-foot{padding:12px 18px;border-top:1px solid var(--border)}
+.sb-loc-btn{display:block;width:100%;text-align:left;padding:8px 10px;font-size:11px;background:var(--bg3);border:1px solid var(--border);color:var(--fg);cursor:pointer;font-family:var(--font-body);transition:all .15s;margin-bottom:4px}
+.sb-loc-btn:hover{border-color:var(--border-l)}
+.sb-loc-btn.on{border-color:var(--accent);color:var(--accent)}
 .tr{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:5px;letter-spacing:.03em}
 .tr.main{font-size:13px;font-weight:400;color:var(--white);border-top:1px solid var(--border);padding-top:8px;margin-top:4px;margin-bottom:0}
 .tr.main span:last-child{color:var(--accent)}
@@ -419,13 +451,93 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 
 <div class="wrap">
   <!-- SIDEBAR -->
-  <aside class="sb">
+  <aside class="sb" style="position:relative;">
     <div class="sb-head">
       <div class="lbl">Session</div>
       <h2>Trade-In Items</h2>
     </div>
+
+    <!-- Customer section in sidebar -->
+    <div class="sb-cust" id="sb-cust">
+      <div class="sb-cust-search" id="sb-cust-search">
+        <span class="srch-icon">&#x1F50D;</span>
+        <input type="text" class="srch-input" id="cust-search" placeholder="Search customers…" oninput="dCustSearch(this.value)" autocomplete="off">
+        <div class="srch-res" id="cust-res"></div>
+        <div class="sb-cust-empty" id="sb-cust-empty">No customer selected</div>
+      </div>
+      <div class="sb-cust-card" id="sb-cust-card">
+        <div class="sb-cust-hd">
+          <span class="sb-cust-name" id="sb-cust-name"></span>
+          <span>
+            <button class="sb-cust-edit" onclick="openCustEdit()">Edit</button>
+            <button class="sb-cust-edit" onclick="clearCustomer()" style="color:#e07070;">&times;</button>
+          </span>
+        </div>
+        <div class="sb-cust-detail" id="sb-cust-detail"></div>
+      </div>
+    </div>
+
+    <!-- Customer edit overlay (slides over sidebar) -->
+    <div class="sb-cust-overlay" id="sb-cust-overlay">
+      <div class="sb-cust-overlay-head">
+        <h3>Customer</h3>
+        <button class="sb-cust-edit" onclick="closeCustEdit()">Done</button>
+      </div>
+      <div class="sb-cust-overlay-body">
+        <div style="position:relative;margin-bottom:14px;">
+          <span class="srch-icon" style="font-size:12px;left:8px;top:8px;">&#x1F50D;</span>
+          <input type="text" class="srch-input" id="cust-search-edit" placeholder="Search Shopify customers…" oninput="dCustSearch(this.value, 'edit')" autocomplete="off" style="font-size:11px;padding:8px 10px 8px 28px;">
+          <div class="srch-res" id="cust-res-edit" style="max-height:180px;"></div>
+        </div>
+        <div class="fld"><label>First Name <span style="color:var(--accent)">*</span></label><input type="text" id="c-first" placeholder="Jane" required></div>
+        <div class="fld"><label>Last Name <span style="color:var(--accent)">*</span></label><input type="text" id="c-last" placeholder="Smith" required></div>
+        <div class="fld"><label>Email <span style="color:var(--accent)">*</span></label><input type="email" id="c-email" placeholder="jane@email.com" required></div>
+        <div class="fld"><label>Phone</label><input type="tel" id="c-phone" placeholder="(760) 555-0100"></div>
+        <div style="margin-bottom:14px;">
+          <button class="btn btn-ol" id="shopify-cust-btn" onclick="saveCustomerToShopify()" style="font-size:9px;padding:6px 12px;">Save New Customer to Shopify</button>
+          <span id="shopify-cust-msg" style="font-size:9px;color:var(--dim);margin-left:6px;"></span>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:11px;color:var(--dim);cursor:pointer;">
+          <input type="checkbox" id="c-marketing" checked style="accent-color:var(--accent);width:14px;height:14px;cursor:pointer;">
+          Accepts marketing
+        </label>
+        <div class="fld" style="margin-bottom:8px;"><label>Preferred Location *</label></div>
+        <div id="sb-loc-btns" style="margin-bottom:14px;">
+          <button class="sb-loc-btn" onclick="setLoc(this,'Leica SF')">Leica SF</button>
+          <button class="sb-loc-btn" onclick="setLoc(this,'Palm Springs')">Palm Springs</button>
+          <button class="sb-loc-btn" onclick="setLoc(this,'San Francisco')">San Francisco</button>
+          <button class="sb-loc-btn" onclick="setLoc(this,'SoHo — New York')">SoHo — New York</button>
+          <button class="sb-loc-btn" onclick="setLoc(this,'shipping')">Requires Shipping</button>
+        </div>
+        <div id="ship-box" class="ship-box">
+          <div class="ship-lbl">Shipping Address</div>
+          <div id="addr-pick" style="display:none;margin-bottom:12px;">
+            <div style="font-size:10px;color:var(--dim);margin-bottom:6px;">Select from customer addresses:</div>
+            <div id="addr-list" style="display:flex;flex-direction:column;gap:4px;"></div>
+          </div>
+          <div class="fld"><label>Street Address</label><input type="text" id="s-str" placeholder="123 Main Street"></div>
+          <div class="fld"><label>City</label><input type="text" id="s-city" placeholder="Palm Springs"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div class="fld"><label>State</label><input type="text" id="s-st" placeholder="CA" maxlength="2" oninput="updTax()"></div>
+            <div class="fld"><label>ZIP</label><input type="text" id="s-zip" placeholder="92262" maxlength="10"></div>
+          </div>
+          <div class="ship-lbl" style="margin-top:10px;">Destination Store</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px;">
+            <button class="sb-loc-btn" id="dst-leica" onclick="setDestStore('Leica SF',this)" style="font-size:9px;padding:6px 8px;">Leica SF</button>
+            <button class="sb-loc-btn" id="dst-sf" onclick="setDestStore('San Francisco',this)" style="font-size:9px;padding:6px 8px;">San Francisco</button>
+            <button class="sb-loc-btn" id="dst-soho" onclick="setDestStore('SoHo — New York',this)" style="font-size:9px;padding:6px 8px;">SoHo — NYC</button>
+            <button class="sb-loc-btn" id="dst-ps" onclick="setDestStore('Palm Springs',this)" style="font-size:9px;padding:6px 8px;">Palm Springs</button>
+          </div>
+          <div id="dst-addr" style="font-size:9px;color:var(--dim);margin-top:6px;padding:5px 8px;background:var(--bg);border-left:2px solid var(--border);display:none;"></div>
+        </div>
+      </div>
+      <div class="sb-cust-overlay-foot">
+        <button class="btn" onclick="closeCustEdit()" style="width:100%;font-size:10px;padding:8px 0;">Done</button>
+      </div>
+    </div>
+
     <div class="cart" id="cart">
-      <div class="cart-empty">No items added yet.<br>Complete the form to begin.</div>
+      <div class="cart-empty">No items added yet.<br>Search to add items.</div>
     </div>
     <div class="sb-tot" id="sb-tot" style="display:none;">
       <div class="tr"><span>Total Retail</span><span id="t-ret">—</span></div>
@@ -445,63 +557,9 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
       <p>Internal Trade-In Manager</p>
     </div>
 
-    <!-- i. Customer Details -->
+    <!-- i. What Are You Trading In? -->
     <section class="sec">
-      <div class="sec-hd"><span class="sec-n">i.</span><h3>Customer Details</h3></div>
-      <div style="position:relative;margin-bottom:18px;">
-        <span class="srch-icon">&#x1F50D;</span>
-        <input type="text" class="srch-input" id="cust-search" placeholder="Search Shopify customers by name or email…" oninput="dCustSearch(this.value)" autocomplete="off">
-        <div class="srch-res" id="cust-res"></div>
-      </div>
-      <div class="fg t3" style="margin-bottom:20px;">
-        <div class="fld"><label><span>First Name</span> <span style="color:var(--accent)">*</span></label><input type="text" id="c-first" placeholder="Jane" required></div>
-        <div class="fld"><label><span>Last Name</span> <span style="color:var(--accent)">*</span></label><input type="text" id="c-last" placeholder="Smith" required></div>
-        <div class="fld"><label>Phone</label><input type="tel" id="c-phone" placeholder="(760) 555-0100"></div>
-        <div class="fld ff"><label>Email <span style="color:var(--accent)">*</span></label><input type="email" id="c-email" placeholder="jane@email.com" required></div>
-      </div>
-      <div style="margin-bottom:20px;">
-        <button class="btn btn-ol" id="shopify-cust-btn" onclick="saveCustomerToShopify()" style="font-size:10px;padding:7px 16px;">Save New Customer to Shopify</button>
-        <span id="shopify-cust-msg" style="font-size:10px;color:var(--dim);margin-left:8px;"></span>
-      </div>
-      <label style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:12px;color:var(--dim);cursor:pointer;">
-        <input type="checkbox" id="c-marketing" checked style="accent-color:var(--accent);width:15px;height:15px;cursor:pointer;">
-        Accepts marketing communications
-      </label>
-      <span class="sl">Preferred Location *</span>
-      <div class="loc-row">
-        <button class="loc" onclick="setLoc(this,'Leica SF')">Leica SF</button>
-        <button class="loc" onclick="setLoc(this,'Palm Springs')">Palm Springs</button>
-        <button class="loc" onclick="setLoc(this,'San Francisco')">San Francisco</button>
-        <button class="loc" onclick="setLoc(this,'SoHo — New York')">SoHo — New York</button>
-        <button class="loc" onclick="setLoc(this,'shipping')">Requires Shipping</button>
-      </div>
-      <div class="ship-box" id="ship-box">
-        <div class="ship-lbl">Shipping Address</div>
-        <div id="addr-pick" style="display:none;margin-bottom:12px;">
-          <div style="font-size:11px;color:var(--dim);margin-bottom:6px;">Select from customer addresses:</div>
-          <div id="addr-list" style="display:flex;flex-direction:column;gap:4px;"></div>
-        </div>
-        <div class="fg" style="margin-bottom:12px;">
-          <div class="fld ff"><label>Street Address</label><input type="text" id="s-str" placeholder="123 Main Street"></div>
-          <div class="fld"><label>City</label><input type="text" id="s-city" placeholder="Palm Springs"></div>
-          <div class="fld"><label>State</label><input type="text" id="s-st" placeholder="CA" maxlength="2" oninput="updTax()"></div>
-          <div class="fld"><label>ZIP</label><input type="text" id="s-zip" placeholder="92262" maxlength="10"></div>
-        </div>
-        <div class="ship-lbl" style="margin-top:4px;">Destination Store</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
-          
-          <button class="loc" id="dst-leica" onclick="setDestStore('Leica SF',this)"             style="font-size:9px;padding:6px 12px;">Leica SF</button>
-          <button class="loc" id="dst-sf"    onclick="setDestStore('San Francisco',this)"        style="font-size:9px;padding:6px 12px;">San Francisco</button>
-          <button class="loc" id="dst-soho"  onclick="setDestStore('SoHo — New York',this)" style="font-size:9px;padding:6px 12px;">SoHo — NYC</button>
-          <button class="loc" id="dst-ps"    onclick="setDestStore('Palm Springs',this)"         style="font-size:9px;padding:6px 12px;">Palm Springs</button>
-        </div>
-        <div id="dst-addr" style="font-size:10px;color:var(--dim);margin-top:8px;padding:6px 10px;background:var(--bg);border-left:2px solid var(--border);display:none;"></div>
-      </div>
-    </section>
-
-    <!-- ii. What Are You Trading In? -->
-    <section class="sec">
-      <div class="sec-hd"><span class="sec-n">ii.</span><h3>What Are They Trading <em style="font-style:italic;color:var(--accent)">//</em> Selling?</h3></div>
+      <div class="sec-hd"><span class="sec-n">i.</span><h3>What Are They Trading <em style="font-style:italic;color:var(--accent)">//</em> Selling?</h3></div>
       <div class="tab-nav">
         <button class="tnav on" onclick="tab('search',this)">Search Catalog</button>
         <button class="tnav" onclick="tab('manual',this)">Manual Entry</button>
@@ -579,7 +637,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 
     <!-- iii. Item Details -->
     <section class="sec det" id="det-sec">
-      <div class="sec-hd"><span class="sec-n">iii.</span><h3>Item Details</h3></div>
+      <div class="sec-hd"><span class="sec-n">ii.</span><h3>Item Details</h3></div>
       <div class="sel-bar">
         <div><input type="text" id="sel-name" style="background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--white);font-family:var(--font-body);font-size:14px;font-weight:500;width:100%;outline:none;padding:2px 0;" oninput="if(selItem)selItem.name=this.value;valAdd();"><p id="sel-meta">—</p></div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -654,7 +712,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 
     <!-- iv. Export // Print -->
     <section class="sec" id="exp-sec">
-      <div class="sec-hd"><span class="sec-n">iv.</span><h3>Export <em style="font-style:italic;color:var(--accent)">//</em> Print</h3></div>
+      <div class="sec-hd"><span class="sec-n">iii.</span><h3>Export <em style="font-style:italic;color:var(--accent)">//</em> Print</h3></div>
       <div class="fg t3" style="margin-bottom:4px;">
         <div class="fld"><label>Credit Memo #</label><input type="text" id="cm-num" placeholder="Auto-assigned by NetSuite" readonly style="opacity:.7;cursor:not-allowed;"></div>
         <div class="fld"><label>Tracking #</label><input type="text" id="tracking-num" readonly style="opacity:.7;cursor:not-allowed;" placeholder="Generated by FedEx"></div>
@@ -1560,9 +1618,12 @@ function fmtCreatedDate(raw) {
 // SHOPIFY CUSTOMER SEARCH / CREATE
 // ════════════════════════════════════════════
 let custSearchT = null;
-function dCustSearch(v) {
+let _custSearchCtx = 'main';
+function dCustSearch(v, ctx) {
+  _custSearchCtx = ctx || 'main';
   clearTimeout(custSearchT);
-  const el = document.getElementById('cust-res');
+  const elId = _custSearchCtx === 'edit' ? 'cust-res-edit' : 'cust-res';
+  const el = document.getElementById(elId);
   v = v.trim();
   if (v.length < 2) { closeCustRes(); return; }
   el.innerHTML = '<div class="no-res">Searching…</div>';
@@ -1570,7 +1631,8 @@ function dCustSearch(v) {
   custSearchT = setTimeout(() => fetchCustSearch(v), 300);
 }
 async function fetchCustSearch(q) {
-  const el = document.getElementById('cust-res');
+  const elId = _custSearchCtx === 'edit' ? 'cust-res-edit' : 'cust-res';
+  const el = document.getElementById(elId);
   try {
     const r = await fetch('/api/customers?q=' + encodeURIComponent(q));
     const d = await r.json();
@@ -1608,8 +1670,63 @@ function pickCustomer(i) {
   document.getElementById('c-email').value = c.email;
   document.getElementById('c-phone').value = c.phone;
   document.getElementById('cust-search').value = '';
+  const editSearch = document.getElementById('cust-search-edit');
+  if (editSearch) editSearch.value = '';
   closeCustRes();
   showAddrPicker(c.addresses || []);
+  updateSbCustCard();
+}
+
+function updateSbCustCard() {
+  const first = (document.getElementById('c-first').value || '').trim();
+  const last = (document.getElementById('c-last').value || '').trim();
+  const email = (document.getElementById('c-email').value || '').trim();
+  const phone = (document.getElementById('c-phone').value || '').trim();
+  const name = [first, last].filter(Boolean).join(' ');
+  const card = document.getElementById('sb-cust-card');
+  const search = document.getElementById('sb-cust-search');
+  const empty = document.getElementById('sb-cust-empty');
+  if (!name && !email) {
+    card.classList.remove('vis');
+    search.style.display = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  card.classList.add('vis');
+  search.style.display = 'none';
+  if (empty) empty.style.display = 'none';
+  document.getElementById('sb-cust-name').textContent = name || email;
+  let detail = '';
+  if (email) detail += `<div>${esc(email)}</div>`;
+  if (phone) detail += `<div>${esc(phone)}</div>`;
+  if (selLoc) detail += `<span class="sb-cust-loc">${esc(selLoc === 'shipping' ? 'Shipping' : selLoc)}</span>`;
+  document.getElementById('sb-cust-detail').innerHTML = detail;
+}
+
+function openCustEdit() {
+  document.getElementById('sb-cust-overlay').classList.add('vis');
+  document.querySelectorAll('#sb-loc-btns .sb-loc-btn').forEach(b => {
+    const label = b.textContent.trim();
+    b.classList.toggle('on', label === selLoc || (selLoc === 'shipping' && label === 'Requires Shipping'));
+  });
+  if (selLoc === 'shipping') document.getElementById('ship-box').classList.add('vis');
+}
+
+function closeCustEdit() {
+  document.getElementById('sb-cust-overlay').classList.remove('vis');
+  updateSbCustCard();
+}
+
+function clearCustomer() {
+  window._shopifyCustId = '';
+  window._custAddrs = [];
+  ['c-first','c-last','c-email','c-phone','s-str','s-city','s-st','s-zip'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('c-marketing').checked = true;
+  document.querySelectorAll('.sb-loc-btn').forEach(b => b.classList.remove('on'));
+  selLoc = '';
+  document.getElementById('ship-box').classList.remove('vis');
+  document.getElementById('addr-pick').style.display = 'none';
+  updateSbCustCard();
 }
 function showAddrPicker(addrs) {
   window._custAddrs = addrs;
@@ -1636,7 +1753,11 @@ function pickAddr(i) {
     b.style.borderColor = j === i ? 'var(--accent)' : 'var(--border)';
   });
 }
-function closeCustRes() { document.getElementById('cust-res').style.display = 'none'; }
+function closeCustRes() {
+  document.getElementById('cust-res').style.display = 'none';
+  const editRes = document.getElementById('cust-res-edit');
+  if (editRes) editRes.style.display = 'none';
+}
 
 async function saveCustomerToShopify() {
   const first = document.getElementById('c-first').value.trim();
@@ -1827,8 +1948,11 @@ function saveEditItem() {
 // LOCATION
 // ════════════════════════════════════════════
 function setLoc(btn, loc) {
-  document.querySelectorAll('.loc').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.sb-loc-btn, .loc').forEach(b => b.classList.remove('on'));
   btn.classList.add('on'); selLoc = loc;
+  document.querySelectorAll('#sb-loc-btns .sb-loc-btn').forEach(b => {
+    if (b.textContent.trim() === loc || (loc === 'shipping' && b.textContent.trim() === 'Requires Shipping')) b.classList.add('on');
+  });
   updTax();
   const sb = document.getElementById('ship-box');
   if (loc === 'shipping') {
@@ -1840,6 +1964,7 @@ function setLoc(btn, loc) {
     sb.classList.remove('vis');
     setDestStore('',null);
   }
+  updateSbCustCard();
 }
 let _destStore='';
 function setDestStore(store,btn) {
@@ -2223,10 +2348,10 @@ function exportXLSX() {
 // PRINT
 // ════════════════════════════════════════════
 async function openPrint() {
-  if (!document.getElementById('c-first').value.trim()) { alert('Customer first name is required.'); document.getElementById('c-first').focus(); return; }
-  if (!document.getElementById('c-last').value.trim()) { alert('Customer last name is required.'); document.getElementById('c-last').focus(); return; }
-  if (!document.getElementById('c-email').value.trim()) { alert('Customer email is required.'); document.getElementById('c-email').focus(); return; }
-  if (!selLoc) { alert('Please select a preferred location.'); return; }
+  if (!document.getElementById('c-first').value.trim()) { alert('Customer first name is required.'); openCustEdit(); document.getElementById('c-first').focus(); return; }
+  if (!document.getElementById('c-last').value.trim()) { alert('Customer last name is required.'); openCustEdit(); document.getElementById('c-last').focus(); return; }
+  if (!document.getElementById('c-email').value.trim()) { alert('Customer email is required.'); openCustEdit(); document.getElementById('c-email').focus(); return; }
+  if (!selLoc) { alert('Please select a preferred location.'); openCustEdit(); return; }
   if (!sessionItems.length) { alert('No items to print.'); return; }
 
   if (selLoc === 'shipping' && !cachedFedExLabel) {
@@ -2749,15 +2874,18 @@ function restoreSessionData(d) {
     document.getElementById('s-zip').value  = d.shipping.zip  || '';
   }
   // set location
-  document.querySelectorAll('.loc-btn').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.sb-loc-btn').forEach(b => b.classList.remove('on'));
   if (d.loc) {
     selLoc = d.loc;
-    const btn = document.querySelector(`.loc-btn[data-loc="${d.loc}"]`);
-    if (btn) btn.classList.add('on');
+    document.querySelectorAll('#sb-loc-btns .sb-loc-btn').forEach(b => {
+      const label = b.textContent.trim();
+      if (label === d.loc || (d.loc === 'shipping' && label === 'Requires Shipping')) b.classList.add('on');
+    });
     if (d.loc === 'shipping') document.getElementById('ship-box').classList.add('vis');
   }
   sessionItems = d.items || [];
   renderCart();
+  updateSbCustCard();
   // Restore CommsLayer conversation link
   window._csConversationUrl = d.commslayerUrl || '';
   window._csConversationId = d.commslayerId || '';
@@ -3686,9 +3814,11 @@ function resetSessionForm() {
   ['c-first','c-last','c-email','c-phone','cm-num','assoc','tracking-num','final-total','s-str','s-city','s-st','s-zip']
     .forEach(id => document.getElementById(id).value = '');
   document.getElementById('c-marketing').checked = true;
-  document.querySelectorAll('.loc').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.sb-loc-btn, .loc').forEach(b => b.classList.remove('on'));
   selLoc = '';
   document.getElementById('ship-box').classList.remove('vis');
+  document.getElementById('sb-cust-overlay').classList.remove('vis');
+  updateSbCustCard();
   document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
   document.getElementById('sc-msg').textContent = '';
   document.getElementById('sc-msg').style.display = 'none';
