@@ -3929,21 +3929,26 @@ async function cpSearch(q) {
   q = q.trim();
   const el = document.getElementById('cp-results');
   if (q.length < 2) { el.style.display = 'none'; return; }
-  el.innerHTML = '<div style="padding:12px;font-size:11px;color:var(--dim);text-align:center;">Searching…</div>';
+  el.innerHTML = '<div style="padding:12px;font-size:11px;color:var(--dim);text-align:center;">Searching Shopify…</div>';
   el.style.display = 'block';
   try {
-    const r = await fetch('/api/search?q=' + encodeURIComponent(q) + '&source=shopify&limit=20');
+    const r = await fetch('/api/product-lookup?q=' + encodeURIComponent(q));
     const data = await r.json();
-    const products = data.products || [];
-    if (!products.length) {
+    const results = data.results || [];
+    if (!results.length) {
       el.innerHTML = '<div style="padding:12px;font-size:11px;color:var(--dim);text-align:center;">No products found.</div>';
       return;
     }
-    _cpSearchResults = products;
-    el.innerHTML = products.map((p, i) =>
+    _cpSearchResults = results;
+    const addAllBtn = results.length > 1
+      ? `<div onclick="cpAddAll()" style="padding:8px 12px;cursor:pointer;background:var(--bg3);border-bottom:2px solid var(--accent);display:flex;align-items:center;justify-content:center;gap:6px;transition:background .1s;" onmouseenter="this.style.background='var(--accent)';this.style.color='#000'" onmouseleave="this.style.background='var(--bg3)';this.style.color=''">`
+        + `<span style="font-size:12px;font-weight:600;">Add All (${results.length})</span>`
+        + `</div>`
+      : '';
+    el.innerHTML = addAllBtn + results.map((p, i) =>
       `<div onclick="cpAddItem(${i})" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s;" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">`
-      + `<div style="font-size:12px;font-weight:500;color:var(--fg);">${esc(p.n)}</div>`
-      + `<div style="font-size:10px;color:var(--dim);margin-top:2px;">SKU: ${esc(p.sku || '—')}${p.it ? ' · ' + esc(p.it) : ''}${p.p ? ' · $' + Number(p.p).toFixed(2) : ''}${p.grade ? ' · ' + esc(p.grade) : ''}${p.inStock ? ' · In Stock' : ''}</div>`
+      + `<div style="font-size:12px;font-weight:500;color:var(--fg);">${esc(p.title)}${p.variantTitle && p.variantTitle !== 'Default Title' ? ' — ' + esc(p.variantTitle) : ''}</div>`
+      + `<div style="font-size:10px;color:var(--dim);margin-top:2px;">SKU: ${esc(p.sku || '—')}${p.type ? ' · ' + esc(p.type) : ''}${p.price ? ' · $' + Number(p.price).toFixed(2) : ''}${p.inStock ? ' · In Stock' : ''}</div>`
       + `</div>`
     ).join('');
   } catch (e) {
@@ -3951,29 +3956,46 @@ async function cpSearch(q) {
   }
 }
 
-function cpAddItem(i) {
-  const p = _cpSearchResults[i];
-  if (!p) return;
-  _cpItems.push({
-    id: Date.now() + _cpItems.length,
-    name: p.n || 'Unknown',
+function cpMakeItem(p) {
+  return {
+    id: Date.now() + Math.random() * 1000 | 0,
+    name: p.title || 'Unknown',
     sku: p.sku || '',
     catalog: p.sku || '',
-    vendor: p.v || '',
-    systemId: p.si || '',
-    itemType: p.it || '',
-    medium: p.m || '',
-    format: p.fmt || '',
-    grade: p.grade || '',
+    vendor: p.vendor || '',
+    systemId: '',
+    itemType: p.type || '',
+    medium: '',
+    format: '',
+    grade: '',
     serial: '',
-    retail: p.p || 0,
+    retail: parseFloat(p.price) || 0,
     tradein: 0, outright: 0, net: 0,
     accessories: [],
     notes: '',
     priceType: '',
     svcCharge: 0, svcReason: '',
-  });
+  };
+}
+
+function cpAddItem(i) {
+  const p = _cpSearchResults[i];
+  if (!p) return;
+  if (_cpItems.some(it => it.sku && it.sku === p.sku)) return;
+  _cpItems.push(cpMakeItem(p));
   renderCpItems();
+  document.getElementById('cp-search').value = '';
+  document.getElementById('cp-results').style.display = 'none';
+}
+
+function cpAddAll() {
+  let added = 0;
+  for (const p of _cpSearchResults) {
+    if (_cpItems.some(it => it.sku && it.sku === p.sku)) continue;
+    _cpItems.push(cpMakeItem(p));
+    added++;
+  }
+  if (added) renderCpItems();
   document.getElementById('cp-search').value = '';
   document.getElementById('cp-results').style.display = 'none';
 }

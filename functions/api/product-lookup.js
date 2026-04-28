@@ -1,10 +1,10 @@
 /**
  * GET /api/product-lookup?sku=CWTI-260330-A7K2
+ *   Exact SKU lookup — returns single product status info.
  *
- * Looks up a product in Shopify by SKU (variant SKU field).
- * Returns product status info: whether it exists, is active, has inventory, etc.
- *
- * Used by the Processing module to check if an item is "ready" in Shopify.
+ * GET /api/product-lookup?q=CM22922
+ *   Search mode — searches Shopify by SKU prefix or product title.
+ *   Returns multiple results for Custom Processing item selection.
  */
 
 import { shopifyGQL } from './_shopify.js';
@@ -22,11 +22,113 @@ export function onRequestOptions() {
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   const sku = (url.searchParams.get('sku') || '').trim();
+  const q = (url.searchParams.get('q') || '').trim();
 
-  if (!sku) {
-    return Response.json({ error: 'Missing ?sku= parameter' }, { status: 400 });
+  if (q) return handleSearch(q, env);
+  if (sku) return handleExactLookup(sku, env);
+  return Response.json({ error: 'Missing ?sku= or ?q= parameter' }, { status: 400 });
+}
+
+async function handleSearch(q, env) {
+  if (q.length < 2) {
+    return Response.json({ results: [] }, { headers: CORS });
   }
 
+  try {
+    const hasSpaces = /\s/.test(q);
+    let results = [];
+
+    if (hasSpaces) {
+      const query = `
+        query searchProducts($q: String!) {
+          products(first: 30, query: $q) {
+            edges {
+              node {
+                title
+                status
+                productType
+                vendor
+                totalInventory
+                variants(first: 10) {
+                  edges {
+                    node {
+                      sku
+                      title
+                      price
+                      inventoryQuantity
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `;
+      const data = await shopifyGQL(env, query, { q });
+      for (const edge of data?.products?.edges || []) {
+        const prod = edge.node;
+        for (const ve of prod.variants?.edges || []) {
+          const v = ve.node;
+          results.push({
+            title: prod.title,
+            variantTitle: v.title,
+            sku: v.sku || '',
+            price: v.price,
+            type: prod.productType || '',
+            vendor: prod.vendor || '',
+            status: prod.status,
+            inventoryQuantity: v.inventoryQuantity,
+            inStock: v.inventoryQuantity > 0,
+          });
+        }
+      }
+    } else {
+      const query = `
+        query searchVariants($q: String!) {
+          productVariants(first: 50, query: $q) {
+            edges {
+              node {
+                sku
+                title
+                price
+                inventoryQuantity
+                product {
+                  title
+                  status
+                  productType
+                  vendor
+                  totalInventory
+                }
+              }
+            }
+          }
+        }
+      `;
+      const data = await shopifyGQL(env, query, { q: `sku:${q}` });
+      for (const edge of data?.productVariants?.edges || []) {
+        const v = edge.node;
+        const prod = v.product;
+        results.push({
+          title: prod.title,
+          variantTitle: v.title,
+          sku: v.sku || '',
+          price: v.price,
+          type: prod.productType || '',
+          vendor: prod.vendor || '',
+          status: prod.status,
+          inventoryQuantity: v.inventoryQuantity,
+          inStock: v.inventoryQuantity > 0,
+        });
+      }
+    }
+
+    return Response.json({ results }, { headers: CORS });
+  } catch (err) {
+    return Response.json({ error: err.message, results: [] }, { status: 500, headers: CORS });
+  }
+}
+
+async function handleExactLookup(sku, env) {
   try {
     const query = `
       query productBySku($query: String!) {
@@ -61,7 +163,6 @@ export async function onRequestGet({ request, env }) {
     const data = await shopifyGQL(env, query, { query: `sku:${sku}` });
     const edges = data?.productVariants?.edges || [];
 
-    // Find exact SKU match (Shopify search is fuzzy)
     const match = edges.find(e => e.node.sku === sku);
 
     if (!match) {
