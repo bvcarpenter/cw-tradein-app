@@ -82,7 +82,19 @@ export async function onRequestPost({ request, env }) {
       const expectedItemId = record.itemId;
 
       if (existingMap[expectedItemId]) {
-        result.items.push({ itemId: expectedItemId, internalId: existingMap[expectedItemId], success: true, skipped: true });
+        const existingId = existingMap[expectedItemId];
+        try {
+          const patch = {};
+          if (record[CF.brand]) patch[CF.brand] = record[CF.brand];
+          if (record[CF.newUsed]) patch[CF.newUsed] = record[CF.newUsed];
+          if (Object.keys(patch).length) {
+            await netsuiteRequest(env, 'PATCH', `${baseUrl}/inventoryItem/${existingId}`, patch);
+            console.log(`Patched existing item ${expectedItemId} (${existingId}) with Brand/NewUsed`);
+          }
+        } catch (e) {
+          console.log(`Patch of ${expectedItemId} failed (non-fatal):`, e.message);
+        }
+        result.items.push({ itemId: expectedItemId, internalId: existingId, success: true, skipped: true });
         continue;
       }
 
