@@ -256,7 +256,7 @@ async function updateNetSuiteItem(env, internalId, item) {
 
   const updates = {};
   if (item.itemName) updates.displayName = item.itemName;
-  if (item.grade) updates.custitem2 = item.grade;
+  if (item.grade) updates.custitem2 = { name: item.grade };
   if (item.serial) updates.vendorname = item.serial;
 
   if (!Object.keys(updates).length) return;
