@@ -98,11 +98,14 @@ export async function netsuiteRequest(env, method, url, body) {
   };
 
   const fetchOpts = { method, headers };
-  if (body && (method === 'POST' || method === 'PUT')) {
+  if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
     fetchOpts.body = JSON.stringify(body);
   }
 
   const res = await fetch(url, fetchOpts);
+
+  if (res.status === 204) return { success: true };
+
   const text = await res.text();
 
   if (!text || !text.trim()) {

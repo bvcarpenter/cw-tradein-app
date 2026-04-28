@@ -159,6 +159,18 @@ export default {
       if (method === 'POST')    return mod.onRequestPost(c);
     }
 
+    if (path === '/api/product-sync') {
+      const mod = await import('../functions/api/product-sync.js');
+      if (method === 'OPTIONS') return mod.onRequestOptions(c);
+      if (method === 'POST')    return mod.onRequestPost(c);
+    }
+
+    if (path === '/api/product-publish') {
+      const mod = await import('../functions/api/product-publish.js');
+      if (method === 'OPTIONS') return mod.onRequestOptions(c);
+      if (method === 'POST')    return mod.onRequestPost(c);
+    }
+
     if (path === '/api/auth/request') {
       if (method === 'OPTIONS') return authRequestOptions(c);
       if (method === 'POST')    return authRequestPost(c);

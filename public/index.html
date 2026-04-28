@@ -8,7 +8,7 @@
 <script>
 fetch('/api/auth/session').then(r=>r.json()).then(d=>{
   if(!d.authenticated)window.location.replace('/login');
-  else document.documentElement.style.visibility='visible';
+  else { document.documentElement.style.visibility='visible'; window._authEmail = d.email || ''; }
 }).catch(()=>document.documentElement.style.visibility='visible');
 </script>
 <style>html{visibility:hidden}</style>
@@ -810,6 +810,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
         <button class="tnav" id="sm-tab-transit" onclick="smTab('transit',this)">In Transit</button>
         <button class="tnav" id="sm-tab-landed" onclick="smTab('landed',this)">Landed</button>
         <button class="tnav" id="sm-tab-processing" onclick="smTab('processing',this)">Processing</button>
+        <button class="tnav" id="sm-tab-verify" onclick="smTab('verify',this)">Verify</button>
         <button class="tnav" id="sm-tab-complete" onclick="smTab('complete',this)">Complete</button>
       </div>
       <div style="padding:12px 20px 0;">
@@ -892,7 +893,44 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
   </div>
   <div class="proc-footer">
     <div style="font-size:10px;color:var(--dim);" id="proc-footer-msg">Complete all items to save processing data.</div>
-    <button class="proc-save-btn" id="proc-save-btn" onclick="saveProcessing()" disabled>Save Processing Data</button>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <button class="proc-save-btn" id="proc-save-btn" onclick="saveProcessing()" disabled>Save Processing Data</button>
+      <button class="proc-save-btn" id="proc-sync-btn" onclick="saveAndSync()" disabled style="background:linear-gradient(135deg,#2a3a5a,#1a2a4a);border:1px solid #3a5a7a;color:#70a0d0;">Save &amp; Sync to Shopify / NetSuite</button>
+    </div>
+  </div>
+</div>
+
+<!-- VERIFY PANEL -->
+<div class="proc-overlay" id="verify-overlay" onclick="closeVerify()"></div>
+<div class="proc-panel" id="verify-panel">
+  <div class="proc-hd">
+    <div>
+      <h2>Verify &amp; Publish</h2>
+      <div class="proc-hd-meta">Trade-In ID: <strong id="verify-ti-id">—</strong> &nbsp;·&nbsp; <span id="verify-cust-name">—</span></div>
+    </div>
+    <button class="proc-close" onclick="closeVerify()">&times;</button>
+  </div>
+  <div class="proc-toolbar">
+    <div class="proc-progress">Manager review — edit descriptions and notes, then publish.</div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:12px;">
+      <select id="verify-location" style="background:var(--bg3);border:1px solid var(--border);color:var(--white);font-family:var(--font-body);font-size:11px;padding:7px 12px;outline:none;">
+        <option value="">Select store location</option>
+        <option value="Leica SF">Leica SF</option>
+        <option value="San Francisco">San Francisco (ML)</option>
+        <option value="SoHo — New York">SoHo — New York</option>
+        <option value="Palm Springs">Palm Springs (RM)</option>
+      </select>
+    </div>
+  </div>
+  <div class="proc-body" id="verify-body">
+    <!-- Item cards rendered by JS -->
+  </div>
+  <div class="proc-footer">
+    <div style="font-size:10px;color:var(--dim);" id="verify-footer-msg">Select a location and review all items before publishing.</div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <button class="proc-save-btn" id="verify-save-btn" onclick="saveVerifyEdits()" style="background:var(--bg3);border:1px solid var(--border);color:var(--dim);">Save Edits</button>
+      <button class="proc-save-btn" id="verify-publish-btn" onclick="verifyAndPublish()" disabled style="background:linear-gradient(135deg,#2a5a3a,#1a4a2a);border:1px solid #3a7a4a;color:#70d090;">Verify &amp; Publish All</button>
+    </div>
   </div>
 </div>
 
@@ -2991,8 +3029,18 @@ async function renderSessionsMgr() {
       if (!hasTracking || !delivered || d.finalized) return false;
     } else if (_smTab === 'processing') {
       if (!d.finalized || !d.items?.length || d.processingComplete) return false;
+      // Exclude items where all are certified (those go to verify)
+      if (d.processing) {
+        const allCert = d.items.every((_, i) => d.processing[i]?.certified);
+        if (allCert) return false;
+      }
+    } else if (_smTab === 'verify') {
+      if (!d.finalized || !d.items?.length || d.verified) return false;
+      if (!d.processing) return false;
+      const allCert = d.items.every((_, i) => d.processing[i]?.certified);
+      if (!allCert) return false;
     } else if (_smTab === 'complete') {
-      if (!d.processingComplete) return false;
+      if (!d.processingComplete && !d.verified) return false;
     } else {
       // draft: not finalized and no tracking
       if (d.finalized) return false;
@@ -3027,7 +3075,7 @@ async function renderSessionsMgr() {
   });
 
   if (!rows.length) {
-    const tabLabel = _smTab === 'transit' ? 'in-transit' : _smTab === 'landed' ? 'landed' : _smTab === 'processing' ? 'processing' : _smTab === 'complete' ? 'complete' : 'draft';
+    const tabLabel = _smTab === 'transit' ? 'in-transit' : _smTab === 'landed' ? 'landed' : _smTab === 'processing' ? 'processing' : _smTab === 'verify' ? 'verify' : _smTab === 'complete' ? 'complete' : 'draft';
     el.innerHTML = `<div style="font-size:12px;color:var(--dim);padding:28px;text-align:center;">No ${tabLabel} sessions${q ? ' matching "' + q + '"' : ''}.</div>`;
     return;
   }
@@ -3081,7 +3129,8 @@ async function renderSessionsMgr() {
       <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;min-width:88px;">
         <button class="btn-sm" onclick="loadSession('${s.key}');closeSessionsMgr();" style="text-align:center;">&#8629; Load</button>
         ${procBtn}
-        ${_smTab !== 'processing' && _smTab !== 'complete' ? `<button class="btn-sm" onclick="finalizeSession('${s.key}')" style="color:#70d090;border-color:#2a5a3a;text-align:center;">&#10003; Finalize</button>` : ''}
+        ${_smTab === 'verify' ? `<button class="btn-sm" onclick="event.stopPropagation();openVerifyPanel('${s.key}')" style="color:#70d090;border-color:#2a5a3a;text-align:center;">&#10003; Verify &amp; Publish</button>` : ''}
+        ${_smTab !== 'processing' && _smTab !== 'complete' && _smTab !== 'verify' ? `<button class="btn-sm" onclick="finalizeSession('${s.key}')" style="color:#70d090;border-color:#2a5a3a;text-align:center;">&#10003; Finalize</button>` : ''}
         <button class="btn-sm" onclick="deleteSession('${s.key}')" style="color:#e07070;border-color:#5a2a2a;text-align:center;">&#215; Delete</button>
       </div>
     </div>`;
@@ -4205,6 +4254,17 @@ function renderProcessingItems() {
       </div>
       <div class="proc-item-body">
 
+        <!-- Item Name (editable — syncs to Shopify title & NS displayName) -->
+        <span class="sl">Item Name</span>
+        <div class="proc-row t1">
+          <div class="proc-field">
+            <label>Product Title</label>
+            <input type="text" id="proc-name-${idx}" value="${esc(pd.itemName ?? item.name ?? '')}" placeholder="e.g. Leica M11, Black Chrome" onchange="procFieldChange(${idx})">
+          </div>
+        </div>
+
+        <div class="proc-divider"></div>
+
         <!-- Item Identifiers -->
         <span class="sl">Item Identifiers</span>
         <div class="proc-row t3">
@@ -4273,8 +4333,8 @@ function renderProcessingItems() {
         <span class="sl">Listing Description</span>
         <div class="proc-row t1">
           <div class="proc-field">
-            <label>Item Description (for Shopify listing — will connect to LLM later)</label>
-            <textarea id="proc-desc-${idx}" placeholder="Write a description or leave blank to auto-generate later from notes, condition, and included items…" style="min-height:80px;" onchange="procFieldChange(${idx})">${esc(pd.description || '')}</textarea>
+            <label>Listing Description</label>
+            <textarea id="proc-desc-${idx}" placeholder="Write a product description for the Shopify listing…" style="min-height:80px;" onchange="procFieldChange(${idx})">${esc(pd.description || '')}</textarea>
           </div>
         </div>
 
@@ -4413,6 +4473,8 @@ function removeProcAccessory(idx, accName) {
 
 function procFieldChange(idx) {
   if (!procData[idx]) procData[idx] = {};
+  const nameEl = document.getElementById('proc-name-' + idx);
+  if (nameEl) procData[idx].itemName = nameEl.value;
   procData[idx].confirmedGrade = document.getElementById('proc-cond-' + idx).value;
   procData[idx].needsService = document.getElementById('proc-svc-' + idx).value;
   procData[idx].cosmeticNotes = document.getElementById('proc-cosm-' + idx).value;
@@ -4438,16 +4500,31 @@ function procMetaChange(idx) {
 function toggleCertify(idx) {
   if (!procData[idx]) procData[idx] = {};
   procFieldChange(idx);
-  procData[idx].certified = !procData[idx].certified;
+
   const row = document.getElementById('proc-cert-' + idx);
   const box = row.querySelector('.proc-check-box');
   const card = document.getElementById('proc-item-' + idx);
-  if (procData[idx].certified) {
+
+  if (!procData[idx].certified) {
     if (!procData[idx].confirmedGrade) {
       alert('Please confirm the condition grade before certifying.');
-      procData[idx].certified = false;
       return;
     }
+    if (!procData[idx].images || !procData[idx].images.length) {
+      alert('Please upload at least one product image before certifying.');
+      return;
+    }
+    if (!(procData[idx].cosmeticNotes || '').trim() && !(procData[idx].mechOpticalNotes || '').trim()) {
+      alert('Please add cosmetic or mechanical/optical condition notes before certifying.');
+      return;
+    }
+    const assocName = document.getElementById('assoc')?.value?.trim() || '';
+    const authEmail = window._authEmail || '';
+    procData[idx].certifiedBy = assocName || authEmail.split('@')[0] || 'Unknown';
+    procData[idx].certifiedByEmail = authEmail;
+    procData[idx].certifiedAt = new Date().toISOString();
+    procData[idx].certified = true;
+
     row.classList.add('checked');
     box.textContent = '✓';
     card.classList.add('certified');
@@ -4456,6 +4533,11 @@ function toggleCertify(idx) {
       badges.insertAdjacentHTML('beforeend', '<span class="proc-item-cert-badge">Certified</span>');
     }
   } else {
+    procData[idx].certified = false;
+    delete procData[idx].certifiedBy;
+    delete procData[idx].certifiedByEmail;
+    delete procData[idx].certifiedAt;
+
     row.classList.remove('checked');
     box.textContent = '';
     card.classList.remove('certified');
@@ -4470,9 +4552,11 @@ function updateProcProgress() {
   let certCount = 0;
   items.forEach((_, idx) => { if (procData[idx]?.certified) certCount++; });
   document.getElementById('proc-cert-count').textContent = certCount;
-  document.getElementById('proc-save-btn').disabled = false; // allow partial saves
+  document.getElementById('proc-save-btn').disabled = false;
+  const syncBtn = document.getElementById('proc-sync-btn');
+  if (syncBtn) syncBtn.disabled = certCount < items.length;
   if (certCount === items.length) {
-    document.getElementById('proc-footer-msg').textContent = 'All items certified — ready to save.';
+    document.getElementById('proc-footer-msg').textContent = 'All items certified — ready to save & sync.';
     document.getElementById('proc-footer-msg').style.color = '#70d090';
   } else {
     document.getElementById('proc-footer-msg').textContent = `${items.length - certCount} item${items.length - certCount !== 1 ? 's' : ''} still need certification.`;
@@ -4709,6 +4793,342 @@ async function saveProcessing() {
     btn.textContent = 'Save Processing Data';
     btn.disabled = false;
   }
+}
+
+async function saveAndSync() {
+  if (!procSession) return;
+  const btn = document.getElementById('proc-sync-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  // First do a regular save to KV + Drive
+  await saveProcessing();
+
+  btn.textContent = 'Syncing to Shopify & NetSuite…';
+
+  const items = procSession.data.items;
+  const results = [];
+  let successCount = 0;
+
+  for (let idx = 0; idx < items.length; idx++) {
+    const item = items[idx];
+    const pd = procData[idx] || {};
+    if (!pd.certified) continue;
+    const sku = item.sku || item.catalog || '';
+    if (!sku) continue;
+
+    btn.textContent = `Syncing ${idx + 1}/${items.length}…`;
+
+    try {
+      const payload = {
+        sku,
+        itemName: pd.itemName || item.name,
+        description: pd.description || '',
+        grade: pd.confirmedGrade || '',
+        serial: pd.serial || item.serial || '',
+        cosmeticNotes: pd.cosmeticNotes || '',
+        mechOpticalNotes: pd.mechOpticalNotes || '',
+        generalNotes: pd.generalNotes || '',
+        comesWith: [...(pd.confirmedAccessories || [])],
+        testedBy: pd.certifiedBy || '',
+        images: (pd.images || []).map(img => ({
+          dataUrl: img.dataUrl,
+          name: img.name || 'image.jpg',
+        })),
+      };
+      const res = await fetch('/api/product-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const r = await res.json();
+      results.push(r);
+      if (r.shopify?.success || r.netsuite?.success) successCount++;
+    } catch (err) {
+      results.push({ sku, error: err.message });
+    }
+  }
+
+  if (successCount > 0) {
+    showToast(`Synced ${successCount} item${successCount !== 1 ? 's' : ''} to Shopify & NetSuite`);
+  }
+
+  // Show detailed results if any failures
+  const failures = results.filter(r => r.shopify?.error || r.netsuite?.error || r.error);
+  if (failures.length) {
+    const detail = failures.map(r => {
+      let msg = r.sku + ': ';
+      if (r.error) msg += r.error;
+      else {
+        if (r.shopify?.error) msg += 'Shopify: ' + r.shopify.error + '. ';
+        if (r.netsuite?.error) msg += 'NetSuite: ' + r.netsuite.error;
+      }
+      return msg;
+    }).join('\n');
+    _showCopyableError('Some items failed to sync:', detail);
+  }
+
+  // Refresh Shopify status badges
+  lookupShopifyStatuses();
+
+  btn.textContent = 'Save & Sync to Shopify / NetSuite';
+  btn.disabled = false;
+}
+
+// ─── VERIFY PANEL ───
+let verifySession = null;
+let verifyData = {};
+
+async function openVerifyPanel(sessionKey) {
+  closeSessionsMgr();
+  const res = await fetch('/api/sessions?key=' + encodeURIComponent(sessionKey));
+  const data = await res.json();
+  if (!data.data) { alert('Session not found.'); return; }
+  verifySession = { key: sessionKey, data: data.data };
+  verifyData = {};
+
+  const isCustom = data.data.source === 'custom-processing';
+  document.getElementById('verify-ti-id').textContent = isCustom ? (data.data.name || data.data.tradeInId || sessionKey) : (data.data.tradeInId || data.data.cmNum || sessionKey);
+  document.getElementById('verify-cust-name').textContent = isCustom ? '' : (data.data.name || '—');
+
+  // Pre-select location if session has one
+  const locSel = document.getElementById('verify-location');
+  locSel.value = data.data.loc || '';
+  locSel.onchange = () => {
+    document.getElementById('verify-publish-btn').disabled = !locSel.value;
+  };
+
+  renderVerifyItems();
+
+  document.getElementById('verify-publish-btn').disabled = !locSel.value;
+  document.getElementById('verify-overlay').classList.add('vis');
+  document.getElementById('verify-panel').classList.add('vis');
+}
+
+function closeVerify() {
+  document.getElementById('verify-overlay').classList.remove('vis');
+  document.getElementById('verify-panel').classList.remove('vis');
+  verifySession = null;
+}
+
+function renderVerifyItems() {
+  const items = verifySession.data.items;
+  const proc = verifySession.data.processing || {};
+  const body = document.getElementById('verify-body');
+
+  body.innerHTML = items.map((item, idx) => {
+    const pd = proc[idx] || {};
+    const sku = item.sku || item.catalog || '—';
+    const accs = [...(pd.confirmedAccessories || []), ...(pd.addedAccessories || [])].filter((v, i, a) => a.indexOf(v) === i);
+    verifyData[idx] = {
+      description: pd.description || '',
+      cosmeticNotes: pd.cosmeticNotes || '',
+      mechOpticalNotes: pd.mechOpticalNotes || '',
+      generalNotes: pd.generalNotes || '',
+      itemName: pd.itemName || item.name || '',
+    };
+
+    return `<div class="proc-item open" id="verify-item-${idx}">
+      <div class="proc-item-hd" onclick="document.getElementById('verify-item-${idx}').classList.toggle('open')">
+        <div>
+          <div class="proc-item-name">${esc(pd.itemName || item.name)}</div>
+          <div style="font-size:10px;color:var(--dim);margin-top:2px;">SKU: ${esc(sku)} · Grade: ${esc(pd.confirmedGrade || item.grade || '—')} · S/N: ${esc(pd.serial || item.serial || '—')}</div>
+        </div>
+        <div class="proc-item-badges">
+          <span class="proc-item-sku">${esc(sku)}</span>
+          <span class="proc-item-cert-badge">Certified by ${esc(pd.certifiedBy || '—')}</span>
+        </div>
+      </div>
+      <div class="proc-item-body">
+
+        <span class="sl">Product Title</span>
+        <div class="proc-row t1">
+          <div class="proc-field">
+            <input type="text" id="verify-name-${idx}" value="${esc(verifyData[idx].itemName)}" onchange="verifyData[${idx}].itemName=this.value">
+          </div>
+        </div>
+
+        <div class="proc-divider"></div>
+
+        <span class="sl">Listing Description</span>
+        <div class="proc-row t1">
+          <div class="proc-field">
+            <textarea id="verify-desc-${idx}" style="min-height:100px;" onchange="verifyData[${idx}].description=this.value">${esc(verifyData[idx].description)}</textarea>
+          </div>
+        </div>
+
+        <div class="proc-divider"></div>
+
+        <div class="proc-row">
+          <div class="proc-field">
+            <label>Cosmetic Notes</label>
+            <textarea id="verify-cosm-${idx}" onchange="verifyData[${idx}].cosmeticNotes=this.value">${esc(verifyData[idx].cosmeticNotes)}</textarea>
+          </div>
+          <div class="proc-field">
+            <label>Mechanical / Optical Notes</label>
+            <textarea id="verify-mech-${idx}" onchange="verifyData[${idx}].mechOpticalNotes=this.value">${esc(verifyData[idx].mechOpticalNotes)}</textarea>
+          </div>
+        </div>
+
+        <div class="proc-row t1">
+          <div class="proc-field">
+            <label>General Notes</label>
+            <textarea id="verify-notes-${idx}" onchange="verifyData[${idx}].generalNotes=this.value">${esc(verifyData[idx].generalNotes)}</textarea>
+          </div>
+        </div>
+
+        <div class="proc-divider"></div>
+
+        <span class="sl">Comes With</span>
+        <div style="font-size:11px;color:var(--dim);line-height:1.8;padding:4px 0;">
+          ${accs.length ? accs.map(a => '• ' + esc(a)).join('<br>') : '<em>No items listed</em>'}
+        </div>
+
+        <div class="proc-divider"></div>
+
+        <span class="sl">Product Images (${(pd.images || []).length})</span>
+        <div class="proc-img-grid">
+          ${(pd.images || []).map((img, imgIdx) =>
+            `<div class="proc-img-thumb">
+              <span class="proc-img-num">${String(imgIdx).padStart(3,'0')}</span>
+              <img src="${img.dataUrl}" alt="Image ${imgIdx + 1}">
+            </div>`
+          ).join('')}
+        </div>
+
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function saveVerifyEdits() {
+  if (!verifySession) return;
+  const btn = document.getElementById('verify-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  const proc = verifySession.data.processing || {};
+  for (const idx of Object.keys(verifyData)) {
+    const vd = verifyData[idx];
+    if (!proc[idx]) proc[idx] = {};
+    proc[idx].description = vd.description;
+    proc[idx].cosmeticNotes = vd.cosmeticNotes;
+    proc[idx].mechOpticalNotes = vd.mechOpticalNotes;
+    proc[idx].generalNotes = vd.generalNotes;
+    proc[idx].itemName = vd.itemName;
+  }
+  verifySession.data.processing = proc;
+
+  await fetch('/api/sessions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: verifySession.key, data: verifySession.data }),
+  });
+
+  showToast('Edits saved');
+  btn.textContent = 'Save Edits';
+  btn.disabled = false;
+}
+
+async function verifyAndPublish() {
+  if (!verifySession) return;
+  const location = document.getElementById('verify-location').value;
+  if (!location) { alert('Please select a store location.'); return; }
+
+  const btn = document.getElementById('verify-publish-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving edits…';
+
+  // Save any edits first
+  await saveVerifyEdits();
+
+  btn.textContent = 'Syncing to Shopify & NetSuite…';
+
+  // Sync updated fields to Shopify/NetSuite for each item
+  const items = verifySession.data.items;
+  const proc = verifySession.data.processing || {};
+  let syncErrors = [];
+
+  for (let idx = 0; idx < items.length; idx++) {
+    const item = items[idx];
+    const pd = proc[idx] || {};
+    const sku = item.sku || item.catalog || '';
+    if (!sku) continue;
+
+    btn.textContent = `Syncing ${idx + 1}/${items.length}…`;
+
+    try {
+      const payload = {
+        sku,
+        itemName: pd.itemName || item.name,
+        description: pd.description || '',
+        grade: pd.confirmedGrade || '',
+        serial: pd.serial || item.serial || '',
+        cosmeticNotes: pd.cosmeticNotes || '',
+        mechOpticalNotes: pd.mechOpticalNotes || '',
+        generalNotes: pd.generalNotes || '',
+        comesWith: [...(pd.confirmedAccessories || [])],
+        testedBy: pd.certifiedBy || '',
+        images: (pd.images || []).map(img => ({
+          dataUrl: img.dataUrl,
+          name: img.name || 'image.jpg',
+        })),
+      };
+      const res = await fetch('/api/product-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const r = await res.json();
+      if (r.shopify?.error) syncErrors.push(`${sku} Shopify: ${r.shopify.error}`);
+      if (r.netsuite?.error) syncErrors.push(`${sku} NetSuite: ${r.netsuite.error}`);
+    } catch (err) {
+      syncErrors.push(`${sku}: ${err.message}`);
+    }
+  }
+
+  // Publish products
+  btn.textContent = 'Publishing…';
+
+  const publishItems = items
+    .map(item => ({ sku: item.sku || item.catalog || '', location }))
+    .filter(i => i.sku);
+
+  try {
+    const res = await fetch('/api/product-publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: publishItems }),
+    });
+    const result = await res.json();
+    const pubFails = (result.results || []).filter(r => !r.success);
+    if (pubFails.length) {
+      pubFails.forEach(r => syncErrors.push(`${r.sku} Publish: ${r.error}`));
+    }
+  } catch (err) {
+    syncErrors.push('Publish: ' + err.message);
+  }
+
+  // Mark session as verified
+  verifySession.data.verified = true;
+  verifySession.data.verifiedAt = new Date().toISOString();
+  verifySession.data.verifiedBy = window._authEmail || '';
+  verifySession.data.processingComplete = true;
+  await fetch('/api/sessions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: verifySession.key, data: verifySession.data }),
+  });
+
+  if (syncErrors.length) {
+    _showCopyableError('Published with some errors:', syncErrors.join('\n'));
+  } else {
+    showToast('All items verified & published successfully');
+  }
+
+  closeVerify();
+  btn.textContent = 'Verify & Publish All';
+  btn.disabled = false;
 }
 
 function _showCopyableError(title, body) {
