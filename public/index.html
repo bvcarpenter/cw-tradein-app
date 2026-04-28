@@ -1081,6 +1081,7 @@ document.addEventListener('DOMContentLoaded', () => {
 let selItem = null, selGrade = null, selPT = 'tradein';
 let sessionItems = [], srchT = null, selLoc = '';
 let _loadedSessionKey = null; // tracks the key of the currently loaded session
+let _sessionMeta = {}; // non-DOM session fields (finalized, vouch, storeCredit, nsItems, etc.)
 let searchResultsCache = [];
 
 function generateTradeInId(date) {
@@ -2839,6 +2840,7 @@ async function confirmSendEstimate() {
 // ════════════════════════════════════════════
 function getSessionData() {
   return {
+    ..._sessionMeta,
     savedAt: new Date().toISOString(),
     tradeInId: document.getElementById('tradein-id').textContent || generateTradeInId(),
     customer: {
@@ -2869,6 +2871,11 @@ function getSessionData() {
 }
 
 function restoreSessionData(d) {
+  // Preserve non-DOM fields so autoSave doesn't strip them
+  _sessionMeta = {};
+  for (const k of ['finalized','finalizedAt','storeCredit','netsuiteId','nsItems','vouch','source','processing','processingComplete','verified']) {
+    if (d[k] !== undefined) _sessionMeta[k] = d[k];
+  }
   window._shopifyCustId = d.customer.id || '';
   const restoredId = d.tradeInId || d.key || generateTradeInId();
   document.getElementById('tradein-id').textContent = restoredId;
@@ -3559,17 +3566,17 @@ async function execStoreCredit() {
     scMsg.textContent = 'Step 4/4 — Saving and finalizing session…';
 
     try {
+      _sessionMeta.finalized = true;
+      _sessionMeta.finalizedAt = new Date().toISOString();
+      _sessionMeta.storeCredit = { credited, balance, issuedAt: new Date().toISOString() };
+      _sessionMeta.netsuiteId = nsData.internalId || '';
+      if (nsItemsResult) {
+        _sessionMeta.nsItems = { cm, createdAt: new Date().toISOString(), items: nsItemsResult.items || [], errors: nsItemsResult.errors || [] };
+      } else if (nsItemsError) {
+        _sessionMeta.nsItems = { cm, failedAt: new Date().toISOString(), lastError: nsItemsError };
+      }
       const sessionData = getSessionData();
       sessionData.cmNum = cm;
-      sessionData.finalized = true;
-      sessionData.finalizedAt = new Date().toISOString();
-      sessionData.storeCredit = { credited, balance, issuedAt: new Date().toISOString() };
-      sessionData.netsuiteId = nsData.internalId || '';
-      if (nsItemsResult) {
-        sessionData.nsItems = { cm, createdAt: new Date().toISOString(), items: nsItemsResult.items || [], errors: nsItemsResult.errors || [] };
-      } else if (nsItemsError) {
-        sessionData.nsItems = { cm, failedAt: new Date().toISOString(), lastError: nsItemsError };
-      }
       const name = (sessionData.customer.first + ' ' + sessionData.customer.last).trim()
         || 'Session ' + new Date().toLocaleDateString();
       const key = _loadedSessionKey || sessionData.tradeInId || generateTradeInId();
@@ -3806,14 +3813,14 @@ async function vouchItems() {
     btn.disabled = !!data.success;
 
     try {
-      const sd = getSessionData();
-      sd.vouch = {
+      _sessionMeta.vouch = {
         vouchedAt: new Date().toISOString(),
         steps,
         purchaseOrder: data.purchaseOrder,
         itemReceipt: data.itemReceipt,
       };
-      sd.nsItems = { cm, createdAt: new Date().toISOString(), items: data.items || [] };
+      _sessionMeta.nsItems = { cm, createdAt: new Date().toISOString(), items: data.items || [] };
+      const sd = getSessionData();
       const key = _loadedSessionKey || sd.key;
       if (key) { sd.key = key; await kvSaveSession(key, sd); }
     } catch (e) { /* ignore save failure */ }
@@ -3866,6 +3873,7 @@ async function updTax() {
 }
 function resetSessionForm() {
   sessionItems = []; selItem = null; selGrade = null;
+  _sessionMeta = {};
   window._shopifyCustId = '';
   window._trackingStatus = '';
   window._csConversationUrl = '';
