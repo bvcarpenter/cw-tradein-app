@@ -11,7 +11,7 @@
  */
 
 import { netsuiteRequest } from './_netsuite.js';
-import { buildItemRecord, LOCATION_MAP, CF, lookupLocationId, lookupTaxScheduleId, lookupClassId } from './netsuite-items.js';
+import { buildItemRecord, LOCATION_MAP, CF, lookupLocationId, lookupTaxScheduleId, lookupClassId, lookupCustomListValue, lookupDepartmentId } from './netsuite-items.js';
 
 const cors = {
   'Content-Type': 'application/json',
@@ -53,7 +53,20 @@ export async function onRequestPost({ request, env }) {
   for (const bn of brandNames) {
     brandRefs[bn] = await lookupClassId(env, bn);
   }
-  console.log(`Vouch: location="${locationName}", brands=${JSON.stringify(brandRefs)}`);
+
+  const sysIdNames = [...new Set(items.map(it => it.systemId).filter(Boolean))];
+  const sysIdRefs = {};
+  for (const si of sysIdNames) {
+    sysIdRefs[si] = await lookupCustomListValue(env, CF.systemIdentifier, si);
+  }
+
+  const itemTypeNames = [...new Set(items.map(it => it.itemType).filter(Boolean))];
+  const deptRefs = {};
+  for (const it of itemTypeNames) {
+    deptRefs[it] = await lookupDepartmentId(env, it);
+  }
+
+  console.log(`Vouch: location="${locationName}", brands=${JSON.stringify(brandRefs)}, sysIds=${JSON.stringify(sysIdRefs)}, depts=${JSON.stringify(deptRefs)}`);
 
   const result = {
     success: false,
@@ -76,7 +89,12 @@ export async function onRequestPost({ request, env }) {
   try {
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      const refs = { taxSchedule: taxRef, brand: brandRefs[item.brand] || null };
+      const refs = {
+        taxSchedule: taxRef,
+        brand: brandRefs[item.brand] || null,
+        systemId: sysIdRefs[item.systemId] || null,
+        department: deptRefs[item.itemType] || null,
+      };
       const record = buildItemRecord(item, i, cmNum, locationRef, refs);
       const expectedItemId = record.itemId;
 
@@ -85,6 +103,11 @@ export async function onRequestPost({ request, env }) {
         const patch = {};
         if (record[CF.brand]) patch[CF.brand] = record[CF.brand];
         patch[CF.newUsed] = { id: '2' };
+        if (record[CF.systemIdentifier]) patch[CF.systemIdentifier] = record[CF.systemIdentifier];
+        if (record[CF.subletDepartment]) patch[CF.subletDepartment] = record[CF.subletDepartment];
+        if (record[CF.subDepartment]) patch[CF.subDepartment] = record[CF.subDepartment];
+        if (record[CF.cosmeticCondition]) patch[CF.cosmeticCondition] = record[CF.cosmeticCondition];
+        patch[CF.mainDepartment] = { id: '1' };
         try {
           await netsuiteRequest(env, 'PATCH', `${baseUrl}/inventoryItem/${existingId}`, patch);
           console.log(`Patched existing item ${expectedItemId} (${existingId}) with Brand/NewUsed`);
@@ -127,9 +150,8 @@ export async function onRequestPost({ request, env }) {
   // Map item internalIds to their net prices
   const itemPriceMap = {};
   for (let i = 0; i < items.length; i++) {
-    const refs = { taxSchedule: taxRef, brand: brandRefs[items[i].brand] || null };
-    const record = buildItemRecord(items[i], i, cmNum, locationRef, refs);
-    itemPriceMap[record.itemId] = items[i].net || 0;
+    const itemNum = `${cmNum}-${String(i + 1).padStart(3, '0')}`;
+    itemPriceMap[itemNum] = items[i].net || 0;
   }
 
   try {
