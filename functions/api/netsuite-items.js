@@ -53,9 +53,11 @@ async function lookupCustomListValue(env, fieldId, valueName) {
     const data = await netsuiteRequest(env, 'POST', sqlUrl, {
       q: `SELECT DISTINCT ${fieldId} AS id, BUILTIN.DF(${fieldId}) AS name FROM inventoryItem WHERE ${fieldId} IS NOT NULL`,
     }, { 'Prefer': 'transient' });
-    const match = (data?.items || []).find(v => v.name === valueName);
+    const items = data?.items || [];
+    const match = items.find(v => v.name === valueName)
+      || items.find(v => v.name?.toLowerCase() === valueName?.toLowerCase());
     if (match) return { id: String(match.id) };
-    console.log(`No ${fieldId} match for "${valueName}", available:`, JSON.stringify(data?.items?.slice(0, 10)));
+    console.log(`No ${fieldId} match for "${valueName}", available:`, JSON.stringify(items.slice(0, 10)));
   } catch (e) {
     console.log(`${fieldId} lookup failed:`, e.message);
   }
@@ -146,8 +148,8 @@ function buildItemRecord(item, idx, cmNum, locationRef, refs) {
     [CF.shopifyVisibility]: 'Point of sale',
   };
 
-  if (refs?.brand) record[CF.brand] = refs.brand;
-  if (refs?.newUsed) record[CF.newUsed] = refs.newUsed;
+  record[CF.brand] = refs?.brand || item.brand || '';
+  record[CF.newUsed] = refs?.newUsed || 'Used';
 
   if (pipe17Tag) {
     record[CF.pipe17Tags] = pipe17Tag;
