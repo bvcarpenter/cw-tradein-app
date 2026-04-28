@@ -244,9 +244,12 @@ async function lookupNetSuiteItem(env, sku) {
   const accountId = env.NS_ACCOUNT_ID;
   const sqlUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql`;
   const data = await netsuiteRequest(env, 'POST', sqlUrl, {
-    q: `SELECT id FROM inventoryItem WHERE itemId = '${sku.replace(/'/g, "''")}'`,
+    q: `SELECT id, custitem2 FROM inventoryItem WHERE itemId = '${sku.replace(/'/g, "''")}'`,
   }, { 'Prefer': 'transient' });
   const items = data?.items || [];
+  if (items.length) {
+    console.log(`NS item ${sku}: id=${items[0].id}, custitem2=${JSON.stringify(items[0].custitem2)}`);
+  }
   return items.length ? items[0].id : null;
 }
 
@@ -254,9 +257,27 @@ async function updateNetSuiteItem(env, internalId, item) {
   const accountId = env.NS_ACCOUNT_ID;
   const url = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/record/v1/inventoryItem/${internalId}`;
 
+  // Look up custitem2 list values to find the right internal ID for the grade
+  let gradeId = null;
+  if (item.grade) {
+    try {
+      const sqlUrl = `https://${accountId}.suitetalk.api.netsuite.com/services/rest/query/v1/suiteql`;
+      const listData = await netsuiteRequest(env, 'POST', sqlUrl, {
+        q: `SELECT DISTINCT custitem2 AS id, BUILTIN.DF(custitem2) AS name FROM inventoryItem WHERE custitem2 IS NOT NULL`,
+      }, { 'Prefer': 'transient' });
+      const listItems = listData?.items || [];
+      console.log('NS custitem2 list values:', JSON.stringify(listItems));
+      const match = listItems.find(v => v.name === item.grade);
+      if (match) gradeId = match.id;
+      else console.log(`No custitem2 match for grade "${item.grade}"`);
+    } catch (e) {
+      console.log('custitem2 list lookup failed:', e.message, '— will try direct set');
+    }
+  }
+
   const updates = {};
   if (item.itemName) updates.displayName = item.itemName;
-  if (item.grade) updates.custitem2 = { name: item.grade };
+  if (gradeId) updates.custitem2 = { id: String(gradeId) };
   if (item.serial) updates.vendorname = item.serial;
 
   if (!Object.keys(updates).length) return;
