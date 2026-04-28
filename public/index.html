@@ -844,7 +844,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 </div>
 <!-- CUSTOM PROCESSING SESSION MODAL -->
 <div class="mo" id="mo-custom-proc" style="display:none;">
-  <div class="mod" style="max-width:700px;width:100%;">
+  <div class="mod" style="max-width:900px;width:100%;">
     <div class="mod-h"><h3>Custom Processing Session</h3><button class="mod-x" onclick="closeCustomProc()">&#215;</button></div>
     <div class="mod-b">
       <div style="margin-bottom:16px;">
@@ -854,7 +854,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
       <div style="margin-bottom:16px;position:relative;">
         <label style="display:block;font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;">Search Shopify Products</label>
         <input type="text" id="cp-search" placeholder="Search by product name or SKU…" oninput="cpDebouncedSearch(this.value)" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--white);font-family:var(--font-body);font-size:13px;padding:10px 12px;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='var(--accent)'" onblur="setTimeout(()=>this.style.borderColor='var(--border)',200)">
-        <div id="cp-results" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:10;max-height:240px;overflow-y:auto;background:var(--bg2);border:1px solid var(--border);border-top:none;"></div>
+        <div id="cp-results" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:10;max-height:400px;overflow-y:auto;background:var(--bg2);border:1px solid var(--border);border-top:none;"></div>
       </div>
       <div>
         <label style="display:block;font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;">Items to Process (<span id="cp-count">0</span>)</label>
