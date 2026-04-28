@@ -1809,7 +1809,7 @@ function selProduct(p) {
   if (CAM_T.has(p.it)) cat = 'camera';
   else if (LEN_T.has(p.it)) cat = 'lens';
   const fmt = p.fmt || inferFormat(p.si || '', p.it || '');
-  selItem = { name: p.n, vendor: '', systemId: p.si||'', itemType: p.it||'',
+  selItem = { name: p.n, vendor: p.v||'', systemId: p.si||'', itemType: p.it||'',
               medium: p.m||'', price: p.p||0, sku: p.sku||'', format: fmt, category: cat,
               catalog: p.sku||'', asin: p.asin||'' };
   setSelectVal('m-sys', p.si||'');
@@ -3806,9 +3806,6 @@ async function vouchItems() {
       lines.push('<span style="color:#e07070;">&#10005; PO receipt failed</span>');
     if (data.errors?.length) {
       data.errors.forEach(e => lines.push(`<span style="color:#e07070;">&nbsp;&nbsp;· ${esc(e.itemId || '')}: ${esc(e.error)}</span>`));
-    }
-    if (data._diag) {
-      lines.push(`<br><span style="color:#888;font-size:10px;">diag: ${esc(JSON.stringify(data._diag))}</span>`);
     }
     status.innerHTML = lines.join('<br>');
     status.style.color = data.success ? '#6fbf73' : '#d0a070';
