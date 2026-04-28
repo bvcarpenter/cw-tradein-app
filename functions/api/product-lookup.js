@@ -104,7 +104,7 @@ async function handleSearch(q, env) {
           }
         }
       `;
-      const data = await shopifyGQL(env, query, { q: `sku:${q}` });
+      const data = await shopifyGQL(env, query, { q: `sku:${q}*` });
       for (const edge of data?.productVariants?.edges || []) {
         const v = edge.node;
         const prod = v.product;

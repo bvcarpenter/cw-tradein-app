@@ -3929,31 +3929,73 @@ async function cpSearch(q) {
   q = q.trim();
   const el = document.getElementById('cp-results');
   if (q.length < 2) { el.style.display = 'none'; return; }
-  el.innerHTML = '<div style="padding:12px;font-size:11px;color:var(--dim);text-align:center;">Searching Shopify…</div>';
+  el.innerHTML = '<div style="padding:12px;font-size:11px;color:var(--dim);text-align:center;">Searching…</div>';
   el.style.display = 'block';
+
+  const qEnc = encodeURIComponent(q);
   try {
-    const r = await fetch('/api/product-lookup?q=' + encodeURIComponent(q));
-    const data = await r.json();
-    const results = data.results || [];
-    if (!results.length) {
+    const [brandRes, shopifyRes] = await Promise.all([
+      fetch('/api/search?q=' + qEnc + '&limit=25&source=brand'),
+      fetch('/api/product-lookup?q=' + qEnc),
+    ]);
+    const brandData = await brandRes.json();
+    const shopifyData = await shopifyRes.json();
+    const brandProducts = (brandData.products || []).map(p => ({
+      _src: 'brand', title: p.n || '', sku: p.sku || '', price: p.p || 0,
+      type: p.it || '', vendor: p.v || '', grade: p.grade || '',
+      medium: p.m || '', format: p.fmt || '', systemId: p.si || '',
+    }));
+    const shopifyInStock = (shopifyData.results || []).filter(p => p.inStock).map(p => ({
+      _src: 'shopify', ...p,
+    }));
+    const shopifyOther = (shopifyData.results || []).filter(p => !p.inStock).map(p => ({
+      _src: 'shopify', ...p,
+    }));
+
+    const all = [...brandProducts, ...shopifyInStock, ...shopifyOther];
+    if (!all.length) {
       el.innerHTML = '<div style="padding:12px;font-size:11px;color:var(--dim);text-align:center;">No products found.</div>';
       return;
     }
-    _cpSearchResults = results;
-    const addAllBtn = results.length > 1
+    _cpSearchResults = all;
+
+    const addAllBtn = all.length > 1
       ? `<div onclick="cpAddAll()" style="padding:8px 12px;cursor:pointer;background:var(--bg3);border-bottom:2px solid var(--accent);display:flex;align-items:center;justify-content:center;gap:6px;transition:background .1s;" onmouseenter="this.style.background='var(--accent)';this.style.color='#000'" onmouseleave="this.style.background='var(--bg3)';this.style.color=''">`
-        + `<span style="font-size:12px;font-weight:600;">Add All (${results.length})</span>`
-        + `</div>`
-      : '';
-    el.innerHTML = addAllBtn + results.map((p, i) =>
-      `<div onclick="cpAddItem(${i})" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s;" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">`
-      + `<div style="font-size:12px;font-weight:500;color:var(--fg);">${esc(p.title)}${p.variantTitle && p.variantTitle !== 'Default Title' ? ' — ' + esc(p.variantTitle) : ''}</div>`
-      + `<div style="font-size:10px;color:var(--dim);margin-top:2px;">SKU: ${esc(p.sku || '—')}${p.type ? ' · ' + esc(p.type) : ''}${p.price ? ' · $' + Number(p.price).toFixed(2) : ''}${p.inStock ? ' · In Stock' : ''}</div>`
-      + `</div>`
-    ).join('');
+        + `<span style="font-size:12px;font-weight:600;">Add All (${all.length})</span></div>` : '';
+
+    let html = addAllBtn;
+    if (brandProducts.length) {
+      html += `<div style="padding:6px 12px 4px;font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:rgba(245,245,240,.35);background:var(--bg4);border-bottom:1px solid var(--border);">Trade Matrix</div>`;
+      html += brandProducts.map((p, i) => cpResultRow(p, i)).join('');
+    }
+    if (shopifyInStock.length) {
+      const off = brandProducts.length;
+      html += `<div style="padding:6px 12px 4px;font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:rgba(245,245,240,.35);background:var(--bg4);border-bottom:1px solid var(--border);margin-top:2px;">Shopify — In Stock</div>`;
+      html += shopifyInStock.map((p, i) => cpResultRow(p, off + i)).join('');
+    }
+    if (shopifyOther.length) {
+      const off = brandProducts.length + shopifyInStock.length;
+      html += `<div style="padding:6px 12px 4px;font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:rgba(245,245,240,.35);background:var(--bg4);border-bottom:1px solid var(--border);margin-top:2px;">Shopify — Historical</div>`;
+      html += shopifyOther.map((p, i) => cpResultRow(p, off + i)).join('');
+    }
+    el.innerHTML = html;
   } catch (e) {
     el.innerHTML = '<div style="padding:12px;font-size:11px;color:#e07070;text-align:center;">Search failed: ' + esc(e.message) + '</div>';
   }
+}
+
+function cpResultRow(p, idx) {
+  const name = p.title || 'Unknown';
+  const variant = p.variantTitle && p.variantTitle !== 'Default Title' ? ' — ' + p.variantTitle : '';
+  const price = p.price ? ' · $' + Number(p.price).toFixed(2) : '';
+  const stock = p.inStock ? ' · In Stock' : '';
+  const grade = p.grade ? ' · ' + p.grade : '';
+  const badge = p._src === 'brand'
+    ? `<span style="font-size:9px;font-weight:600;color:#1a6fc4;background:rgba(26,111,196,.10);border:1px solid rgba(26,111,196,.40);padding:1px 5px;border-radius:3px;margin-left:6px;">MATRIX</span>` : '';
+  return `<div onclick="cpAddItem(${idx})" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s;" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">`
+    + `<div style="font-size:12px;font-weight:500;color:var(--fg);">${esc(name)}${variant ? esc(variant) : ''}${badge}</div>`
+    + `<div style="font-size:10px;color:var(--dim);margin-top:2px;">SKU: ${esc(p.sku || '—')}${p.type ? ' · ' + esc(p.type) : ''}${price}${grade}${stock}</div>`
+    + `</div>`;
 }
 
 function cpMakeItem(p) {
@@ -3963,11 +4005,11 @@ function cpMakeItem(p) {
     sku: p.sku || '',
     catalog: p.sku || '',
     vendor: p.vendor || '',
-    systemId: '',
+    systemId: p.systemId || '',
     itemType: p.type || '',
-    medium: '',
-    format: '',
-    grade: '',
+    medium: p.medium || '',
+    format: p.format || '',
+    grade: p.grade || '',
     serial: '',
     retail: parseFloat(p.price) || 0,
     tradein: 0, outright: 0, net: 0,
@@ -3981,7 +4023,7 @@ function cpMakeItem(p) {
 function cpAddItem(i) {
   const p = _cpSearchResults[i];
   if (!p) return;
-  if (_cpItems.some(it => it.sku && it.sku === p.sku)) return;
+  if (p.sku && _cpItems.some(it => it.sku === p.sku)) return;
   _cpItems.push(cpMakeItem(p));
   renderCpItems();
   document.getElementById('cp-search').value = '';
@@ -3991,7 +4033,7 @@ function cpAddItem(i) {
 function cpAddAll() {
   let added = 0;
   for (const p of _cpSearchResults) {
-    if (_cpItems.some(it => it.sku && it.sku === p.sku)) continue;
+    if (p.sku && _cpItems.some(it => it.sku === p.sku)) continue;
     _cpItems.push(cpMakeItem(p));
     added++;
   }
