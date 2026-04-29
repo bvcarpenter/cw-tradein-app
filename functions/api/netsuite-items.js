@@ -227,9 +227,8 @@ function buildItemRecord(item, idx, cmNum, locationRef, refs) {
   record[CF.brand] = refs?.brand || '';
   record[CF.newUsed] = { id: '2' };
 
-  // custitem5 (System ID) and custitem_subdepartment (Sub Department) skipped —
-  // BUILTIN.DF lookup returns values but NetSuite rejects all formats tried.
-  // These need manual investigation of the correct value format.
+  if (refs?.systemId) record[CF.systemIdentifier] = { items: [refs.systemId] };
+  if (refs?.subDepartment) record[CF.subDepartment] = { items: [refs.subDepartment] };
   if (refs?.department) record[CF.subletDepartment] = refs.department;
 
   const gradeId = COSMETIC_GRADE[item.grade];
@@ -280,6 +279,18 @@ export async function onRequestPost({ request, env }) {
     deptRefs[it] = await lookupDepartmentId(env, it);
   }
 
+  const sysIdNames = [...new Set(body.items.map(it => it.systemId).filter(Boolean))];
+  const sysIdRefs = {};
+  for (const si of sysIdNames) {
+    sysIdRefs[si] = await lookupCustomListValue(env, CF.systemIdentifier, si);
+  }
+
+  const formatNames = [...new Set(body.items.map(it => it.format).filter(Boolean))];
+  const subDeptRefs = {};
+  for (const fn of formatNames) {
+    subDeptRefs[fn] = await lookupSubDepartmentId(env, fn);
+  }
+
   const results = [];
   const errors = [];
 
@@ -289,8 +300,10 @@ export async function onRequestPost({ request, env }) {
       taxSchedule: taxRef,
       brand: brandRefs[item.brand] || null,
       department: deptRefs[item.itemType] || null,
+      systemId: sysIdRefs[item.systemId] || null,
+      subDepartment: subDeptRefs[item.format] || null,
     };
-    console.log(`NS item[${i}]: brand="${item.brand}" type="${item.itemType}" format="${item.format}" grade="${item.grade}" → brand=${JSON.stringify(refs.brand)} dept=${JSON.stringify(refs.department)}`);
+    console.log(`NS item[${i}]: brand="${item.brand}" sysId="${item.systemId}" type="${item.itemType}" format="${item.format}" → sysId=${JSON.stringify(refs.systemId)} subDept=${JSON.stringify(refs.subDepartment)} dept=${JSON.stringify(refs.department)}`);
     const record = buildItemRecord(item, i, body.cmNum, locationRef, refs);
 
     try {
