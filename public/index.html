@@ -2081,9 +2081,7 @@ function startRetailOverride() {
 }
 function commitRetailOverride() {
   const raw = parseFloat(document.getElementById('r-override').value);
-  const base = selItem ? selItem.price : 0;
-  const auto = gradeAdjustedRetail(base, selGrade);
-  _retManual = (raw > 0 && raw !== auto) ? raw : 0;
+  _retManual = raw > 0 ? raw : 0;
   document.getElementById('r-override').style.display = 'none';
   document.getElementById('p-ret').style.display = '';
   document.getElementById('p-ret-hint').style.display = '';
@@ -2285,8 +2283,7 @@ function editItem(id) {
   showDet();
   document.getElementById('serial').value=it.serial||'';
   document.getElementById('notes').value=it.notes||'';
-  const autoRetail = gradeAdjustedRetail(basePrice, it.grade);
-  _retManual = (it.retail && it.retail !== autoRetail) ? it.retail : 0;
+  _retManual = it.retail || 0;
   document.getElementById('svc-charge').value=it.svcCharge||'';
   document.getElementById('svc-reason').value=it.svcReason||'';
   document.querySelectorAll('.gbtn').forEach(b=>b.classList.toggle('on',b.textContent===it.grade));
