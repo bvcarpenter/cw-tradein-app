@@ -1369,7 +1369,18 @@ async function sendOtp() {
       </div>`;
     } catch(e) { /* ignore — email will just omit the preview */ }
     const requestedBy = _loggedInEmail || document.getElementById('assoc')?.value?.trim() || 'An associate';
-    const sessionKey = _loadedSessionKey || '';
+    // Ensure session is saved to KV so the manager can load it via the link
+    let sessionKey = _loadedSessionKey || '';
+    if (!sessionKey) {
+      try {
+        const sd = getSessionData();
+        const tiId = document.getElementById('tradein-id').textContent || generateTradeInId();
+        sessionKey = sd.tradeInId || tiId;
+        _loadedSessionKey = sessionKey;
+        sd.key = sessionKey;
+        await kvSaveSession(sessionKey, sd);
+      } catch (e) { console.warn('Pre-OTP session save failed:', e); }
+    }
     const r = await fetch('/api/auth/request', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ action: 'otp-send', email: mgr, requestedBy, summaryHtml, sessionKey })
