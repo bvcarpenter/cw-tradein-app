@@ -2179,7 +2179,7 @@ function valAdd() {
 // ════════════════════════════════════════════
 // ADD ITEM
 // ════════════════════════════════════════════
-function addItem() {
+async function addItem() {
   if (!selItem || !selGrade) return;
   if (_editingId !== null) {
     const idx=sessionItems.findIndex(i=>i.id===_editingId);
@@ -2202,7 +2202,7 @@ function addItem() {
     _editingId=null;
     document.getElementById('add-btn').textContent='Add to Session';
     clrItem();renderCart();
-    autoSave();
+    await autoSave();
     showToast('Item updated.');return;
   }
   const ret  = _retManual > 0 ? _retManual : gradeAdjustedRetail(selItem.price, selGrade);
@@ -2228,7 +2228,7 @@ function addItem() {
   });
   clrItem();
   renderCart();
-  autoSave();
+  await autoSave();
   if (!document.getElementById('txn-date').value)
     document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
 }
@@ -2266,10 +2266,10 @@ function renderCart() {
     </div>`).join('');
   scheduleAutoSave();
 }
-function rmItem(id) {
+async function rmItem(id) {
   sessionItems = sessionItems.filter(i => i.id !== id);
   renderCart();
-  autoSave();
+  await autoSave();
 }
 
 let _editingId = null;
@@ -3114,6 +3114,23 @@ function scheduleAutoSave() {
   if (_debouncedSaveTimer) clearTimeout(_debouncedSaveTimer);
   _debouncedSaveTimer = setTimeout(autoSave, 2000);
 }
+
+window.addEventListener('beforeunload', () => {
+  const hasData = sessionItems.length || document.getElementById('c-first')?.value?.trim();
+  if (!hasData) return;
+  const tiId = document.getElementById('tradein-id')?.textContent;
+  if (!tiId) return;
+  const data = getSessionData();
+  const snapshot = JSON.stringify(data);
+  if (snapshot === _lastAutoSaveJson) return;
+  const key = _loadedSessionKey || data.tradeInId || tiId;
+  data.key = key;
+  data.name = (data.customer.first + ' ' + data.customer.last).trim()
+    || 'Session ' + new Date().toLocaleDateString();
+  data.savedAt = new Date().toISOString();
+  const blob = new Blob([JSON.stringify({ key, data })], { type: 'application/json' });
+  navigator.sendBeacon('/api/sessions', blob);
+});
 
 // ── Multi-device session sync ──
 let _syncTimer = null;
