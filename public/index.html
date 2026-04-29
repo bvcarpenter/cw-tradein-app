@@ -1817,7 +1817,7 @@ function selProduct(p) {
   else if (LEN_T.has(p.it)) cat = 'lens';
   const fmt = p.fmt || inferFormat(p.si || '', p.it || '');
   selItem = { name: p.n, vendor: p.v||'', systemId: p.si||'', itemType: p.it||'',
-              medium: p.m||'', price: p.p||0, sku: p.sku||'', format: fmt, category: cat,
+              medium: p.m||'', price: p.p||0, catalogPrice: p.p||0, sku: p.sku||'', format: fmt, category: cat,
               catalog: p.sku||'', asin: p.asin||'' };
   const ve = document.getElementById('m-vendor');
   if (ve) { ve.value = selItem.vendor; ve.dataset.userEdited = 'false'; }
@@ -2197,6 +2197,7 @@ async function addItem() {
       asin:(selItem.asin||'').trim(),
       serial:document.getElementById('serial').value.trim(),catalog:(selItem.catalog||selItem.sku||'').trim(),
       grade:selGrade,accessories:accs,notes:document.getElementById('notes').value.trim(),
+      catalogPrice:selItem.catalogPrice||selItem.price||0,
       retail:ret,tradein:ti,outright:or,net,priceType:selPT,svcCharge,svcReason};
     if(idx>=0)sessionItems[idx]=upd;else sessionItems.push(upd);
     _editingId=null;
@@ -2224,6 +2225,7 @@ async function addItem() {
     catalog: (selItem.catalog||selItem.sku||'').trim(),
     grade: selGrade, accessories: accs,
     notes: document.getElementById('notes').value.trim(),
+    catalogPrice: selItem.catalogPrice || selItem.price || 0,
     retail: ret, tradein: ti, outright: or, net, priceType: selPT, svcCharge, svcReason
   });
   clrItem();
@@ -2277,12 +2279,14 @@ function editItem(id) {
   const it = sessionItems.find(i => i.id === id);
   if (!it) return;
   _editingId = id;
-  selItem = {name:it.name,vendor:it.vendor,systemId:it.systemId,itemType:it.itemType,medium:it.medium,format:it.format||'',category:it.category,sku:it.sku,asin:it.asin||'',catalog:it.catalog||'',price:it.retail};
+  const basePrice = it.catalogPrice || it.retail || 0;
+  selItem = {name:it.name,vendor:it.vendor,systemId:it.systemId,itemType:it.itemType,medium:it.medium,format:it.format||'',category:it.category,sku:it.sku,asin:it.asin||'',catalog:it.catalog||'',price:basePrice,catalogPrice:basePrice};
   selGrade=it.grade; selPT=it.priceType;
   showDet();
   document.getElementById('serial').value=it.serial||'';
   document.getElementById('notes').value=it.notes||'';
-  _retManual = it.retail || 0;
+  const autoRetail = gradeAdjustedRetail(basePrice, it.grade);
+  _retManual = (it.retail && it.retail !== autoRetail) ? it.retail : 0;
   document.getElementById('svc-charge').value=it.svcCharge||'';
   document.getElementById('svc-reason').value=it.svcReason||'';
   document.querySelectorAll('.gbtn').forEach(b=>b.classList.toggle('on',b.textContent===it.grade));
@@ -3075,12 +3079,12 @@ let _lastAutoSaveJson = '';
 
 async function autoSave() {
   const hasData = sessionItems.length || document.getElementById('c-first').value.trim();
-  if (!hasData) { console.log('[autoSave] skip: no data'); return; }
+  if (!hasData) return;
   const tiId = document.getElementById('tradein-id').textContent;
-  if (!tiId) { console.log('[autoSave] skip: no tiId'); return; }
+  if (!tiId) return;
   const data = getSessionData();
   const snapshot = JSON.stringify(data);
-  if (snapshot === _lastAutoSaveJson) { console.log('[autoSave] skip: no changes'); return; }
+  if (snapshot === _lastAutoSaveJson) return;
   const key = _loadedSessionKey || data.tradeInId || tiId;
   _loadedSessionKey = key;
   data.name = (data.customer.first + ' ' + data.customer.last).trim()
@@ -3088,13 +3092,11 @@ async function autoSave() {
   data.key = key;
   _syncPaused = true;
   try {
-    console.log('[autoSave] saving key=' + key, 'items=' + data.items.length, 'retail0=' + (data.items[0]?.retail || 'N/A'));
     await kvSaveSession(key, data);
     _lastAutoSaveJson = snapshot;
     _remoteSavedAt = data.savedAt;
     updateUrlWithTradeInId(key);
     if (!_syncTimer) startSessionSync();
-    console.log('[autoSave] saved OK');
   } catch (e) {
     console.warn('Autosave failed:', e);
   } finally {
@@ -3260,7 +3262,6 @@ async function loadSession(key, skipConfirm) {
       const result = await r.json();
       data = result.data;
     }
-    console.log('[loadSession] key=' + key, 'fromKV=', data ? 'yes, items=' + (data.items?.length || 0) + ' retail0=' + (data.items?.[0]?.retail || 'N/A') : 'no');
     if (!data) data = JSON.parse(localStorage.getItem(key));
     if (!data) { alert('Session not found.'); return; }
     _loadedSessionKey = key;
