@@ -186,7 +186,7 @@ export async function onRequestPost({ request, env }) {
       const previewSection = body.summaryHtml
         ? `<div style="margin:24px 0;padding:16px;background:#ffffff;border:1px solid #e0e0e0;">${body.summaryHtml}</div>`
         : '';
-      const appUrl = env.APP_URL || 'https://cw-tradein-app.pages.dev';
+      const appUrl = body.appOrigin || new URL(request.url).origin;
       const sessionLink = body.sessionKey
         ? `<div style="margin:20px 0;text-align:center;"><a href="${appUrl}/?session=${encodeURIComponent(body.sessionKey)}" style="display:inline-block;padding:12px 28px;background:#1a1a1a;border:1px solid #d95e00;color:#d95e00;text-decoration:none;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;font-weight:500;">View &amp; Edit Session</a></div>`
         : '';
