@@ -498,11 +498,11 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
           <div class="srch-res" id="cust-res-edit" style="max-height:200px;"></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-          <div class="fld"><label>First Name <span style="color:var(--accent)">*</span></label><input type="text" id="c-first" placeholder="Jane" required></div>
-          <div class="fld"><label>Last Name <span style="color:var(--accent)">*</span></label><input type="text" id="c-last" placeholder="Smith" required></div>
+          <div class="fld"><label>First Name <span style="color:var(--accent)">*</span></label><input type="text" id="c-first" placeholder="Jane" required oninput="scheduleAutoSave()"></div>
+          <div class="fld"><label>Last Name <span style="color:var(--accent)">*</span></label><input type="text" id="c-last" placeholder="Smith" required oninput="scheduleAutoSave()"></div>
         </div>
-        <div class="fld"><label>Email <span style="color:var(--accent)">*</span></label><input type="email" id="c-email" placeholder="jane@email.com" required></div>
-        <div class="fld"><label>Phone</label><input type="tel" id="c-phone" placeholder="(760) 555-0100"></div>
+        <div class="fld"><label>Email <span style="color:var(--accent)">*</span></label><input type="email" id="c-email" placeholder="jane@email.com" required oninput="scheduleAutoSave()"></div>
+        <div class="fld"><label>Phone</label><input type="tel" id="c-phone" placeholder="(760) 555-0100" oninput="scheduleAutoSave()"></div>
         <div style="margin-bottom:16px;">
           <button class="btn btn-ol" id="shopify-cust-btn" onclick="saveCustomerToShopify()" style="font-size:9px;padding:7px 14px;">Save New Customer to Shopify</button>
           <span id="shopify-cust-msg" style="font-size:9px;color:var(--dim);margin-left:8px;"></span>
@@ -527,11 +527,11 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
               <div style="font-size:10px;color:var(--dim);margin-bottom:6px;">Select from customer addresses:</div>
               <div id="addr-list" style="display:flex;flex-direction:column;gap:4px;"></div>
             </div>
-            <div class="fld"><label>Street Address</label><input type="text" id="s-str" placeholder="123 Main Street"></div>
+            <div class="fld"><label>Street Address</label><input type="text" id="s-str" placeholder="123 Main Street" oninput="scheduleAutoSave()"></div>
             <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;">
-              <div class="fld"><label>City</label><input type="text" id="s-city" placeholder="Palm Springs"></div>
-              <div class="fld"><label>State</label><input type="text" id="s-st" placeholder="CA" maxlength="2" oninput="updTax()"></div>
-              <div class="fld"><label>ZIP</label><input type="text" id="s-zip" placeholder="92262" maxlength="10"></div>
+              <div class="fld"><label>City</label><input type="text" id="s-city" placeholder="Palm Springs" oninput="scheduleAutoSave()"></div>
+              <div class="fld"><label>State</label><input type="text" id="s-st" placeholder="CA" maxlength="2" oninput="updTax();scheduleAutoSave()"></div>
+              <div class="fld"><label>ZIP</label><input type="text" id="s-zip" placeholder="92262" maxlength="10" oninput="scheduleAutoSave()"></div>
             </div>
             <div class="ship-lbl" style="margin-top:12px;">Destination Store</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px;">
@@ -721,8 +721,8 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
         <div style="grid-column:1/-1;background:#1a1a1a;border-left:2px solid #d95e00;padding:10px 14px;font-size:11px;color:#aaa;line-height:1.6;margin-top:4px;">
           Credit Memo # is auto-assigned by NetSuite when you issue store credit.
         </div>
-        <div class="fld"><label>Associate</label><input type="text" id="assoc" placeholder="Your name"></div>
-        <div class="fld"><label>Date</label><input type="date" id="txn-date"></div>
+        <div class="fld"><label>Associate</label><input type="text" id="assoc" placeholder="Your name" oninput="scheduleAutoSave()"></div>
+        <div class="fld"><label>Date</label><input type="date" id="txn-date" onchange="scheduleAutoSave()"></div>
       </div>
       <div class="exp-acts">
         <button class="btn btn-g" onclick="exportXLSX()">Export NetSuite XLSX</button>
@@ -1994,6 +1994,7 @@ function setLoc(btn, loc) {
     setDestStore('',null);
   }
   updateSbCustCard();
+  scheduleAutoSave();
 }
 let _destStore='';
 function setDestStore(store,btn) {
@@ -3088,6 +3089,7 @@ async function autoSave() {
     _lastAutoSaveJson = snapshot;
     _remoteSavedAt = data.savedAt;
     updateUrlWithTradeInId(key);
+    if (!_syncTimer) startSessionSync();
   } catch (e) {
     console.warn('Autosave failed:', e);
   } finally {
@@ -3118,7 +3120,7 @@ let _syncPaused = false;
 function startSessionSync() {
   stopSessionSync();
   if (!_loadedSessionKey) return;
-  _syncTimer = setInterval(checkRemoteSession, 15000);
+  _syncTimer = setInterval(checkRemoteSession, 5000);
 }
 function stopSessionSync() {
   if (_syncTimer) { clearInterval(_syncTimer); _syncTimer = null; }
@@ -3138,10 +3140,21 @@ async function checkRemoteSession() {
     if (!_remoteSavedAt) { _remoteSavedAt = remote.savedAt; return; }
     if (remote.savedAt === _remoteSavedAt) return;
     _remoteSavedAt = remote.savedAt;
-    const localJson = _lastAutoSaveJson || JSON.stringify(getSessionData());
     const remoteJson = JSON.stringify(remote);
-    if (localJson === remoteJson) return;
-    showSessionUpdateBar(remote);
+    if (remoteJson === _lastAutoSaveJson) return;
+    const localJson = JSON.stringify(getSessionData());
+    if (localJson === remoteJson) { _lastAutoSaveJson = remoteJson; return; }
+    if (localJson === _lastAutoSaveJson) {
+      _syncPaused = true;
+      restoreSessionData(remote);
+      _lastAutoSaveJson = JSON.stringify(getSessionData());
+      _syncPaused = false;
+      showToast('Session updated from another device');
+      const bar = document.getElementById('session-update-bar');
+      if (bar) bar.remove();
+    } else {
+      showSessionUpdateBar(remote);
+    }
   } catch (e) { /* ignore */ }
 }
 
