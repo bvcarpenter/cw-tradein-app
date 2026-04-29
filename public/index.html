@@ -214,11 +214,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 .pr-ret-main{flex:1;min-width:120px}
 .pr-lbl{font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-bottom:4px}
 .pr-ret-v{font-family:var(--font-serif);font-size:22px;font-weight:400;color:var(--white);line-height:1.1}
-.pr-ret-or{display:flex;align-items:center;gap:10px;flex-shrink:0}
-.pr-ret-or label{font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);white-space:nowrap}
-.pr-ret-or input{background:var(--bg);border:1px solid var(--border-l);color:var(--white);font-family:var(--font-body);font-size:14px;font-weight:300;padding:8px 12px;outline:none;width:140px;border-radius:0;transition:border-color .15s}
-.pr-ret-or input:focus{border-color:var(--acc-mid)}
-.pr-ret-or input::placeholder{color:rgba(245,245,240,.22)}
+.pr-ret-v:hover{border-bottom-color:#555 !important}
 
 /* PROMINENT PRICING OPTION CARDS (Trade-In vs Sell Outright) */
 .po-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
@@ -310,8 +306,6 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 @media(max-width:580px){
   .po-row{grid-template-columns:1fr}
   .pr-ret{flex-direction:column;align-items:stretch}
-  .pr-ret-or{justify-content:space-between}
-  .pr-ret-or input{flex:1}
 }
 @media(max-width:520px){
   .fg,.fg.t3{grid-template-columns:1fr}
@@ -664,15 +658,16 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
         <span class="sl" style="margin-bottom:0;">Pricing</span>
         <span id="p-src" style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);">From catalog</span>
       </div>
-      <!-- Retail value + optional manual override -->
+      <!-- Retail value — click to override -->
       <div class="pr-ret">
         <div class="pr-ret-main">
           <div class="pr-lbl">Retail Value</div>
-          <div class="pr-ret-v" id="p-ret">—</div>
-        </div>
-        <div class="pr-ret-or">
-          <label>Override</label>
-          <input type="number" id="r-override" placeholder="—" min="0" step="0.01" oninput="updPricing()">
+          <div class="pr-ret-v" id="p-ret" title="Click to override" onclick="startRetailOverride()" style="cursor:pointer;border-bottom:1px dashed transparent;transition:border-color .15s">—</div>
+          <input id="r-override" class="pobtn-v-inp" type="number" step="0.01" min="0" placeholder="override"
+            style="display:none;font-size:20px;width:160px;"
+            onclick="event.stopPropagation();"
+            onblur="commitRetailOverride()" onkeydown="if(event.key==='Enter')commitRetailOverride();" />
+          <div class="pr-ret-hint" id="p-ret-hint" style="font-size:9px;color:var(--dim);margin-top:2px;">click to override</div>
         </div>
       </div>
 
@@ -1869,6 +1864,7 @@ function showDet() {
     `<div class="achip" onclick="this.classList.toggle('on')"><div class="achk"></div><span>${a}</span></div>`).join('')
     + `<div class="acc-add-btn" onclick="addCustomAccessory()" title="Add custom accessory">+</div>`;
   document.getElementById('r-override').value = '';
+  _retManual = 0;
   document.getElementById('serial').value = '';
   if (!selItem.catalog) selItem.catalog = selItem.sku || '';
   if (!selItem.asin) selItem.asin = '';
@@ -2069,13 +2065,33 @@ function setPT(t) {
 }
 function roundToFive(v) { return v > 0 ? Math.round(v / 5) * 5 : 0; }
 
-let _tiManual = 0, _orManual = 0;
-function clearOverrides() { _tiManual = 0; _orManual = 0; }
+let _retManual = 0, _tiManual = 0, _orManual = 0;
+function clearOverrides() { _retManual = 0; _tiManual = 0; _orManual = 0; }
+
+function startRetailOverride() {
+  const base = selItem ? selItem.price : 0;
+  const cur = _retManual > 0 ? _retManual : gradeAdjustedRetail(base, selGrade);
+  const inp = document.getElementById('r-override');
+  inp.value = cur || '';
+  document.getElementById('p-ret').style.display = 'none';
+  document.getElementById('p-ret-hint').style.display = 'none';
+  inp.style.display = 'inline-block';
+  inp.focus(); inp.select();
+}
+function commitRetailOverride() {
+  const raw = parseFloat(document.getElementById('r-override').value);
+  const base = selItem ? selItem.price : 0;
+  const auto = gradeAdjustedRetail(base, selGrade);
+  _retManual = (raw > 0 && raw !== auto) ? raw : 0;
+  document.getElementById('r-override').style.display = 'none';
+  document.getElementById('p-ret').style.display = '';
+  document.getElementById('p-ret-hint').style.display = '';
+  updPricing();
+}
 
 function startTIOverride() {
-  const ov  = parseFloat(document.getElementById('r-override').value);
   const base = selItem ? selItem.price : 0;
-  const ret = ov > 0 ? ov : gradeAdjustedRetail(base, selGrade);
+  const ret = _retManual > 0 ? _retManual : gradeAdjustedRetail(base, selGrade);
   const tiRate = tradeInRate(selGrade);
   const cur = _tiManual > 0 ? _tiManual : roundToFive(ret * tiRate);
   const inp = document.getElementById('ti-override-inp');
@@ -2092,9 +2108,8 @@ function commitTIOverride() {
   updPricing();
 }
 function startOROverride() {
-  const ov  = parseFloat(document.getElementById('r-override').value);
   const base = selItem ? selItem.price : 0;
-  const ret = ov > 0 ? ov : gradeAdjustedRetail(base, selGrade);
+  const ret = _retManual > 0 ? _retManual : gradeAdjustedRetail(base, selGrade);
   const tiRate = tradeInRate(selGrade);
   const ti  = _tiManual > 0 ? _tiManual : roundToFive(ret * tiRate);
   const cur = _orManual > 0 ? _orManual : roundToFive(ti * 0.75);
@@ -2113,15 +2128,19 @@ function commitOROverride() {
 }
 
 function updPricing() {
-  const ov   = parseFloat(document.getElementById('r-override').value);
   const base = selItem ? selItem.price : 0;
-  const ret  = ov > 0 ? ov : gradeAdjustedRetail(base, selGrade);
+  const ret  = _retManual > 0 ? _retManual : gradeAdjustedRetail(base, selGrade);
   const tiRate = tradeInRate(selGrade);
   const ti   = _tiManual > 0 ? _tiManual : roundToFive(ret * tiRate);
   const or   = _orManual > 0 ? _orManual : roundToFive(ti * 0.75);
   const net  = selPT === 'tradein' ? ti : or;
   const fd   = v => v > 0 ? '$' + v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
-  document.getElementById('p-ret').textContent = fd(ret);
+  const retEl = document.getElementById('p-ret');
+  if (retEl && retEl.style.display !== 'none') retEl.textContent = fd(ret);
+  if (_retManual > 0) { retEl.style.borderBottomColor = 'rgba(217,94,0,.4)'; retEl.style.color = 'var(--accent)'; }
+  else { retEl.style.borderBottomColor = 'transparent'; retEl.style.color = 'var(--white)'; }
+  const retHint = document.getElementById('p-ret-hint');
+  if (retHint) retHint.textContent = _retManual > 0 ? 'manual override · click to edit' : 'click to override';
   const tiEl = document.getElementById('p-ti');
   if (tiEl && tiEl.style.display !== 'none') tiEl.textContent = fd(ti);
   const orEl = document.getElementById('p-or');
@@ -2137,7 +2156,7 @@ function updPricing() {
   // Show grade adjustment info
   const srcEl = document.getElementById('p-src');
   if (srcEl) {
-    if (ov > 0) {
+    if (_retManual > 0) {
       srcEl.textContent = 'Manual override';
     } else if (base > 0 && selGrade && selGrade !== GRADES[BASE_GRADE_IDX]) {
       const steps = GRADES.indexOf(selGrade) - BASE_GRADE_IDX;
@@ -2151,9 +2170,8 @@ function updPricing() {
   valAdd();
 }
 function valAdd() {
-  const ov   = parseFloat(document.getElementById('r-override').value);
   const base = selItem ? selItem.price : 0;
-  const ret  = ov > 0 ? ov : gradeAdjustedRetail(base, selGrade);
+  const ret  = _retManual > 0 ? _retManual : gradeAdjustedRetail(base, selGrade);
   document.getElementById('add-btn').disabled = !(selItem && selGrade && ret > 0);
 }
 
@@ -2164,8 +2182,7 @@ function addItem() {
   if (!selItem || !selGrade) return;
   if (_editingId !== null) {
     const idx=sessionItems.findIndex(i=>i.id===_editingId);
-    const ov=parseFloat(document.getElementById('r-override').value);
-    const ret=ov>0?ov:gradeAdjustedRetail(selItem.price,selGrade);
+    const ret=_retManual>0?_retManual:gradeAdjustedRetail(selItem.price,selGrade);
     const _tiR=tradeInRate(selGrade);
     const ti=_tiManual>0?_tiManual:roundToFive(ret*_tiR);
     const or=_orManual>0?_orManual:roundToFive(ti*0.75);
@@ -2186,8 +2203,7 @@ function addItem() {
     clrItem();renderCart();
     showToast('Item updated.');return;
   }
-  const ov   = parseFloat(document.getElementById('r-override').value);
-  const ret  = ov > 0 ? ov : gradeAdjustedRetail(selItem.price, selGrade);
+  const ret  = _retManual > 0 ? _retManual : gradeAdjustedRetail(selItem.price, selGrade);
   const _tiR = tradeInRate(selGrade);
   const ti   = _tiManual > 0 ? _tiManual : roundToFive(ret * _tiR);
   const or   = _orManual > 0 ? _orManual : roundToFive(ti * 0.75);
@@ -2262,7 +2278,7 @@ function editItem(id) {
   showDet();
   document.getElementById('serial').value=it.serial||'';
   document.getElementById('notes').value=it.notes||'';
-  document.getElementById('r-override').value=it.retail||'';
+  _retManual = it.retail || 0;
   document.getElementById('svc-charge').value=it.svcCharge||'';
   document.getElementById('svc-reason').value=it.svcReason||'';
   document.querySelectorAll('.gbtn').forEach(b=>b.classList.toggle('on',b.textContent===it.grade));
