@@ -2199,10 +2199,12 @@ async function addItem() {
       retail:ret,tradein:ti,outright:or,net,priceType:selPT,svcCharge,svcReason};
     if(idx>=0)sessionItems[idx]=upd;else sessionItems.push(upd);
     _editingId=null;
-    document.getElementById('add-btn').textContent='Add to Session';
+    const addBtn = document.getElementById('add-btn');
+    addBtn.textContent='Saving…'; addBtn.disabled=true;
     clrItem();renderCart();
-    await autoSave();
-    showToast('Item updated.');return;
+    try { await autoSave(); } catch(e) { console.warn('Save failed:', e); }
+    addBtn.textContent='Add to Session'; addBtn.disabled=false;
+    showToast('Item saved ✓ (retail: $' + ret + ')');return;
   }
   const ret  = _retManual > 0 ? _retManual : gradeAdjustedRetail(selItem.price, selGrade);
   const _tiR = tradeInRate(selGrade);
@@ -3264,7 +3266,8 @@ async function loadSession(key, skipConfirm) {
     _loadedSessionKey = key;
     restoreSessionData(data);
     _lastAutoSaveJson = JSON.stringify(getSessionData());
-    showToast('Session loaded.');
+    const r0 = data.items?.[0];
+    showToast('Loaded — ' + (data.items?.length||0) + ' items' + (r0 ? ', retail: $' + r0.retail : ''));
   } catch(e) { alert('Failed to load session: ' + e.message); }
 }
 
