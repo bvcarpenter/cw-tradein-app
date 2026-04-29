@@ -2261,7 +2261,7 @@ function editItem(id) {
   showDet();
   document.getElementById('serial').value=it.serial||'';
   document.getElementById('notes').value=it.notes||'';
-  document.getElementById('r-override').value='';
+  document.getElementById('r-override').value=it.retail||'';
   document.getElementById('svc-charge').value=it.svcCharge||'';
   document.getElementById('svc-reason').value=it.svcReason||'';
   document.querySelectorAll('.gbtn').forEach(b=>b.classList.toggle('on',b.textContent===it.grade));
@@ -2283,7 +2283,7 @@ function editItem(id) {
     const lbl=chip.querySelector('span')?.textContent;
     chip.classList.toggle('on',(it.accessories||[]).includes(lbl));
   });
-  _tiManual=it.tradein||0; _orManual=it.outright||0;
+  _tiManual=0; _orManual=0;
   updPricing();
   const btn=document.getElementById('add-btn');
   btn.textContent='↩ Update Item'; btn.disabled=false;
@@ -2952,6 +2952,9 @@ function restoreSessionData(d) {
   }
   // Refresh the print button label now that CM# (if any) is populated
   if (typeof updatePrintBtnLabel === 'function') updatePrintBtnLabel();
+  // Start multi-device sync polling
+  _remoteSavedAt = d.savedAt || null;
+  startSessionSync();
 }
 
 
@@ -3062,12 +3065,16 @@ async function autoSave() {
   data.name = (data.customer.first + ' ' + data.customer.last).trim()
     || 'Session ' + new Date().toLocaleDateString();
   data.key = key;
+  _syncPaused = true;
   try {
     await kvSaveSession(key, data);
     _lastAutoSaveJson = snapshot;
+    _remoteSavedAt = data.savedAt;
     updateUrlWithTradeInId(key);
   } catch (e) {
     console.warn('Autosave failed:', e);
+  } finally {
+    _syncPaused = false;
   }
 }
 
@@ -3078,6 +3085,74 @@ function startAutoSave() {
 
 function stopAutoSave() {
   if (_autoSaveTimer) { clearInterval(_autoSaveTimer); _autoSaveTimer = null; }
+}
+
+// ── Multi-device session sync ──
+let _syncTimer = null;
+let _remoteSavedAt = null;
+let _syncPaused = false;
+
+function startSessionSync() {
+  stopSessionSync();
+  if (!_loadedSessionKey) return;
+  _syncTimer = setInterval(checkRemoteSession, 15000);
+}
+function stopSessionSync() {
+  if (_syncTimer) { clearInterval(_syncTimer); _syncTimer = null; }
+  _remoteSavedAt = null;
+  window._pendingRemoteSession = null;
+  const bar = document.getElementById('session-update-bar');
+  if (bar) bar.remove();
+}
+
+async function checkRemoteSession() {
+  if (!_loadedSessionKey || _syncPaused) return;
+  try {
+    const r = await fetch('/api/sessions?key=' + encodeURIComponent(_loadedSessionKey));
+    if (!r.ok) return;
+    const remote = (await r.json()).data;
+    if (!remote?.savedAt) return;
+    if (!_remoteSavedAt) { _remoteSavedAt = remote.savedAt; return; }
+    if (remote.savedAt === _remoteSavedAt) return;
+    _remoteSavedAt = remote.savedAt;
+    const localJson = _lastAutoSaveJson || JSON.stringify(getSessionData());
+    const remoteJson = JSON.stringify(remote);
+    if (localJson === remoteJson) return;
+    showSessionUpdateBar(remote);
+  } catch (e) { /* ignore */ }
+}
+
+function showSessionUpdateBar(remoteData) {
+  window._pendingRemoteSession = remoteData;
+  let bar = document.getElementById('session-update-bar');
+  if (bar) { bar.remove(); }
+  bar = document.createElement('div');
+  bar.id = 'session-update-bar';
+  bar.style.cssText = 'background:#2a3a1a;border:1px solid #4a6a3a;color:#90d070;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;font-size:12px;margin:0 0 12px;position:sticky;top:60px;z-index:199;';
+  bar.innerHTML = '<span>This session was updated from another device.</span>'
+    + '<div style="display:flex;gap:8px;">'
+    + '<button onclick="applyRemoteSession()" style="background:#4a6a3a;border:none;color:#fff;padding:6px 14px;cursor:pointer;font-size:11px;letter-spacing:.1em;text-transform:uppercase;">Update Now</button>'
+    + '<button onclick="dismissSessionUpdate()" style="background:transparent;border:1px solid #4a6a3a;color:#90d070;padding:6px 14px;cursor:pointer;font-size:11px;letter-spacing:.1em;text-transform:uppercase;">Dismiss</button>'
+    + '</div>';
+  const main = document.querySelector('main');
+  if (main) main.prepend(bar);
+}
+
+function applyRemoteSession() {
+  if (window._pendingRemoteSession) {
+    restoreSessionData(window._pendingRemoteSession);
+    _lastAutoSaveJson = JSON.stringify(getSessionData());
+    window._pendingRemoteSession = null;
+    showToast('Session updated');
+  }
+  const bar = document.getElementById('session-update-bar');
+  if (bar) bar.remove();
+}
+
+function dismissSessionUpdate() {
+  window._pendingRemoteSession = null;
+  const bar = document.getElementById('session-update-bar');
+  if (bar) bar.remove();
 }
 
 async function saveSession() {
@@ -3956,6 +4031,7 @@ function resetSessionForm() {
   _loadedSessionKey = null;
   _nsGrandTotal = 0;
   _lastAutoSaveJson = '';
+  stopSessionSync();
   renderCart(); clrItem();
   const newId = generateTradeInId();
   document.getElementById('tradein-id').textContent = newId;
