@@ -812,7 +812,6 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
             <option value="ben@camerawest.com">Ben</option>
             <option value="kyle@camerawest.com">Kyle</option>
             <option value="allegra@cwwatchshop.com">Allegra</option>
-            <option value="devyn@camerawest.com">Devyn</option>
             <option value="norman@camerawest.com">Norman</option>
             <option value="adam@camerawest.com">Adam</option>
             <option value="armando@camerawest.com">Armando</option>
@@ -943,7 +942,6 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 <!-- PROCESSING MODULE -->
 <div class="proc-overlay" id="proc-overlay" onclick="closeProcessing()"></div>
 <div class="proc-panel" id="proc-panel">
-  <div style="background:#d00;color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:bold;" id="proc-deploy-test">DEPLOY TEST v4.29a</div>
   <div class="proc-hd">
     <div>
       <h2>Process Trade-In</h2>
@@ -1271,7 +1269,7 @@ window.addEventListener('DOMContentLoaded', () => {
 // Allowed emails for CM# entry, finalize, and issuing store credit
 const FINALIZE_ALLOWED = [
   'sam@leicastoresf.com','sean@camerawest.com','ben@camerawest.com',
-  'kyle@camerawest.com','allegra@cwwatchshop.com','devyn@camerawest.com',
+  'kyle@camerawest.com','allegra@cwwatchshop.com',
   'norman@camerawest.com','adam@camerawest.com','armando@camerawest.com',
   'festa@camerawest.com'
 ];
@@ -1341,38 +1339,40 @@ async function sendOtp() {
   const btn = document.getElementById('otp-send-btn');
   btn.disabled = true; btn.textContent = 'Sending…';
   try {
-    // Build a lightweight summary for the approval email (not the full print HTML)
+    // Build a detailed summary for the approval email
     let summaryHtml = '';
     try {
       const cm = document.getElementById('cm-num').value.trim() || 'PENDING';
       const cust = [document.getElementById('c-first').value.trim(), document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || 'Unknown';
+      const custEmail = document.getElementById('c-email').value.trim();
+      const custPhone = document.getElementById('c-phone').value.trim();
+      const loc = selLoc || '';
       const totNet = sessionItems.reduce((s,i) => s + i.net, 0);
-      const rows = sessionItems.map(it =>
-        `<tr><td style="padding:6px 8px;border-bottom:1px solid #eee;">${esc(it.name)}${it.serial?' ('+esc(it.serial)+')':''}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center;">${it.grade}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;">${ff(it.net)}</td></tr>`
-      ).join('');
+      const rows = sessionItems.map(it => {
+        const details = [it.catalog ? 'MPN: ' + esc(it.catalog) : '', it.serial ? 'S/N: ' + esc(it.serial) : ''].filter(Boolean).join(' &nbsp;·&nbsp; ');
+        const accs = (it.accessories || []).length ? '<br><span style="color:#888;font-size:11px;">Includes: ' + (it.accessories || []).map(a => esc(a)).join(', ') + '</span>' : '';
+        return `<tr>
+          <td style="padding:8px;border-bottom:1px solid #eee;"><strong>${esc(it.name)}</strong>${details ? '<br><span style="color:#888;font-size:11px;">' + details + '</span>' : ''}${accs}</td>
+          <td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">${it.grade || '—'}</td>
+          <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${ff(it.net)}</td>
+        </tr>`;
+      }).join('');
+      const custLine = esc(cust) + (custEmail ? ' &nbsp;·&nbsp; ' + esc(custEmail) : '') + (custPhone ? ' &nbsp;·&nbsp; ' + esc(custPhone) : '');
       summaryHtml = `<div style="color:#111;font-family:Arial,sans-serif;font-size:13px;">
-        <p style="margin:0 0 8px;"><strong>CM:</strong> ${esc(cm)} &nbsp; <strong>Customer:</strong> ${esc(cust)} &nbsp; <strong>Items:</strong> ${sessionItems.length}</p>
+        <p style="margin:0 0 4px;"><strong>CM:</strong> ${esc(cm)} &nbsp; <strong>Location:</strong> ${esc(loc)} &nbsp; <strong>Items:</strong> ${sessionItems.length}</p>
+        <p style="margin:0 0 12px;"><strong>Customer:</strong> ${custLine}</p>
         <table width="100%" style="border-collapse:collapse;font-size:12px;">
-          <thead><tr style="background:#f0f0f0;"><th style="padding:6px 8px;text-align:left;">Item</th><th style="padding:6px 8px;text-align:center;">Grade</th><th style="padding:6px 8px;text-align:right;">Net</th></tr></thead>
+          <thead><tr style="background:#f0f0f0;"><th style="padding:8px;text-align:left;">Item</th><th style="padding:8px;text-align:center;">Grade</th><th style="padding:8px;text-align:right;">Net</th></tr></thead>
           <tbody>${rows}</tbody>
           <tfoot><tr style="background:#f5f5f0;"><td colspan="2" style="padding:8px;text-align:right;font-weight:bold;">Total:</td><td style="padding:8px;text-align:right;font-weight:bold;color:#d95e00;">${ff(totNet)}</td></tr></tfoot>
         </table>
       </div>`;
     } catch(e) { /* ignore — email will just omit the preview */ }
-    // Generate PDF attachment from session print view
-    let pdfBase64 = '';
-    try {
-      if (sessionItems.length) {
-        btn.textContent = 'Generating PDF…';
-        pdfBase64 = await generateSessionPdfBase64();
-      }
-    } catch(e) { console.warn('PDF generation failed:', e); }
     const requestedBy = _loggedInEmail || document.getElementById('assoc')?.value?.trim() || 'An associate';
-    btn.textContent = 'Sending…';
-    const custName = [document.getElementById('c-first').value.trim(), document.getElementById('c-last').value.trim()].filter(Boolean).join(' ') || 'Session';
+    const sessionKey = _loadedSessionKey || '';
     const r = await fetch('/api/auth/request', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ action: 'otp-send', email: mgr, requestedBy, summaryHtml, pdfBase64, pdfFilename: custName.replace(/[^a-zA-Z0-9 ]/g,'') + ' - ' + getDocLabel() + ' - ' + new Date().toISOString().split('T')[0] + '.pdf' })
+      body: JSON.stringify({ action: 'otp-send', email: mgr, requestedBy, summaryHtml, sessionKey })
     });
     const text = await r.text();
     let d;

@@ -23,7 +23,6 @@ const MANAGER_EMAILS = [
   'ben@camerawest.com',
   'kyle@camerawest.com',
   'allegra@cwwatchshop.com',
-  'devyn@camerawest.com',
   'norman@camerawest.com',
   'adam@camerawest.com',
   'armando@camerawest.com',
