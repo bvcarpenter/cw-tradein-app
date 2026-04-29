@@ -2202,6 +2202,7 @@ function addItem() {
     _editingId=null;
     document.getElementById('add-btn').textContent='Add to Session';
     clrItem();renderCart();
+    autoSave();
     showToast('Item updated.');return;
   }
   const ret  = _retManual > 0 ? _retManual : gradeAdjustedRetail(selItem.price, selGrade);
@@ -2227,6 +2228,7 @@ function addItem() {
   });
   clrItem();
   renderCart();
+  autoSave();
   if (!document.getElementById('txn-date').value)
     document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
 }
@@ -2267,6 +2269,7 @@ function renderCart() {
 function rmItem(id) {
   sessionItems = sessionItems.filter(i => i.id !== id);
   renderCart();
+  autoSave();
 }
 
 let _editingId = null;
