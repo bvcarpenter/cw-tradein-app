@@ -1237,7 +1237,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Deep-link: auto-load session from ?session= parameter
   const qsSession = new URLSearchParams(window.location.search).get('session');
   if (qsSession) {
-    loadSession(qsSession);
+    loadSession(qsSession, true);
   } else {
     // New session — create CommsLayer ticket to get the CWTI ID
     const newId = generateTradeInId();
@@ -3075,12 +3075,12 @@ let _lastAutoSaveJson = '';
 
 async function autoSave() {
   const hasData = sessionItems.length || document.getElementById('c-first').value.trim();
-  if (!hasData) return;
+  if (!hasData) { console.log('[autoSave] skip: no data'); return; }
   const tiId = document.getElementById('tradein-id').textContent;
-  if (!tiId) return;
+  if (!tiId) { console.log('[autoSave] skip: no tiId'); return; }
   const data = getSessionData();
   const snapshot = JSON.stringify(data);
-  if (snapshot === _lastAutoSaveJson) return;
+  if (snapshot === _lastAutoSaveJson) { console.log('[autoSave] skip: no changes'); return; }
   const key = _loadedSessionKey || data.tradeInId || tiId;
   _loadedSessionKey = key;
   data.name = (data.customer.first + ' ' + data.customer.last).trim()
@@ -3088,11 +3088,13 @@ async function autoSave() {
   data.key = key;
   _syncPaused = true;
   try {
+    console.log('[autoSave] saving key=' + key, 'items=' + data.items.length, 'retail0=' + (data.items[0]?.retail || 'N/A'));
     await kvSaveSession(key, data);
     _lastAutoSaveJson = snapshot;
     _remoteSavedAt = data.savedAt;
     updateUrlWithTradeInId(key);
     if (!_syncTimer) startSessionSync();
+    console.log('[autoSave] saved OK');
   } catch (e) {
     console.warn('Autosave failed:', e);
   } finally {
@@ -3239,8 +3241,8 @@ async function saveSession() {
   }
 }
 
-async function loadSession(key) {
-  if (!confirm('Load this session? Current session data will be replaced.')) return;
+async function loadSession(key, skipConfirm) {
+  if (!skipConfirm && !confirm('Load this session? Current session data will be replaced.')) return;
   // Save current session before switching
   const hasData = sessionItems.length || document.getElementById('c-first').value.trim();
   if (hasData && _loadedSessionKey) {
@@ -3258,6 +3260,7 @@ async function loadSession(key) {
       const result = await r.json();
       data = result.data;
     }
+    console.log('[loadSession] key=' + key, 'fromKV=', data ? 'yes, items=' + (data.items?.length || 0) + ' retail0=' + (data.items?.[0]?.retail || 'N/A') : 'no');
     if (!data) data = JSON.parse(localStorage.getItem(key));
     if (!data) { alert('Session not found.'); return; }
     _loadedSessionKey = key;
