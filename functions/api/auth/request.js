@@ -29,7 +29,6 @@ const MANAGER_EMAILS = [
   'ben@camerawest.com',
   'kyle@camerawest.com',
   'allegra@cwwatchshop.com',
-  'devyn@camerawest.com',
   'norman@camerawest.com',
   'adam@camerawest.com',
   'armando@camerawest.com',
@@ -187,6 +186,10 @@ export async function onRequestPost({ request, env }) {
       const previewSection = body.summaryHtml
         ? `<div style="margin:24px 0;padding:16px;background:#ffffff;border:1px solid #e0e0e0;">${body.summaryHtml}</div>`
         : '';
+      const appUrl = env.APP_URL || 'https://cw-tradein-app.pages.dev';
+      const sessionLink = body.sessionKey
+        ? `<div style="margin:20px 0;text-align:center;"><a href="${appUrl}/?session=${encodeURIComponent(body.sessionKey)}" style="display:inline-block;padding:12px 28px;background:#1a1a1a;border:1px solid #d95e00;color:#d95e00;text-decoration:none;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;font-weight:500;">View &amp; Edit Session</a></div>`
+        : '';
 
       const fromEmail = env.FROM_EMAIL || 'noreply@camerawest.com';
       const htmlBody = `<!DOCTYPE html><html><body style="font-family:'Helvetica Neue',Arial,sans-serif;background:#0e0e0e;color:#f5f5f0;max-width:640px;margin:0 auto;padding:40px 24px;">
@@ -197,6 +200,7 @@ export async function onRequestPost({ request, env }) {
 </p>
 <div style="background:#1a1a1a;border:2px solid #d95e00;padding:18px 32px;text-align:center;font-size:36px;letter-spacing:0.3em;font-weight:600;color:#d95e00;margin-bottom:24px;">${otp}</div>
 ${previewSection}
+${sessionLink}
 <p style="font-size:11px;color:rgba(245,245,240,0.35);margin-top:24px;line-height:1.7;">If you did not expect this request, you can safely ignore it.</p>
 </body></html>`;
 
@@ -214,7 +218,6 @@ ${previewSection}
             to: [norm],
             subject: `Approval code — ${requester} is requesting credit`,
             html: htmlBody,
-            ...(body.pdfBase64 ? { attachments: [{ filename: body.pdfFilename || 'Credit Memo.pdf', content: body.pdfBase64 }] } : {}),
           }),
         });
         if (!r.ok) {
