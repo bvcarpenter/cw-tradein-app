@@ -1383,7 +1383,7 @@ async function sendOtp() {
     }
     const r = await fetch('/api/auth/request', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ action: 'otp-send', email: mgr, requestedBy, summaryHtml, sessionKey })
+      body: JSON.stringify({ action: 'otp-send', email: mgr, requestedBy, summaryHtml, sessionKey, appOrigin: window.location.origin })
     });
     const text = await r.text();
     let d;
