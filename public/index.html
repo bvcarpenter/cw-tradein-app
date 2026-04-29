@@ -645,7 +645,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
     <section class="sec det" id="det-sec">
       <div class="sec-hd"><span class="sec-n">ii.</span><h3>Item Details</h3></div>
       <div class="sel-bar">
-        <div><input type="text" id="sel-name" style="background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--white);font-family:var(--font-body);font-size:14px;font-weight:500;width:100%;outline:none;padding:2px 0;" oninput="if(selItem)selItem.name=this.value;valAdd();"><p id="sel-meta">—</p></div>
+        <div style="flex:1;min-width:0;"><input type="text" id="sel-name" style="background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--white);font-family:var(--font-body);font-size:16px;font-weight:500;width:100%;outline:none;padding:4px 0;" oninput="if(selItem)selItem.name=this.value;valAdd();"><p id="sel-meta">—</p></div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
           <button class="btn-chg" onclick="editSelItem()" title="Edit this item's categorization">Edit Item</button>
           <button class="btn-chg" onclick="clrItem()">Change Item</button>
@@ -2245,6 +2245,7 @@ function renderCart() {
       ${(it.svcCharge||0)>0&&it.svcReason?`<div style="font-size:9px;color:#e07070;opacity:.7;margin-top:1px;">${esc(it.svcReason)}</div>`:''}
       <button class="ci-edit" onclick="editItem(${it.id})">&#9998; Edit</button>
     </div>`).join('');
+  scheduleAutoSave();
 }
 function rmItem(id) {
   sessionItems = sessionItems.filter(i => i.id !== id);
@@ -3085,6 +3086,12 @@ function startAutoSave() {
 
 function stopAutoSave() {
   if (_autoSaveTimer) { clearInterval(_autoSaveTimer); _autoSaveTimer = null; }
+}
+
+let _debouncedSaveTimer = null;
+function scheduleAutoSave() {
+  if (_debouncedSaveTimer) clearTimeout(_debouncedSaveTimer);
+  _debouncedSaveTimer = setTimeout(autoSave, 2000);
 }
 
 // ── Multi-device session sync ──
