@@ -11,7 +11,7 @@
  */
 
 import { netsuiteRequest } from './_netsuite.js';
-import { buildItemRecord, LOCATION_MAP, CF, lookupLocationId, lookupTaxScheduleId, lookupClassId, lookupDepartmentId } from './netsuite-items.js';
+import { buildItemRecord, LOCATION_MAP, CF, lookupLocationId, lookupTaxScheduleId, lookupClassId, lookupCustomListValue, lookupDepartmentId, lookupSubDepartmentId } from './netsuite-items.js';
 
 const cors = {
   'Content-Type': 'application/json',
@@ -60,7 +60,19 @@ export async function onRequestPost({ request, env }) {
     deptRefs[it] = await lookupDepartmentId(env, it);
   }
 
-  console.log(`Vouch: location="${locationName}", brands=${JSON.stringify(brandRefs)}, depts=${JSON.stringify(deptRefs)}`);
+  const sysIdNames = [...new Set(items.map(it => it.systemId).filter(Boolean))];
+  const sysIdRefs = {};
+  for (const si of sysIdNames) {
+    sysIdRefs[si] = await lookupCustomListValue(env, CF.systemIdentifier, si);
+  }
+
+  const formatNames = [...new Set(items.map(it => it.format).filter(Boolean))];
+  const subDeptRefs = {};
+  for (const fn of formatNames) {
+    subDeptRefs[fn] = await lookupSubDepartmentId(env, fn);
+  }
+
+  console.log(`Vouch: location="${locationName}", brands=${JSON.stringify(brandRefs)}, depts=${JSON.stringify(deptRefs)}, sysIds=${JSON.stringify(sysIdRefs)}, subDepts=${JSON.stringify(subDeptRefs)}`);
 
   const result = {
     success: false,
@@ -87,8 +99,10 @@ export async function onRequestPost({ request, env }) {
         taxSchedule: taxRef,
         brand: brandRefs[item.brand] || null,
         department: deptRefs[item.itemType] || null,
+        systemId: sysIdRefs[item.systemId] || null,
+        subDepartment: subDeptRefs[item.format] || null,
       };
-      console.log(`Vouch item[${i}]: brand="${item.brand}" type="${item.itemType}" format="${item.format}" grade="${item.grade}" → brand=${JSON.stringify(refs.brand)} dept=${JSON.stringify(refs.department)}`);
+      console.log(`Vouch item[${i}]: brand="${item.brand}" sysId="${item.systemId}" type="${item.itemType}" format="${item.format}" → sysId=${JSON.stringify(refs.systemId)} subDept=${JSON.stringify(refs.subDepartment)} dept=${JSON.stringify(refs.department)}`);
       const record = buildItemRecord(item, i, cmNum, locationRef, refs);
       const expectedItemId = record.itemId;
 
