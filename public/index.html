@@ -943,6 +943,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--white);font-s
 <!-- PROCESSING MODULE -->
 <div class="proc-overlay" id="proc-overlay" onclick="closeProcessing()"></div>
 <div class="proc-panel" id="proc-panel">
+  <div style="background:#d00;color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:bold;" id="proc-deploy-test">DEPLOY TEST v4.29a</div>
   <div class="proc-hd">
     <div>
       <h2>Process Trade-In</h2>
@@ -4667,6 +4668,17 @@ function renderProcessingItems() {
     </div>`;
   }).join('');
 
+  // Add inline action buttons at the bottom of the scrollable content
+  body.insertAdjacentHTML('beforeend', `
+    <div id="proc-inline-actions" style="margin-top:24px;padding:18px;border:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div style="font-size:10px;color:var(--dim);" id="proc-inline-msg">Complete all items to save processing data.</div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button class="proc-save-btn" id="proc-save-btn2" onclick="saveProcessing()" disabled>Save Processing Data</button>
+        <button class="proc-save-btn" id="proc-sync-btn2" onclick="saveAndSync()" disabled style="background:linear-gradient(135deg,#2a3a5a,#1a2a4a);border:1px solid #3a5a7a;color:#70a0d0;">Save &amp; Sync to Shopify / NetSuite</button>
+      </div>
+    </div>
+  `);
+
   // Auto-initialize confirmedGrade from item grade where not yet set
   items.forEach((item, idx) => {
     if (!procData[idx]) procData[idx] = {};
@@ -4834,16 +4846,27 @@ function updateProcProgress() {
   let certCount = 0;
   items.forEach((_, idx) => { if (procData[idx]?.certified) certCount++; });
   document.getElementById('proc-cert-count').textContent = certCount;
-  document.getElementById('proc-save-btn').disabled = false;
+  const allCert = certCount === items.length;
+  const msg = allCert
+    ? 'All items certified — ready to save & sync.'
+    : `${items.length - certCount} item${items.length - certCount !== 1 ? 's' : ''} still need certification.`;
+  const msgColor = allCert ? '#70d090' : '';
+
+  // Update footer buttons
+  const saveBtn = document.getElementById('proc-save-btn');
+  if (saveBtn) saveBtn.disabled = false;
   const syncBtn = document.getElementById('proc-sync-btn');
-  if (syncBtn) syncBtn.disabled = certCount < items.length;
-  if (certCount === items.length) {
-    document.getElementById('proc-footer-msg').textContent = 'All items certified — ready to save & sync.';
-    document.getElementById('proc-footer-msg').style.color = '#70d090';
-  } else {
-    document.getElementById('proc-footer-msg').textContent = `${items.length - certCount} item${items.length - certCount !== 1 ? 's' : ''} still need certification.`;
-    document.getElementById('proc-footer-msg').style.color = '';
-  }
+  if (syncBtn) syncBtn.disabled = !allCert;
+  const footerMsg = document.getElementById('proc-footer-msg');
+  if (footerMsg) { footerMsg.textContent = msg; footerMsg.style.color = msgColor; }
+
+  // Update inline buttons (inside scrollable content)
+  const saveBtn2 = document.getElementById('proc-save-btn2');
+  if (saveBtn2) saveBtn2.disabled = false;
+  const syncBtn2 = document.getElementById('proc-sync-btn2');
+  if (syncBtn2) syncBtn2.disabled = !allCert;
+  const inlineMsg = document.getElementById('proc-inline-msg');
+  if (inlineMsg) { inlineMsg.textContent = msg; inlineMsg.style.color = msgColor; }
 }
 
 // ─── IMAGE HANDLING ───
